@@ -81,10 +81,10 @@ export default function Hub() {
             </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', marginBottom: '4px' }}>
-            <span>УРОВЕНЬ {userData?.level || 1}</span><span>{userData?.xp || 0} / {(userData?.level || 1) * 100}</span>
-          </div>
+<span>УРОВЕНЬ {userData?.level || 1}</span>
+<span>{Math.max(0, (userData?.xp || 0) - ([0,100,250,500,900,1400,2000,2700,3500,4400,5400][(userData?.level||1)-1]||0))} / {[100,150,250,400,500,600,700,800,900,1000,1100][(userData?.level||1)-1]||1100}</span>          </div>
           <div style={{ height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden' }}>
-            <div style={{ height: '100%', background: '#7b6cff', borderRadius: '2px', width: `${Math.min(((userData?.xp || 0) % 100), 100)}%`
+            <div style={{ height: '100%', background: '#7b6cff', borderRadius: '2px', width: `${Math.min((Math.max(0, (userData?.xp || 0) - ([0,100,250,500,900,1400,2000,2700,3500,4400][(userData?.level||1)-1]||0)) / ([100,150,250,400,500,600,700,800,900,1000,1100][(userData?.level||1)-1]||1100)) * 100, 100)}%`
  }}></div>
           </div>
         </div>

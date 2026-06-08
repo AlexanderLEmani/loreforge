@@ -43,9 +43,15 @@ function DebriefContent() {
     .single()
 
   if (userData) {
-    const newXP = userData.xp + xpGained
+    const thresholds = [0, 100, 250, 500, 900, 1400, 2000, 2700, 3500, 4400, 5400, 6500]
+    const currentThreshold = thresholds[(userData.level || 1) - 1] || 0
+    const nextThreshold = thresholds[userData.level || 1] || 6500
+    const xpInLevel = userData.xp - currentThreshold
+    const newXPInLevel = xpInLevel + xpGained
+    const newXP = currentThreshold + newXPInLevel
     const newGold = userData.gold + goldGained
-    const newLevel = Math.floor(newXP / 100) + 1
+    const newLevel = thresholds.findIndex(t => newXP < t)
+
 
     await supabase.from('users').update({
       xp: newXP,
