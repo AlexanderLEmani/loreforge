@@ -16,13 +16,30 @@ export default function Hub() {
         router.push('/')
         return
       }
+
+      // Сохраняем пользователя в БД если его там ещё нет
+      await supabase.from('users').upsert({
+        id: user.id,
+        email: user.email,
+        full_name: user.user_metadata?.full_name,
+        avatar_url: user.user_metadata?.avatar_url,
+      }, { onConflict: 'id' })
+
       setUser(user)
     }
     getUser()
   }, [])
 
   if (!user) return (
-    <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif' }}>
+    <div style={{
+      background: '#0b0c10',
+      height: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#9590a8',
+      fontFamily: 'serif'
+    }}>
       Загрузка...
     </div>
   )
@@ -35,7 +52,7 @@ export default function Hub() {
       fontFamily: 'serif',
       padding: '2rem'
     }}>
-      <h1 style={{ fontSize: '32px', marginBottom: '8px' }}>Добро пожаловать в LoreForge</h1>
+      <h1 style={{ fontSize: '32px', marginBottom: '8px' }}>LoreForge</h1>
       <p style={{ color: '#9590a8', marginBottom: '2rem' }}>
         Привет, {user.user_metadata?.full_name || user.email}
       </p>
