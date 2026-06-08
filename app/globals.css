@@ -5,3 +5,9 @@ body {
   color: #e0bc6a;
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes fadeUp {
+  0%   { opacity: 1; transform: translateY(0px); }
+  60%  { opacity: 1; transform: translateY(-15px); }
+  100% { opacity: 0; transform: translateY(-25px); }
+}
