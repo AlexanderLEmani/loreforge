@@ -14,19 +14,11 @@ const ATTACKS = [
   { id: 'heavy',  label: 'Тёмная магия', icon: '💀', desc: 'Сложная задача',  dmg: 50, playerDmg: 35, color: '#e05555', difficulty: 'hard'   },
 ]
 
-// Делим вопросы на сложность по индексу (временно, пока нет поля difficulty в БД)
 function getDifficultyPool(questions: any[], difficulty: string) {
-  const n = questions.length
-  const easy   = questions.slice(0, Math.ceil(n * 0.5))
-  const medium  = questions.slice(Math.ceil(n * 0.5), Math.ceil(n * 0.8))
-  const hard    = questions.slice(Math.ceil(n * 0.8))
-  if (difficulty === 'easy')   return easy.length   ? easy   : questions
-  if (difficulty === 'medium') return medium.length  ? medium : questions
-  if (difficulty === 'hard')   return hard.length    ? hard   : questions
-  return questions
+  const filtered = questions.filter((q: any) => q.difficulty === difficulty)
+  return filtered.length > 0 ? filtered : questions.filter((q: any) => q.difficulty === 'easy')
 }
 
-function pick(arr: any[]) { return arr[Math.floor(Math.random() * arr.length)] }
 
 function BattleContent() {
   const router = useRouter()
@@ -50,6 +42,8 @@ function BattleContent() {
   const [roundCount, setRoundCount] = useState(0)
   const [inputAnswer, setInputAnswer] = useState('')
   const [hardMode, setHardMode] = useState(false)
+  const [confirmEscape, setConfirmEscape] = useState(false)
+  const [usedIds, setUsedIds] = useState<Set<number>>(new Set())
 
   // Таймер защиты
   const [timer, setTimer] = useState(15)
@@ -91,7 +85,10 @@ function BattleContent() {
   function chooseAttack(atk: typeof ATTACKS[0]) {
     if (questions.length === 0) return
     const pool = getDifficultyPool(questions, atk.difficulty)
-    const q = pick(pool)
+const unused = pool.filter((q: any) => !usedIds.has(q.id))
+const source = unused.length > 0 ? unused : pool
+const q = source[Math.floor(Math.random() * source.length)]
+setUsedIds(prev => new Set([...prev, q.id]))
     setChosenAttack(atk)
     setCurrentQ(q)
     setSelected(null)
@@ -120,7 +117,9 @@ function BattleContent() {
       setSelected(null)
       if (newEnemyHP <= 0) { endBattle('win', newMistakes); return }
       // Ход монстра
-      const mq = pick(questions)
+      const unusedM = questions.filter((q: any) => !usedIds.has(q.id))
+const mq = (unusedM.length > 0 ? unusedM : questions)[Math.floor(Math.random() * (unusedM.length > 0 ? unusedM : questions).length)]
+setUsedIds(prev => new Set([...prev, mq.id]))
       setMonsterQ(mq)
       setPhase('monster_attack')
     }, 800)
@@ -147,7 +146,9 @@ function BattleContent() {
     setTimeout(() => {
       setSelected(null)
       if (newEnemyHP <= 0) { endBattle('win', newMistakes); return }
-      const mq = pick(questions)
+      const unusedM = questions.filter((q: any) => !usedIds.has(q.id))
+const mq = (unusedM.length > 0 ? unusedM : questions)[Math.floor(Math.random() * (unusedM.length > 0 ? unusedM : questions).length)]
+setUsedIds(prev => new Set([...prev, mq.id]))
       setMonsterQ(mq)
       setPhase('monster_attack')
     }, 800)
@@ -218,11 +219,29 @@ function BattleContent() {
           </div>
         </div>
 
-        <div style={{ marginTop: 'auto' }}>
-          <div onClick={() => router.push('/hub')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', fontSize: '13px', color: '#5a5670', cursor: 'pointer' }}>
-            ← В хаб
-          </div>
+        <div style={{ marginTop: '20px' }}>
+  <div onClick={() => setConfirmEscape(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', fontSize: '13px', color: '#e05555', cursor: 'pointer', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '7px' }}>
+    🏃 Бежать из данжа
+  </div>
+</div>
+
+{confirmEscape && (
+  <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+    <div style={{ background: '#1c1f2a', border: '1px solid rgba(224,85,85,0.3)', borderRadius: '14px', padding: '2rem', maxWidth: '320px', textAlign: 'center' }}>
+      <div style={{ fontSize: '36px', marginBottom: '12px' }}>🏃</div>
+      <div style={{ fontFamily: 'serif', fontSize: '20px', color: '#e6e2f0', marginBottom: '8px' }}>Сбежать из данжа?</div>
+      <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic', marginBottom: '20px' }}>Прогресс боя будет потерян. Трус живёт дольше.</div>
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <div onClick={() => setConfirmEscape(false)} style={{ flex: 1, padding: '10px', background: '#111318', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontFamily: 'monospace', fontSize: '12px', color: '#9590a8', cursor: 'pointer', textAlign: 'center' }}>
+          Остаться
         </div>
+        <div onClick={() => router.push('/hub')} style={{ flex: 1, padding: '10px', background: 'rgba(224,85,85,0.1)', border: '1px solid rgba(224,85,85,0.3)', borderRadius: '8px', fontFamily: 'monospace', fontSize: '12px', color: '#e05555', cursor: 'pointer', textAlign: 'center' }}>
+          Бежать
+        </div>
+      </div>
+    </div>
+  </div>
+)}
       </div>
 
       {/* АРЕНА */}
