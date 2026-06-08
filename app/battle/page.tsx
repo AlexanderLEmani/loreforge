@@ -26,16 +26,29 @@ export default function Battle() {
     if (selected !== null) return
     setSelected(idx)
     const correct = idx === q.correct
+    
+    let newMistakes = [...mistakes]
+    let newEnemyHP = enemyHP
+    let newPlayerHP = playerHP
 
     if (correct) {
-      const newEnemyHP = enemyHP - 25
+      newEnemyHP = enemyHP - 25
       setEnemyHP(newEnemyHP)
-      if (newEnemyHP <= 0) { setPhase('win'); return }
+      if (newEnemyHP <= 0) {
+        const correctCount = qIndex + 1 - newMistakes.length
+        router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${newMistakes.join('|')}`)
+        return
+      }
     } else {
-      setMistakes([...mistakes, q.question])
-      const newPlayerHP = playerHP - 20
+      newMistakes = [...mistakes, q.question]
+      setMistakes(newMistakes)
+      newPlayerHP = playerHP - 20
       setPlayerHP(newPlayerHP)
-      if (newPlayerHP <= 0) { setPhase('lose'); return }
+      if (newPlayerHP <= 0) {
+        const correctCount = qIndex - (newMistakes.length - 1)
+        router.push(`/debrief?result=lose&score=${correctCount}&total=${questions.length}&mistakes=${newMistakes.join('|')}`)
+        return
+      }
     }
 
     setTimeout(() => {
@@ -43,7 +56,8 @@ export default function Battle() {
       if (qIndex + 1 < questions.length) {
         setQIndex(qIndex + 1)
       } else {
-        setPhase('win')
+        const correctCount = questions.length - newMistakes.length
+        router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${newMistakes.join('|')}`)
       }
     }, 900)
   }

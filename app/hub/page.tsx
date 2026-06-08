@@ -9,6 +9,7 @@ export default function Hub() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
 
+
   useEffect(() => {
     async function getUser() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -137,7 +138,7 @@ export default function Hub() {
             { icon: '🔢', name: 'Пещера сложения', tag: 'Математика · Ур.1', desc: 'Сложение и вычитание до 100. Первый данж.', color: '#c9a84c' },
             { icon: '✕', name: 'Башня умножения', tag: 'Математика · Ур.2', desc: 'Таблица умножения. Открывается на Ур.2.', color: '#5a5670', locked: true },
           ].map((d) => (
-            <div key={d.name} style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '1rem', cursor: d.locked ? 'default' : 'pointer', opacity: d.locked ? 0.4 : 1, position: 'relative', overflow: 'hidden' }}>
+            <div key={d.name} onClick={() => !d.locked && router.push('/battle')} style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '1rem', cursor: d.locked ? 'default' : 'pointer', opacity: d.locked ? 0.4 : 1, position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: d.locked ? '#5a5670' : d.color }}></div>
               <div style={{ fontSize: '20px', marginBottom: '6px' }}>{d.icon}</div>
               <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0', marginBottom: '4px' }}>{d.name}</div>
