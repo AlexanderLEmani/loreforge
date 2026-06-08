@@ -9,6 +9,7 @@ export default function Battle() {
   const supabase = createClient()
   const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [currentUser, setCurrentUser] = useState<any>(null)
   const [qIndex, setQIndex] = useState(0)
   const [playerHP, setPlayerHP] = useState(100)
   const [enemyHP, setEnemyHP] = useState(80)
@@ -24,13 +25,21 @@ export default function Battle() {
         .order('question')
         .limit(5)
       if (data) setQuestions(data)
-      setLoading(false)
+        const { data: { user } } = await supabase.auth.getUser()
+        setCurrentUser(user)
+        setLoading(false)
     }
     loadQuestions()
   }, [])
 
-  function answer(idx: number) {
+  async function answer(idx: number) {
     if (selected !== null || questions.length === 0) return
+    if (currentUser) {
+  await supabase.rpc('increment_answers', { user_id: currentUser.id })
+  console.log('answer counted for', currentUser.id)
+} else {
+  console.log('no user found')
+}
     setSelected(idx)
     const q = questions[qIndex]
     const correct = idx === q.correct_index

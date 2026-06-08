@@ -24,7 +24,7 @@ export default function Hub() {
       setUser(user)
       const { data: ud } = await supabase
         .from('users')
-        .select('xp, level, gold, streak, last_visit, quest_first_dungeon')
+        .select('xp, level, gold, streak, last_visit, quest_first_dungeon, total_answers')
         .eq('id', user.id)
         .single()
     setUserData(ud)
@@ -193,7 +193,7 @@ export default function Hub() {
         </div>
         {[{ title: 'Пройти первый данж', prog: userData?.quest_first_dungeon ? 1 : 0, total: 1, xp: '+50 XP', done: !!userData?.quest_first_dungeon },
           
-          { title: 'Ответить на 10 вопросов', prog: 0, total: 10, xp: '+30 XP' },
+          { title: 'Ответить на 10 вопросов', prog: Math.min(userData?.total_answers || 0, 10), total: 10, xp: '+30 XP', done: (userData?.total_answers || 0) >= 10 },
           { title: 'Войти в игру', prog: 1, total: 1, xp: '+10 XP', done: true },
         ].map((q) => (
           <div key={q.title} style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px', marginBottom: '6px' }}>
