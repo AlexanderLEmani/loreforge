@@ -38,7 +38,7 @@ function DebriefContent() {
 
   const { data: userData } = await supabase
     .from('users')
-    .select('xp, level, gold')
+    .select('xp, level, gold, quest_first_dungeon')
     .eq('id', user.id)
     .single()
 
@@ -59,7 +59,12 @@ function DebriefContent() {
       gold: newGold,
     }).eq('id', user.id)
   }
-
+  // Отмечаем квест если первый данж
+    if (userData && !userData.quest_first_dungeon && result === 'win') {
+        await supabase.from('users').update({
+        quest_first_dungeon: true
+  }).eq('id', user.id)
+}
   setSaved(true)
 }
     saveRun()
