@@ -139,9 +139,9 @@ export default function Hub() {
             <div style={{ height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden', marginBottom: '3px' }}>
               <div style={{ height: '100%', background: '#c9a84c', borderRadius: '2px', width: '0%' }}></div>
             </div>
-            <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>Ур.1 · Начало пути</div>
+            <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>Ур.{userData?.level || 1} · {(userData?.total_answers || 0)} ответов дано</div>
           </div>
-          <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#c9a84c', textAlign: 'right' }}>1<div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#5a5670' }}>уровень</div></div>
+          <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#c9a84c', textAlign: 'right' }}>{userData?.level || 1}<div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#5a5670' }}>уровень</div></div>
         </div>
 
         {/* Физика — заблокирована */}
@@ -158,12 +158,13 @@ export default function Hub() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', textTransform: 'uppercase', marginBottom: '12px' }}>
           Данжи<div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px'}}>
           {[
-            { icon: '🔢', name: 'Пещера сложения', tag: 'Математика · Ур.1', desc: 'Сложение и вычитание до 100. Первый данж.', color: '#c9a84c' },
-            { icon: '✕', name: 'Башня умножения', tag: 'Математика · Ур.2', desc: 'Таблица умножения. Открывается на Ур.2.', color: '#5a5670', locked: true },
-          ].map((d) => (
-            <div key={d.name} onClick={() => !d.locked && router.push('/battle')} style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '1rem', cursor: d.locked ? 'default' : 'pointer', opacity: d.locked ? 0.4 : 1, position: 'relative', overflow: 'hidden' }}>
+  { icon: '➕', name: 'Пещера сложения', tag: 'Математика · Ур.1', desc: 'Сложение до 100. 10 вопросов.', color: '#c9a84c' },
+  { icon: '➖', name: 'Пещера вычитания', tag: 'Математика · Ур.1', desc: 'Вычитание до 100. 10 вопросов.', color: '#c9a84c' },
+  { icon: '✕', name: 'Башня умножения', tag: 'Математика · Ур.2', desc: 'Таблица умножения. Открывается на Ур.2.', color: '#c9a84c', locked: (userData?.level || 1) < 2 },
+].map((d) => (
+            <div key={d.name} onClick={() => !d.locked && router.push(`/battle?dungeon=${encodeURIComponent(d.name)}`)} style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '1rem', cursor: d.locked ? 'default' : 'pointer', opacity: d.locked ? 0.4 : 1, position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: d.locked ? '#5a5670' : d.color }}></div>
               <div style={{ fontSize: '20px', marginBottom: '6px' }}>{d.icon}</div>
               <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0', marginBottom: '4px' }}>{d.name}</div>

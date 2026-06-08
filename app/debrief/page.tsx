@@ -14,6 +14,7 @@ function DebriefContent() {
   const score = params.get('score') || '0'
   const total = params.get('total') || '5'
   const mistakesRaw = params.get('mistakes') || ''
+  const isHard = params.get('hard') === 'true'
   const mistakes = mistakesRaw ? decodeURIComponent(mistakesRaw).split('|') : []
   const pct = Math.round((parseInt(score) / parseInt(total)) * 100)
   useEffect(() => {
@@ -33,8 +34,9 @@ function DebriefContent() {
   })
 
   // Начисляем XP и золото
-  const xpGained = parseInt(score) * 10
-  const goldGained = parseInt(score) * 5
+  const xpGained = parseInt(score) * 10 * (isHard ? 2 : 1)
+  const goldGained = parseInt(score) * 5 * (isHard ? 2 : 1)
+  
 
   const { data: userData } = await supabase
     .from('users')

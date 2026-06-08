@@ -1,12 +1,16 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { Suspense } from 'react'
 
-export default function Battle() {
+function BattleContent() {
   const router = useRouter()
   const supabase = createClient()
+  const params = useSearchParams()
+  const dungeonName = params.get('dungeon') || 'Пещера сложения'
   const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -15,13 +19,16 @@ export default function Battle() {
   const [enemyHP, setEnemyHP] = useState(80)
   const [selected, setSelected] = useState<number | null>(null)
   const [mistakes, setMistakes] = useState<string[]>([])
+  const [hardMode, setHardMode] = useState(false)
+  const [inputAnswer, setInputAnswer] = useState('')
+  const [hardResult, setHardResult] = useState<'correct' | 'wrong' | null>(null)
 
   useEffect(() => {
     async function loadQuestions() {
       const { data } = await supabase
         .from('questions')
         .select('*')
-        .eq('dungeon_name', 'Пещера сложения')
+        .eq('dungeon_name', dungeonName)
         .order('question')
         .limit(5)
       if (data) setQuestions(data)
@@ -31,7 +38,52 @@ export default function Battle() {
     }
     loadQuestions()
   }, [])
+  async function answerHard() {
+  if (selected !== null || !inputAnswer) return
+  const correctAnswer = q.answers[q.correct_index]
+  const isCorrect = inputAnswer.trim() === correctAnswer.trim()
+  setSelected(isCorrect ? q.correct_index : -1)
+  setHardResult(isCorrect ? 'correct' : 'wrong')
+  setInputAnswer('')
+  
+  if (currentUser) {
+    await supabase.rpc('increment_answers', { user_id: currentUser.id })
+  }
 
+  let newMistakes = [...mistakes]
+  let newEnemyHP = enemyHP
+  let newPlayerHP = playerHP
+
+  if (isCorrect) {
+    newEnemyHP = enemyHP - 35
+    setEnemyHP(newEnemyHP)
+    if (newEnemyHP <= 0) {
+      const correctCount = questions.length - newMistakes.length
+      router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))}&hard=true`)
+      return
+    }
+  } else {
+    newMistakes = [...mistakes, q.question]
+    setMistakes(newMistakes)
+    newPlayerHP = playerHP - 20
+    setPlayerHP(newPlayerHP)
+    if (newPlayerHP <= 0) {
+      router.push(`/debrief?result=lose&score=${qIndex - (newMistakes.length-1)}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))}&hard=true`)
+      return
+    }
+  }
+
+  setTimeout(() => {
+    setSelected(null)
+    setHardResult(null)
+    if (qIndex + 1 < questions.length) {
+      setQIndex(qIndex + 1)
+    } else {
+      const correctCount = questions.length - newMistakes.length
+      router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))}&hard=true`)
+    }
+  }, 900)
+}
   async function answer(idx: number) {
     if (selected !== null || questions.length === 0) return
     if (currentUser) {
@@ -99,7 +151,7 @@ export default function Battle() {
       {/* ЛЕВЫЙ САЙДБАР */}
       <div style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}>
         <div style={{ background: 'rgba(224,85,85,0.11)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '8px', padding: '10px 12px', marginBottom: '14px' }}>
-          <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e05555' }}>Пещера сложения</div>
+          <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e05555' }}>{dungeonName}</div>
           <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '2px' }}>ВОПРОС {qIndex + 1} ИЗ {questions.length}</div>
         </div>
 
@@ -168,37 +220,57 @@ export default function Battle() {
 
         <div style={{ background: '#1c1f2a', border: '1px solid rgba(123,108,255,0.25)', borderRadius: '12px', padding: '1.5rem', marginBottom: '1.25rem', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(to right, transparent, rgba(123,108,255,0.4), transparent)' }}></div>
-          <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#a99fff', textTransform: 'uppercase', marginBottom: '10px' }}>▸ Математика · Сложение</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+  <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#a99fff', textTransform: 'uppercase' }}>▸ Математика · {dungeonName}</div>
+  <div onClick={() => setHardMode(!hardMode)} style={{ fontFamily: 'monospace', fontSize: '10px', padding: '3px 10px', border: `1px solid ${hardMode ? '#e0bc6a' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', color: hardMode ? '#e0bc6a' : '#5a5670', cursor: 'pointer' }}>
+    {hardMode ? '⚡ ХАРД 2x XP' : 'ОБЫЧНЫЙ'}
+  </div>
+</div>
           <div style={{ fontFamily: 'serif', fontSize: '38px', color: '#e6e2f0', marginBottom: '6px', lineHeight: 1.1 }}>{q.question}</div>
           <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic' }}>Правильный ответ наносит 25 урона демону</div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px', marginBottom: '1.25rem' }}>
-          {q.answers.map((ans: string, idx: number) => {
-            let bg = '#1c1f2a'
-            let border = 'rgba(255,255,255,0.06)'
-            let color = '#e6e2f0'
-            if (selected !== null) {
-              if (idx === q.correct_index) { bg = 'rgba(45,217,184,0.06)'; border = 'rgba(45,217,184,0.4)'; color = '#2dd9b8' }
-              else if (idx === selected) { bg = 'rgba(224,85,85,0.06)'; border = 'rgba(224,85,85,0.35)'; color = '#e05555' }
-            }
-            return (
-              <div key={idx} onClick={() => answer(idx)} style={{ background: bg, border: `1px solid ${border}`, borderRadius: '9px', padding: '14px', textAlign: 'center', fontFamily: 'serif', fontSize: '22px', color, cursor: selected !== null ? 'default' : 'pointer', transition: 'all 0.18s' }}>
-                {ans}
-              </div>
-            )
-          })}
+        {hardMode ? (
+  <div style={{ marginBottom: '1.25rem', display: 'flex', gap: '10px' }}>
+    <input
+      type="number"
+      value={inputAnswer}
+      onChange={e => setInputAnswer(e.target.value)}
+      onKeyDown={e => e.key === 'Enter' && answerHard()}
+      placeholder="Введи ответ..."
+      style={{ flex: 1, background: hardResult === 'correct' ? 'rgba(45,217,184,0.06)' : hardResult === 'wrong' ? 'rgba(224,85,85,0.06)' : '#1c1f2a', border: `1px solid ${hardResult === 'correct' ? 'rgba(45,217,184,0.4)' : hardResult === 'wrong' ? 'rgba(224,85,85,0.35)' : 'rgba(123,108,255,0.35)'}`,borderRadius: '9px', padding: '14px', fontSize: '22px', color: '#e6e2f0', fontFamily: 'serif', outline: 'none' }}
+      disabled={selected !== null}
+    />
+    <div onClick={answerHard} style={{ padding: '14px 24px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: '9px', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#e0bc6a' }}>
+      ✓
+    </div>
+  </div>
+) : (
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px', marginBottom: '1.25rem' }}>
+    {q.answers.map((ans: string, idx: number) => {
+      let bg = '#1c1f2a'
+      let border = 'rgba(255,255,255,0.06)'
+      let color = '#e6e2f0'
+      if (selected !== null) {
+        if (idx === q.correct_index) { bg = 'rgba(45,217,184,0.06)'; border = 'rgba(45,217,184,0.4)'; color = '#2dd9b8' }
+        else if (idx === selected) { bg = 'rgba(224,85,85,0.06)'; border = 'rgba(224,85,85,0.35)'; color = '#e05555' }
+      }
+      return (
+        <div key={idx} onClick={() => answer(idx)} style={{ background: bg, border: `1px solid ${border}`, borderRadius: '9px', padding: '14px', textAlign: 'center', fontFamily: 'serif', fontSize: '22px', color, cursor: selected !== null ? 'default' : 'pointer', transition: 'all 0.18s' }}>
+          {ans}
         </div>
-
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {[['⚡', 'Атаковать', true], ['🛡️', 'Защититься', false], ['🧪', 'Зелье (×3)', false], ['🚪', 'Отступить', false]].map(([icon, label, primary]) => (
-            <div key={label as string} onClick={label === 'Отступить' ? () => router.push('/hub') : undefined} style={{ flex: 1, padding: '11px 6px', background: primary ? 'rgba(201,168,76,0.12)' : '#1c1f2a', border: `1px solid ${primary ? 'rgba(201,168,76,0.3)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '8px', cursor: 'pointer', textAlign: 'center' }}>
-              <div style={{ fontSize: '16px', marginBottom: '2px' }}>{icon as string}</div>
-              <div style={{ fontSize: '12px', color: '#9590a8' }}>{label as string}</div>
-            </div>
-          ))}
+      )
+    })}
+  </div>
+)}
         </div>
       </div>
-    </div>
+  )
+}
+export default function Battle() {
+  return (
+    <Suspense>
+      <BattleContent />
+    </Suspense>
   )
 }
