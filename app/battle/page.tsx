@@ -36,7 +36,8 @@ export default function Battle() {
       setEnemyHP(newEnemyHP)
       if (newEnemyHP <= 0) {
         const correctCount = qIndex + 1 - newMistakes.length
-        router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${newMistakes.join('|')}`)
+        router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))
+}`)
         return
       }
     } else {
@@ -46,7 +47,8 @@ export default function Battle() {
       setPlayerHP(newPlayerHP)
       if (newPlayerHP <= 0) {
         const correctCount = qIndex - (newMistakes.length - 1)
-        router.push(`/debrief?result=lose&score=${correctCount}&total=${questions.length}&mistakes=${newMistakes.join('|')}`)
+        router.push(`/debrief?result=lose&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))
+}`)
         return
       }
     }
@@ -57,7 +59,8 @@ export default function Battle() {
         setQIndex(qIndex + 1)
       } else {
         const correctCount = questions.length - newMistakes.length
-        router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${newMistakes.join('|')}`)
+        router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))
+}`)
       }
     }, 900)
   }

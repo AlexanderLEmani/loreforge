@@ -1,17 +1,38 @@
 'use client'
 
+import { createClient } from '@/lib/supabase'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 
 function DebriefContent() {
   const router = useRouter()
   const params = useSearchParams()
+  const supabase = createClient()
+  const [saved, setSaved] = useState(false)
   const result = params.get('result') // 'win' or 'lose'
   const score = params.get('score') || '0'
   const total = params.get('total') || '5'
   const mistakesRaw = params.get('mistakes') || ''
-  const mistakes = mistakesRaw ? mistakesRaw.split('|') : []
+  const mistakes = mistakesRaw ? decodeURIComponent(mistakesRaw).split('|') : []
   const pct = Math.round((parseInt(score) / parseInt(total)) * 100)
+  useEffect(() => {
+    async function saveRun() {
+      if (saved) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      await supabase.from('dungeon_runs').insert({
+        user_id: user.id,
+        dungeon_name: 'Пещера сложения',
+        score: parseInt(score),
+        total: parseInt(total),
+        result: result || 'win',
+        mistakes: mistakes,
+      })
+      setSaved(true)
+    }
+    saveRun()
+  }, [])
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif', padding: '3rem 2rem' }}>
