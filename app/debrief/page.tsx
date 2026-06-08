@@ -18,19 +18,44 @@ function DebriefContent() {
   const pct = Math.round((parseInt(score) / parseInt(total)) * 100)
   useEffect(() => {
     async function saveRun() {
-      if (saved) return
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      await supabase.from('dungeon_runs').insert({
-        user_id: user.id,
-        dungeon_name: 'Пещера сложения',
-        score: parseInt(score),
-        total: parseInt(total),
-        result: result || 'win',
-        mistakes: mistakes,
-      })
-      setSaved(true)
-    }
+  if (saved) return
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+  
+  // Сохраняем прохождение
+  await supabase.from('dungeon_runs').insert({
+    user_id: user.id,
+    dungeon_name: 'Пещера сложения',
+    score: parseInt(score),
+    total: parseInt(total),
+    result: result || 'win',
+    mistakes: mistakes,
+  })
+
+  // Начисляем XP и золото
+  const xpGained = parseInt(score) * 10
+  const goldGained = parseInt(score) * 5
+
+  const { data: userData } = await supabase
+    .from('users')
+    .select('xp, level, gold')
+    .eq('id', user.id)
+    .single()
+
+  if (userData) {
+    const newXP = userData.xp + xpGained
+    const newGold = userData.gold + goldGained
+    const newLevel = Math.floor(newXP / 100) + 1
+
+    await supabase.from('users').update({
+      xp: newXP,
+      level: newLevel,
+      gold: newGold,
+    }).eq('id', user.id)
+  }
+
+  setSaved(true)
+}
     saveRun()
   }, [])
 
@@ -47,6 +72,14 @@ function DebriefContent() {
           <div style={{ fontSize: '17px', color: '#9590a8', fontStyle: 'italic' }}>
             Ошибки — это карта пробелов. Изучи внимательно.
           </div>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '12px' }}>
+  <div style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: '8px', padding: '8px 20px', fontFamily: 'monospace', fontSize: '14px', color: '#e0bc6a' }}>
+    +{parseInt(score) * 10} XP
+  </div>
+  <div style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: '8px', padding: '8px 20px', fontFamily: 'monospace', fontSize: '14px', color: '#e0bc6a' }}>
+    +{parseInt(score) * 5} 💰
+  </div>
+</div>
         </div>
 
         {/* Результат + ошибки */}

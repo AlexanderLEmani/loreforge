@@ -8,6 +8,7 @@ export default function Hub() {
   const supabase = createClient()
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
+  const [userData, setUserData] = useState<any>(null)
 
 
   useEffect(() => {
@@ -21,6 +22,12 @@ export default function Hub() {
         avatar_url: user.user_metadata?.avatar_url,
       }, { onConflict: 'id' })
       setUser(user)
+      const { data: ud } = await supabase
+        .from('users')
+        .select('xp, level, gold')
+        .eq('id', user.id)
+        .single()
+    setUserData(ud)
     }
     getUser()
   }, [])
@@ -57,10 +64,11 @@ export default function Hub() {
             </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', marginBottom: '4px' }}>
-            <span>УРОВЕНЬ 1</span><span>0 / 100</span>
+            <span>УРОВЕНЬ {userData?.level || 1}</span><span>{userData?.xp || 0} / {(userData?.level || 1) * 100}</span>
           </div>
           <div style={{ height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden' }}>
-            <div style={{ height: '100%', background: '#7b6cff', borderRadius: '2px', width: '0%' }}></div>
+            <div style={{ height: '100%', background: '#7b6cff', borderRadius: '2px', width: `${Math.min(((userData?.xp || 0) % 100), 100)}%`
+ }}></div>
           </div>
         </div>
 
@@ -68,7 +76,7 @@ export default function Hub() {
         <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>
           Ресурсы
         </div>
-        {[['💰', 'Золото', '0'], ['📜', 'Свитки', '0'], ['🧪', 'Зелья', '0'], ['⭐', 'Слава', '0']].map(([icon, name, val]) => (
+        {[['💰', 'Золото', userData?.gold || '0'], ['📜', 'Свитки', '0'], ['🧪', 'Зелья', '0'], ['⭐', 'Слава', '0']].map(([icon, name, val]) => (
           <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '13px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9590a8' }}><span>{icon}</span>{name}</div>
             <div style={{ fontFamily: 'monospace', fontSize: '12px', color: '#e0bc6a' }}>{val}</div>

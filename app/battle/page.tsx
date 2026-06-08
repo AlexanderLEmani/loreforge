@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const questions = [
-  { question: '15 + 28 = ?', answers: ['41', '43', '42', '44'], correct: 2 },
+  { question: '15 + 28 = ?', answers: ['41', '43', '42', '44'], correct: 1 },
   { question: '67 - 39 = ?', answers: ['28', '31', '27', '29'], correct: 0 },
   { question: '8 + 47 = ?', answers: ['54', '55', '56', '57'], correct: 1 },
   { question: '93 - 56 = ?', answers: ['36', '38', '37', '35'], correct: 2 },
@@ -35,7 +35,7 @@ export default function Battle() {
       newEnemyHP = enemyHP - 25
       setEnemyHP(newEnemyHP)
       if (newEnemyHP <= 0) {
-        const correctCount = qIndex + 1 - newMistakes.length
+        const correctCount = questions.length - newMistakes.length
         router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))
 }`)
         return
