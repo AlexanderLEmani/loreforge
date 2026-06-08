@@ -1,272 +1,375 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Suspense } from 'react'
+
+type Phase = 'choose_attack' | 'player_attack' | 'monster_attack' | 'result_flash'
+
+const ATTACKS = [
+  { id: 'light',  label: 'Кулак',        icon: '👊', desc: 'Лёгкая задача',   dmg: 15, playerDmg: 10, color: '#3db87a', difficulty: 'easy'   },
+  { id: 'medium', label: 'Заклятье',     icon: '🔥', desc: 'Средняя задача',  dmg: 28, playerDmg: 20, color: '#a99fff', difficulty: 'medium' },
+  { id: 'heavy',  label: 'Тёмная магия', icon: '💀', desc: 'Сложная задача',  dmg: 50, playerDmg: 35, color: '#e05555', difficulty: 'hard'   },
+]
+
+// Делим вопросы на сложность по индексу (временно, пока нет поля difficulty в БД)
+function getDifficultyPool(questions: any[], difficulty: string) {
+  const n = questions.length
+  const easy   = questions.slice(0, Math.ceil(n * 0.5))
+  const medium  = questions.slice(Math.ceil(n * 0.5), Math.ceil(n * 0.8))
+  const hard    = questions.slice(Math.ceil(n * 0.8))
+  if (difficulty === 'easy')   return easy.length   ? easy   : questions
+  if (difficulty === 'medium') return medium.length  ? medium : questions
+  if (difficulty === 'hard')   return hard.length    ? hard   : questions
+  return questions
+}
+
+function pick(arr: any[]) { return arr[Math.floor(Math.random() * arr.length)] }
 
 function BattleContent() {
   const router = useRouter()
   const supabase = createClient()
   const params = useSearchParams()
   const dungeonName = params.get('dungeon') || 'Пещера сложения'
+
   const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
-  const [qIndex, setQIndex] = useState(0)
+
+  const [phase, setPhase] = useState<Phase>('choose_attack')
+  const [chosenAttack, setChosenAttack] = useState<typeof ATTACKS[0] | null>(null)
+  const [currentQ, setCurrentQ] = useState<any>(null)
+  const [monsterQ, setMonsterQ] = useState<any>(null)
+
   const [playerHP, setPlayerHP] = useState(100)
-  const [enemyHP, setEnemyHP] = useState(80)
+  const [enemyHP, setEnemyHP] = useState(100)
   const [selected, setSelected] = useState<number | null>(null)
   const [mistakes, setMistakes] = useState<string[]>([])
-  const [hardMode, setHardMode] = useState(false)
+  const [roundCount, setRoundCount] = useState(0)
   const [inputAnswer, setInputAnswer] = useState('')
-  const [hardResult, setHardResult] = useState<'correct' | 'wrong' | null>(null)
+  const [hardMode, setHardMode] = useState(false)
+
+  // Таймер защиты
+  const [timer, setTimer] = useState(15)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Флэш результата
+  const [flashMsg, setFlashMsg] = useState('')
+  const [flashColor, setFlashColor] = useState('')
 
   useEffect(() => {
-    async function loadQuestions() {
-      const { data } = await supabase
-        .from('questions')
-        .select('*')
-        .eq('dungeon_name', dungeonName)
-        .order('question')
-        .limit(5)
+    async function load() {
+      const { data } = await supabase.from('questions').select('*').eq('dungeon_name', dungeonName).limit(30)
       if (data) setQuestions(data)
-        const { data: { user } } = await supabase.auth.getUser()
-        setCurrentUser(user)
-        setLoading(false)
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUser(user)
+      setLoading(false)
     }
-    loadQuestions()
+    load()
   }, [])
-  async function answerHard() {
-  if (selected !== null || !inputAnswer) return
-  const correctAnswer = q.answers[q.correct_index]
-  const isCorrect = inputAnswer.trim() === correctAnswer.trim()
-  setSelected(isCorrect ? q.correct_index : -1)
-  setHardResult(isCorrect ? 'correct' : 'wrong')
-  setInputAnswer('')
-  
-  if (currentUser) {
-    await supabase.rpc('increment_answers', { user_id: currentUser.id })
+
+  // Таймер монстра
+  useEffect(() => {
+    if (phase !== 'monster_attack') { if (timerRef.current) clearInterval(timerRef.current); return }
+    setTimer(15)
+    timerRef.current = setInterval(() => {
+      setTimer(t => {
+        if (t <= 1) { clearInterval(timerRef.current!); handleDefend(-1, true); return 0 }
+        return t - 1
+      })
+    }, 1000)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [phase, monsterQ])
+
+  function flash(msg: string, color: string, cb: () => void) {
+    setFlashMsg(msg); setFlashColor(color); setPhase('result_flash')
+    setTimeout(() => { setFlashMsg(''); cb() }, 900)
   }
 
-  let newMistakes = [...mistakes]
-  let newEnemyHP = enemyHP
-  let newPlayerHP = playerHP
-
-  if (isCorrect) {
-    newEnemyHP = enemyHP - 35
-    setEnemyHP(newEnemyHP)
-    if (newEnemyHP <= 0) {
-      const correctCount = questions.length - newMistakes.length
-      router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))}&hard=true`)
-      return
-    }
-  } else {
-    newMistakes = [...mistakes, q.question]
-    setMistakes(newMistakes)
-    newPlayerHP = playerHP - 20
-    setPlayerHP(newPlayerHP)
-    if (newPlayerHP <= 0) {
-      router.push(`/debrief?result=lose&score=${qIndex - (newMistakes.length-1)}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))}&hard=true`)
-      return
-    }
-  }
-
-  setTimeout(() => {
+  function chooseAttack(atk: typeof ATTACKS[0]) {
+    if (questions.length === 0) return
+    const pool = getDifficultyPool(questions, atk.difficulty)
+    const q = pick(pool)
+    setChosenAttack(atk)
+    setCurrentQ(q)
     setSelected(null)
-    setHardResult(null)
-    if (qIndex + 1 < questions.length) {
-      setQIndex(qIndex + 1)
-    } else {
-      const correctCount = questions.length - newMistakes.length
-      router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))}&hard=true`)
-    }
-  }, 900)
-}
-  async function answer(idx: number) {
-    if (selected !== null || questions.length === 0) return
-    if (currentUser) {
-  await supabase.rpc('increment_answers', { user_id: currentUser.id })
-  console.log('answer counted for', currentUser.id)
-} else {
-  console.log('no user found')
-}
-    setSelected(idx)
-    const q = questions[qIndex]
-    const correct = idx === q.correct_index
+    setInputAnswer('')
+    setPhase('player_attack')
+  }
 
-    let newMistakes = [...mistakes]
+  async function handleAttack(idx: number) {
+    if (selected !== null || !currentQ || !chosenAttack) return
+    if (currentUser) await supabase.rpc('increment_answers', { user_id: currentUser.id })
+    setSelected(idx)
+    const correct = idx === currentQ.correct_index
+
     let newEnemyHP = enemyHP
-    let newPlayerHP = playerHP
+    let newMistakes = [...mistakes]
 
     if (correct) {
-      newEnemyHP = enemyHP - 25
+      newEnemyHP = Math.max(0, enemyHP - chosenAttack.dmg)
       setEnemyHP(newEnemyHP)
-      if (newEnemyHP <= 0) {
-        const correctCount = questions.length - newMistakes.length
-        router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))}`)
-        return
-      }
     } else {
-      newMistakes = [...mistakes, q.question]
+      newMistakes = [...mistakes, currentQ.question]
       setMistakes(newMistakes)
-      newPlayerHP = playerHP - 20
-      setPlayerHP(newPlayerHP)
-      if (newPlayerHP <= 0) {
-        const correctCount = qIndex - (newMistakes.length - 1)
-        router.push(`/debrief?result=lose&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))}`)
-        return
-      }
     }
 
     setTimeout(() => {
       setSelected(null)
-      if (qIndex + 1 < questions.length) {
-        setQIndex(qIndex + 1)
-      } else {
-        const correctCount = questions.length - newMistakes.length
-        router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))}`)
-      }
-    }, 900)
+      if (newEnemyHP <= 0) { endBattle('win', newMistakes); return }
+      // Ход монстра
+      const mq = pick(questions)
+      setMonsterQ(mq)
+      setPhase('monster_attack')
+    }, 800)
   }
 
-  if (loading) return (
-    <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
-      Загрузка данжа...
-    </div>
-  )
+  async function handleAttackHard() {
+    if (selected !== null || !inputAnswer || !currentQ || !chosenAttack) return
+    if (currentUser) await supabase.rpc('increment_answers', { user_id: currentUser.id })
+    const correct = inputAnswer.trim() === currentQ.answers[currentQ.correct_index].trim()
+    setSelected(correct ? currentQ.correct_index : -1)
+    setInputAnswer('')
 
-  if (questions.length === 0) return (
-    <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
-      Вопросы не найдены
-    </div>
-  )
+    let newEnemyHP = enemyHP
+    let newMistakes = [...mistakes]
 
-  const q = questions[qIndex]
+    if (correct) {
+      newEnemyHP = Math.max(0, enemyHP - chosenAttack.dmg * 1.5)
+      setEnemyHP(newEnemyHP)
+    } else {
+      newMistakes = [...mistakes, currentQ.question]
+      setMistakes(newMistakes)
+    }
+
+    setTimeout(() => {
+      setSelected(null)
+      if (newEnemyHP <= 0) { endBattle('win', newMistakes); return }
+      const mq = pick(questions)
+      setMonsterQ(mq)
+      setPhase('monster_attack')
+    }, 800)
+  }
+
+  function handleDefend(idx: number, timeout = false) {
+    if (timerRef.current) clearInterval(timerRef.current)
+    if (!monsterQ) return
+    const correct = !timeout && idx === monsterQ.correct_index
+    let newPlayerHP = playerHP
+    let newMistakes = [...mistakes]
+
+    if (!correct) {
+      const dmg = timeout ? 30 : 20
+      newPlayerHP = Math.max(0, playerHP - dmg)
+      setPlayerHP(newPlayerHP)
+      newMistakes = [...mistakes, monsterQ.question]
+      setMistakes(newMistakes)
+      flash(timeout ? '⏰ Время вышло! -' + dmg + ' HP' : '💥 Удар нанесён! -' + dmg + ' HP', '#e05555', () => {
+        if (newPlayerHP <= 0) { endBattle('lose', newMistakes); return }
+        setRoundCount(r => r + 1)
+        setPhase('choose_attack')
+      })
+    } else {
+      flash('🛡️ Заблокировано!', '#3db87a', () => {
+        setRoundCount(r => r + 1)
+        setPhase('choose_attack')
+      })
+    }
+  }
+
+  function endBattle(result: 'win' | 'lose', finalMistakes: string[]) {
+    const score = roundCount + 1 - finalMistakes.length
+    router.push(`/debrief?result=${result}&score=${Math.max(0, score)}&total=${roundCount + 1}&mistakes=${encodeURIComponent(finalMistakes.join('|'))}`)
+  }
+
+  if (loading) return <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>Загрузка данжа...</div>
+  if (questions.length === 0) return <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>Вопросы не найдены</div>
+
+  const playerHPpct = playerHP
+  const enemyHPpct = Math.max(0, (enemyHP / 100) * 100)
 
   return (
-    <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif', display: 'grid', gridTemplateColumns: '256px 1fr' }}>
+    <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif', display: 'grid', gridTemplateColumns: '240px 1fr' }}>
 
-      {/* ЛЕВЫЙ САЙДБАР */}
-      <div style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}>
-        <div style={{ background: 'rgba(224,85,85,0.11)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '8px', padding: '10px 12px', marginBottom: '14px' }}>
+      {/* САЙДБАР */}
+      <div style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ background: 'rgba(224,85,85,0.11)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '8px', padding: '10px 12px' }}>
           <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e05555' }}>{dungeonName}</div>
-          <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '2px' }}>ВОПРОС {qIndex + 1} ИЗ {questions.length}</div>
+          <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '2px' }}>РАУНД {roundCount + 1}</div>
         </div>
 
-        <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>Заклинания</div>
-        {[['➕', 'Удар сложения', '20 дмг', true], ['✕', 'Вихрь умножения', '🔒 Ур.2', false]].map(([icon, name, pow, active]) => (
-          <div key={name as string} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', background: active ? 'rgba(201,168,76,0.12)' : '#1c1f2a', border: `1px solid ${active ? 'rgba(201,168,76,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '7px', marginBottom: '5px', opacity: active ? 1 : 0.4 }}>
-            <div style={{ width: '28px', height: '28px', background: '#171920', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px' }}>{icon as string}</div>
-            <div style={{ flex: 1, fontSize: '12px', color: '#e6e2f0' }}>{name as string}</div>
-            <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#e0bc6a' }}>{pow as string}</div>
+        <div>
+          <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '8px' }}>Атаки</div>
+          {ATTACKS.map(atk => (
+            <div key={atk.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', background: '#1c1f2a', border: `1px solid rgba(255,255,255,0.06)`, borderRadius: '7px', marginBottom: '4px' }}>
+              <span style={{ fontSize: '14px' }}>{atk.icon}</span>
+              <div style={{ flex: 1, fontSize: '12px', color: '#9590a8' }}>{atk.label}</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: atk.color }}>+{atk.dmg}</div>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '8px' }}>Режим</div>
+          <div onClick={() => setHardMode(!hardMode)} style={{ padding: '7px 10px', background: hardMode ? 'rgba(201,168,76,0.12)' : '#1c1f2a', border: `1px solid ${hardMode ? 'rgba(201,168,76,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '7px', fontFamily: 'monospace', fontSize: '11px', color: hardMode ? '#e0bc6a' : '#5a5670', cursor: 'pointer', textAlign: 'center' }}>
+            {hardMode ? '⚡ ХАРД 2x XP' : 'ОБЫЧНЫЙ'}
           </div>
-        ))}
-
-        <div style={{ marginTop: '14px', fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>Инвентарь</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '13px', color: '#9590a8' }}>
-          <span>🧪 Зелья HP</span><span style={{ fontFamily: 'monospace', color: '#e6e2f0' }}>×3</span>
         </div>
 
-        <div onClick={() => router.push('/hub')} style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', fontSize: '14px', color: '#5a5670', cursor: 'pointer' }}>
-          ← В хаб
+        <div style={{ marginTop: 'auto' }}>
+          <div onClick={() => router.push('/hub')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', fontSize: '13px', color: '#5a5670', cursor: 'pointer' }}>
+            ← В хаб
+          </div>
         </div>
       </div>
 
-      {/* ОСНОВНАЯ АРЕНА */}
-      <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column' }}>
+      {/* АРЕНА */}
+      <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', letterSpacing: '0.1em' }}>HP</span>
-            <div style={{ width: '150px', height: '5px', background: '#171920', borderRadius: '3px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ height: '100%', background: '#3db87a', borderRadius: '3px', width: `${playerHP}%`, transition: 'width 0.3s' }}></div>
-            </div>
-            <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#e6e2f0' }}>{playerHP} / 100</span>
-          </div>
-          <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670', letterSpacing: '0.1em' }}>
-            ВОПРОС {qIndex + 1} / {questions.length}
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 56px 1fr', gap: '1rem', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '1.25rem', textAlign: 'center' }}>
-            <div style={{ width: '60px', height: '60px', margin: '0 auto 10px', borderRadius: '10px', background: 'rgba(123,108,255,0.13)', border: '1px solid rgba(123,108,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>🧙</div>
-            <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e6e2f0', marginBottom: '4px' }}>Аркан</div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>{playerHP}</span>
-              <div style={{ width: '80px', height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', background: '#3db87a', width: `${playerHP}%`, transition: 'width 0.3s' }}></div>
+        {/* HP бары */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 40px 1fr', gap: '1rem', alignItems: 'center' }}>
+          {/* Игрок */}
+          <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ fontSize: '32px' }}>🧙</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e6e2f0', marginBottom: '5px' }}>Аркан</div>
+              <div style={{ height: '5px', background: '#171920', borderRadius: '3px', overflow: 'hidden', marginBottom: '3px' }}>
+                <div style={{ height: '100%', background: playerHP > 40 ? '#3db87a' : '#e0bc6a', width: `${playerHPpct}%`, transition: 'width 0.4s' }}></div>
               </div>
-              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>100</span>
+              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>{playerHP} / 100 HP</div>
             </div>
           </div>
-
-          <div style={{ fontFamily: 'serif', fontSize: '24px', color: '#5a5670', textAlign: 'center' }}>vs</div>
-
-          <div style={{ background: 'rgba(224,85,85,0.03)', border: '1px solid rgba(224,85,85,0.25)', borderRadius: '12px', padding: '1.25rem', textAlign: 'center' }}>
-            <div style={{ width: '60px', height: '60px', margin: '0 auto 10px', borderRadius: '10px', background: 'rgba(224,85,85,0.11)', border: '1px solid rgba(224,85,85,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>👹</div>
-            <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e05555', marginBottom: '4px' }}>Демон сложения</div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>{Math.max(0, enemyHP)}</span>
-              <div style={{ width: '80px', height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', background: '#e05555', width: `${Math.max(0, (enemyHP / 80) * 100)}%`, transition: 'width 0.3s' }}></div>
+          <div style={{ fontFamily: 'serif', fontSize: '20px', color: '#5a5670', textAlign: 'center' }}>⚔️</div>
+          {/* Монстр */}
+          <div style={{ background: 'rgba(224,85,85,0.04)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', flexDirection: 'row-reverse' }}>
+            <div style={{ fontSize: '32px' }}>👹</div>
+            <div style={{ flex: 1, textAlign: 'right' }}>
+              <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e05555', marginBottom: '5px' }}>Демон {dungeonName.split(' ')[1] || ''}</div>
+              <div style={{ height: '5px', background: '#171920', borderRadius: '3px', overflow: 'hidden', marginBottom: '3px' }}>
+                <div style={{ height: '100%', background: '#e05555', width: `${enemyHPpct}%`, transition: 'width 0.4s', marginLeft: 'auto' }}></div>
               </div>
-              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>80</span>
+              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>{enemyHP} / 100 HP</div>
             </div>
           </div>
         </div>
 
-        <div style={{ background: '#1c1f2a', border: '1px solid rgba(123,108,255,0.25)', borderRadius: '12px', padding: '1.5rem', marginBottom: '1.25rem', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(to right, transparent, rgba(123,108,255,0.4), transparent)' }}></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-  <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#a99fff', textTransform: 'uppercase' }}>▸ Математика · {dungeonName}</div>
-  <div onClick={() => setHardMode(!hardMode)} style={{ fontFamily: 'monospace', fontSize: '10px', padding: '3px 10px', border: `1px solid ${hardMode ? '#e0bc6a' : 'rgba(255,255,255,0.1)'}`, borderRadius: '4px', color: hardMode ? '#e0bc6a' : '#5a5670', cursor: 'pointer' }}>
-    {hardMode ? '⚡ ХАРД 2x XP' : 'ОБЫЧНЫЙ'}
-  </div>
-</div>
-          <div style={{ fontFamily: 'serif', fontSize: '38px', color: '#e6e2f0', marginBottom: '6px', lineHeight: 1.1 }}>{q.question}</div>
-          <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic' }}>Правильный ответ наносит 25 урона демону</div>
-        </div>
+        {/* ФЛЭШ */}
+        {phase === 'result_flash' && (
+          <div style={{ background: '#1c1f2a', border: `1px solid ${flashColor}`, borderRadius: '12px', padding: '2rem', textAlign: 'center', fontFamily: 'serif', fontSize: '28px', color: flashColor }}>
+            {flashMsg}
+          </div>
+        )}
 
-        {hardMode ? (
-  <div style={{ marginBottom: '1.25rem', display: 'flex', gap: '10px' }}>
-    <input
-      type="number"
-      value={inputAnswer}
-      onChange={e => setInputAnswer(e.target.value)}
-      onKeyDown={e => e.key === 'Enter' && answerHard()}
-      placeholder="Введи ответ..."
-      style={{ flex: 1, background: hardResult === 'correct' ? 'rgba(45,217,184,0.06)' : hardResult === 'wrong' ? 'rgba(224,85,85,0.06)' : '#1c1f2a', border: `1px solid ${hardResult === 'correct' ? 'rgba(45,217,184,0.4)' : hardResult === 'wrong' ? 'rgba(224,85,85,0.35)' : 'rgba(123,108,255,0.35)'}`,borderRadius: '9px', padding: '14px', fontSize: '22px', color: '#e6e2f0', fontFamily: 'serif', outline: 'none' }}
-      disabled={selected !== null}
-    />
-    <div onClick={answerHard} style={{ padding: '14px 24px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: '9px', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#e0bc6a' }}>
-      ✓
+        {/* ФАЗ: ВЫБОР АТАКИ */}
+        {phase === 'choose_attack' && (
+          <div>
+            <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '14px' }}>▸ Выбери атаку</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              {ATTACKS.map(atk => (
+                <div key={atk.id} onClick={() => chooseAttack(atk)} style={{ background: '#1c1f2a', border: `1px solid rgba(255,255,255,0.08)`, borderRadius: '12px', padding: '1.5rem 1rem', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s', position: 'relative', overflow: 'hidden' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.border = `1px solid ${atk.color}` }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.border = '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: atk.color }}></div>
+                  <div style={{ fontSize: '36px', marginBottom: '10px' }}>{atk.icon}</div>
+                  <div style={{ fontFamily: 'serif', fontSize: '16px', color: '#e6e2f0', marginBottom: '4px' }}>{atk.label}</div>
+                  <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic', marginBottom: '10px' }}>{atk.desc}</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '20px', color: atk.color }}>+{atk.dmg}</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670' }}>урона</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: '10px', fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', textAlign: 'center' }}>
+              Сложнее задача → больше урона → выше риск ошибки
+            </div>
+          </div>
+        )}
+
+        {/* ФАЗ: АТАКА ИГРОКА */}
+        {phase === 'player_attack' && currentQ && chosenAttack && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '20px' }}>{chosenAttack.icon}</span>
+              <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: chosenAttack.color, textTransform: 'uppercase' }}>
+                {chosenAttack.label} · +{chosenAttack.dmg} урона
+              </div>
+            </div>
+
+            <div style={{ background: '#1c1f2a', border: `1px solid rgba(123,108,255,0.25)`, borderRadius: '12px', padding: '1.5rem', marginBottom: '1rem', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(to right, transparent, rgba(123,108,255,0.4), transparent)' }}></div>
+              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginBottom: '10px', letterSpacing: '0.1em' }}>▸ {dungeonName.toUpperCase()}</div>
+              <div style={{ fontFamily: 'serif', fontSize: '42px', color: '#e6e2f0', lineHeight: 1.1 }}>{currentQ.question}</div>
+            </div>
+
+            {hardMode ? (
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input type="number" value={inputAnswer} onChange={e => setInputAnswer(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAttackHard()}
+                  placeholder="Введи ответ..." disabled={selected !== null}
+                  style={{ flex: 1, background: '#1c1f2a', border: '1px solid rgba(123,108,255,0.35)', borderRadius: '9px', padding: '14px', fontSize: '22px', color: '#e6e2f0', fontFamily: 'serif', outline: 'none' }} />
+                <div onClick={handleAttackHard} style={{ padding: '14px 24px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: '9px', fontSize: '18px', cursor: 'pointer', color: '#e0bc6a', display: 'flex', alignItems: 'center' }}>✓</div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
+                {currentQ.answers.map((ans: string, idx: number) => {
+                  let bg = '#1c1f2a', border = 'rgba(255,255,255,0.06)', color = '#e6e2f0'
+                  if (selected !== null) {
+                    if (idx === currentQ.correct_index) { bg = 'rgba(45,217,184,0.06)'; border = 'rgba(45,217,184,0.4)'; color = '#2dd9b8' }
+                    else if (idx === selected) { bg = 'rgba(224,85,85,0.06)'; border = 'rgba(224,85,85,0.35)'; color = '#e05555' }
+                  }
+                  return (
+                    <div key={idx} onClick={() => handleAttack(idx)} style={{ background: bg, border: `1px solid ${border}`, borderRadius: '9px', padding: '14px', textAlign: 'center', fontFamily: 'serif', fontSize: '24px', color, cursor: selected !== null ? 'default' : 'pointer', transition: 'all 0.18s' }}>
+                      {ans}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ФАЗ: ЗАЩИТА ОТ МОНСТРА */}
+        {phase === 'monster_attack' && monsterQ && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#e05555', textTransform: 'uppercase' }}>
+                👹 Монстр атакует! Защитись!
+              </div>
+              {/* Таймер */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '120px', height: '5px', background: '#171920', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', background: timer > 8 ? '#3db87a' : timer > 4 ? '#e0bc6a' : '#e05555', width: `${(timer / 15) * 100}%`, transition: 'width 1s linear' }}></div>
+                </div>
+                <div style={{ fontFamily: 'monospace', fontSize: '14px', color: timer > 8 ? '#3db87a' : timer > 4 ? '#e0bc6a' : '#e05555', minWidth: '24px' }}>{timer}</div>
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(224,85,85,0.04)', border: '1px solid rgba(224,85,85,0.3)', borderRadius: '12px', padding: '1.5rem', marginBottom: '1rem', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(to right, transparent, rgba(224,85,85,0.5), transparent)' }}></div>
+              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#e05555', marginBottom: '10px', letterSpacing: '0.1em' }}>▸ АТАКА ДЕМОНА · ЗАБЛОКИРУЙ</div>
+              <div style={{ fontFamily: 'serif', fontSize: '42px', color: '#e6e2f0', lineHeight: 1.1 }}>{monsterQ.question}</div>
+              <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic', marginTop: '8px' }}>Правильный ответ блокирует удар · Ошибка = -{20} HP</div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
+              {monsterQ.answers.map((ans: string, idx: number) => (
+                <div key={idx} onClick={() => handleDefend(idx)} style={{ background: '#1c1f2a', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '9px', padding: '14px', textAlign: 'center', fontFamily: 'serif', fontSize: '24px', color: '#e6e2f0', cursor: 'pointer', transition: 'all 0.18s' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(224,85,85,0.06)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#1c1f2a' }}
+                >
+                  {ans}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
-  </div>
-) : (
-  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px', marginBottom: '1.25rem' }}>
-    {q.answers.map((ans: string, idx: number) => {
-      let bg = '#1c1f2a'
-      let border = 'rgba(255,255,255,0.06)'
-      let color = '#e6e2f0'
-      if (selected !== null) {
-        if (idx === q.correct_index) { bg = 'rgba(45,217,184,0.06)'; border = 'rgba(45,217,184,0.4)'; color = '#2dd9b8' }
-        else if (idx === selected) { bg = 'rgba(224,85,85,0.06)'; border = 'rgba(224,85,85,0.35)'; color = '#e05555' }
-      }
-      return (
-        <div key={idx} onClick={() => answer(idx)} style={{ background: bg, border: `1px solid ${border}`, borderRadius: '9px', padding: '14px', textAlign: 'center', fontFamily: 'serif', fontSize: '22px', color, cursor: selected !== null ? 'default' : 'pointer', transition: 'all 0.18s' }}>
-          {ans}
-        </div>
-      )
-    })}
-  </div>
-)}
-        </div>
-      </div>
   )
 }
+
 export default function Battle() {
   return (
     <Suspense>
