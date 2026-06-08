@@ -24,10 +24,27 @@ export default function Hub() {
       setUser(user)
       const { data: ud } = await supabase
         .from('users')
-        .select('xp, level, gold')
+        .select('xp, level, gold, streak, last_visit')
         .eq('id', user.id)
         .single()
     setUserData(ud)
+    // Обновляем стрик
+    if (ud) {
+        const today = new Date().toISOString().split('T')[0]
+        const lastVisit = ud.last_visit
+  
+    if (lastVisit !== today) {
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+        const newStreak = lastVisit === yesterday ? (ud.streak || 0) + 1 : 1
+    
+        await supabase.from('users').update({
+        last_visit: today,
+        streak: newStreak,
+    }).eq('id', user.id)
+
+    setUserData({ ...ud, streak: newStreak, last_visit: today })
+  }
+}
     }
     getUser()
   }, [])
@@ -165,7 +182,8 @@ export default function Hub() {
         <div style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
           <div style={{ fontSize: '28px' }}>🔥</div>
           <div>
-            <div style={{ fontFamily: 'serif', fontSize: '36px', color: '#e0bc6a', lineHeight: 1 }}>0</div>
+            <div style={{ fontFamily: 'serif', fontSize: '36px', color: '#e0bc6a', lineHeight: 1 }}>{userData?.streak || 0}
+</div>
             <div style={{ fontSize: '12px', color: '#5a5670', fontFamily: 'monospace' }}>ДНЕЙ ПОДРЯД</div>
           </div>
         </div>

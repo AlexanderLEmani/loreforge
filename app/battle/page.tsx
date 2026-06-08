@@ -1,32 +1,40 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-
-const questions = [
-  { question: '15 + 28 = ?', answers: ['41', '43', '42', '44'], correct: 1 },
-  { question: '67 - 39 = ?', answers: ['28', '31', '27', '29'], correct: 0 },
-  { question: '8 + 47 = ?', answers: ['54', '55', '56', '57'], correct: 1 },
-  { question: '93 - 56 = ?', answers: ['36', '38', '37', '35'], correct: 2 },
-  { question: '34 + 49 = ?', answers: ['82', '83', '84', '81'], correct: 1 },
-]
+import { createClient } from '@/lib/supabase'
 
 export default function Battle() {
   const router = useRouter()
+  const supabase = createClient()
+  const [questions, setQuestions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [qIndex, setQIndex] = useState(0)
   const [playerHP, setPlayerHP] = useState(100)
   const [enemyHP, setEnemyHP] = useState(80)
   const [selected, setSelected] = useState<number | null>(null)
-  const [phase, setPhase] = useState<'question' | 'result' | 'win' | 'lose'>('question')
   const [mistakes, setMistakes] = useState<string[]>([])
 
-  const q = questions[qIndex]
+  useEffect(() => {
+    async function loadQuestions() {
+      const { data } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('dungeon_name', 'Пещера сложения')
+        .order('question')
+        .limit(5)
+      if (data) setQuestions(data)
+      setLoading(false)
+    }
+    loadQuestions()
+  }, [])
 
   function answer(idx: number) {
-    if (selected !== null) return
+    if (selected !== null || questions.length === 0) return
     setSelected(idx)
-    const correct = idx === q.correct
-    
+    const q = questions[qIndex]
+    const correct = idx === q.correct_index
+
     let newMistakes = [...mistakes]
     let newEnemyHP = enemyHP
     let newPlayerHP = playerHP
@@ -36,8 +44,7 @@ export default function Battle() {
       setEnemyHP(newEnemyHP)
       if (newEnemyHP <= 0) {
         const correctCount = questions.length - newMistakes.length
-        router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))
-}`)
+        router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))}`)
         return
       }
     } else {
@@ -47,8 +54,7 @@ export default function Battle() {
       setPlayerHP(newPlayerHP)
       if (newPlayerHP <= 0) {
         const correctCount = qIndex - (newMistakes.length - 1)
-        router.push(`/debrief?result=lose&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))
-}`)
+        router.push(`/debrief?result=lose&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))}`)
         return
       }
     }
@@ -59,48 +65,27 @@ export default function Battle() {
         setQIndex(qIndex + 1)
       } else {
         const correctCount = questions.length - newMistakes.length
-        router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))
-}`)
+        router.push(`/debrief?result=win&score=${correctCount}&total=${questions.length}&mistakes=${encodeURIComponent(newMistakes.join('|'))}`)
       }
     }, 900)
   }
 
-  if (phase === 'win' || phase === 'lose') {
-    return (
-      <div style={{ background: '#0b0c10', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'serif' }}>
-        <div style={{ background: '#1c1f2a', border: `1px solid ${phase === 'win' ? 'rgba(45,217,184,0.4)' : 'rgba(224,85,85,0.4)'}`, borderRadius: '14px', padding: '2.5rem', maxWidth: '480px', width: '100%', textAlign: 'center' }}>
-          <div style={{ fontSize: '48px', marginBottom: '12px' }}>{phase === 'win' ? '🏆' : '💀'}</div>
-          <div style={{ fontFamily: 'serif', fontSize: '28px', color: phase === 'win' ? '#2dd9b8' : '#e05555', marginBottom: '8px' }}>
-            {phase === 'win' ? 'Победа!' : 'Поражение'}
-          </div>
-          <div style={{ fontSize: '15px', color: '#9590a8', fontStyle: 'italic', marginBottom: '1.5rem' }}>
-            {phase === 'win' ? 'Демон повержен. +50 XP, +20 золота' : 'Ты пал в бою. Но знаешь где ошибся.'}
-          </div>
+  if (loading) return (
+    <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
+      Загрузка данжа...
+    </div>
+  )
 
-          {mistakes.length > 0 && (
-            <div style={{ background: '#111318', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '8px', padding: '12px', marginBottom: '1.5rem', textAlign: 'left' }}>
-              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#e05555', letterSpacing: '0.15em', marginBottom: '8px' }}>ОШИБКИ</div>
-              {mistakes.map((m, i) => (
-                <div key={i} style={{ fontSize: '13px', color: '#9590a8', padding: '3px 0' }}>• {m}</div>
-              ))}
-            </div>
-          )}
+  if (questions.length === 0) return (
+    <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
+      Вопросы не найдены
+    </div>
+  )
 
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-            <button onClick={() => router.push('/battle')} style={{ padding: '10px 24px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: '6px', color: '#e0bc6a', fontFamily: 'serif', fontSize: '14px', cursor: 'pointer' }}>
-              Снова
-            </button>
-            <button onClick={() => router.push('/hub')} style={{ padding: '10px 24px', background: 'transparent', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '6px', color: '#9590a8', fontFamily: 'serif', fontSize: '14px', cursor: 'pointer' }}>
-              В хаб
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  const q = questions[qIndex]
 
   return (
-    <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif', display: 'grid', gridTemplateColumns: '256px 1fr', }}>
+    <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif', display: 'grid', gridTemplateColumns: '256px 1fr' }}>
 
       {/* ЛЕВЫЙ САЙДБАР */}
       <div style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}>
@@ -131,7 +116,6 @@ export default function Battle() {
       {/* ОСНОВНАЯ АРЕНА */}
       <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column' }}>
 
-        {/* HP бары */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', letterSpacing: '0.1em' }}>HP</span>
@@ -145,7 +129,6 @@ export default function Battle() {
           </div>
         </div>
 
-        {/* Бойцы */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 56px 1fr', gap: '1rem', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '1.25rem', textAlign: 'center' }}>
             <div style={{ width: '60px', height: '60px', margin: '0 auto 10px', borderRadius: '10px', background: 'rgba(123,108,255,0.13)', border: '1px solid rgba(123,108,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>🧙</div>
@@ -167,14 +150,13 @@ export default function Battle() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
               <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>{Math.max(0, enemyHP)}</span>
               <div style={{ width: '80px', height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', background: '#e05555', width: `${Math.max(0, enemyHP)}%`, transition: 'width 0.3s' }}></div>
+                <div style={{ height: '100%', background: '#e05555', width: `${Math.max(0, (enemyHP / 80) * 100)}%`, transition: 'width 0.3s' }}></div>
               </div>
               <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>80</span>
             </div>
           </div>
         </div>
 
-        {/* Вопрос */}
         <div style={{ background: '#1c1f2a', border: '1px solid rgba(123,108,255,0.25)', borderRadius: '12px', padding: '1.5rem', marginBottom: '1.25rem', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(to right, transparent, rgba(123,108,255,0.4), transparent)' }}></div>
           <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#a99fff', textTransform: 'uppercase', marginBottom: '10px' }}>▸ Математика · Сложение</div>
@@ -182,14 +164,13 @@ export default function Battle() {
           <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic' }}>Правильный ответ наносит 25 урона демону</div>
         </div>
 
-        {/* Ответы */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px', marginBottom: '1.25rem' }}>
-          {q.answers.map((ans, idx) => {
+          {q.answers.map((ans: string, idx: number) => {
             let bg = '#1c1f2a'
             let border = 'rgba(255,255,255,0.06)'
             let color = '#e6e2f0'
             if (selected !== null) {
-              if (idx === q.correct) { bg = 'rgba(45,217,184,0.06)'; border = 'rgba(45,217,184,0.4)'; color = '#2dd9b8' }
+              if (idx === q.correct_index) { bg = 'rgba(45,217,184,0.06)'; border = 'rgba(45,217,184,0.4)'; color = '#2dd9b8' }
               else if (idx === selected) { bg = 'rgba(224,85,85,0.06)'; border = 'rgba(224,85,85,0.35)'; color = '#e05555' }
             }
             return (
@@ -200,7 +181,6 @@ export default function Battle() {
           })}
         </div>
 
-        {/* Действия */}
         <div style={{ display: 'flex', gap: '8px' }}>
           {[['⚡', 'Атаковать', true], ['🛡️', 'Защититься', false], ['🧪', 'Зелье (×3)', false], ['🚪', 'Отступить', false]].map(([icon, label, primary]) => (
             <div key={label as string} onClick={label === 'Отступить' ? () => router.push('/hub') : undefined} style={{ flex: 1, padding: '11px 6px', background: primary ? 'rgba(201,168,76,0.12)' : '#1c1f2a', border: `1px solid ${primary ? 'rgba(201,168,76,0.3)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '8px', cursor: 'pointer', textAlign: 'center' }}>
