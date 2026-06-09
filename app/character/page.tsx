@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import PixelCharacter from '@/components/PixelCharacter'
 
 const RACE_ICONS: Record<string, string> = {
   human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀'
@@ -49,7 +50,7 @@ export default function CharacterPage() {
 
       const { data: ch } = await supabase
         .from('characters')
-        .select('name, race')
+        .select('name, race, skin_color, hair_style, hair_color, cloak_color')
         .eq('user_id', user.id)
         .single()
       if (!ch) { router.push('/create-character'); return }
@@ -160,11 +161,18 @@ export default function CharacterPage() {
                 {RACE_LABELS[race]?.toUpperCase()} · УР. {level}
               </div>
 
-              {/* Аватар */}
-              <div style={{ width: '160px', height: '200px', background: '#0d0f14', borderRadius: '10px', border: '1px solid rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '80px', marginBottom: '1.5rem' }}>
-                {RACE_ICONS[race]}
+             {/* Аватар */}
+              <div style={{ background: '#0d0f14', borderRadius: '10px', border: '1px solid rgba(201,168,76,0.15)', padding: '1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <PixelCharacter
+                  race={race}
+                  skinColor={character?.skin_color || '#c8a882'}
+                  hairStyle={character?.hair_style || 'a1'}
+                  hairColor={character?.hair_color || '#3d2b1f'}
+                  cloakColor={character?.cloak_color || '#4a1f6e'}
+                  size={200}
+                />
               </div>
-
+ 
               {/* Слоты снаряжения */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
                 {EQUIP_SLOTS.map(slot => (
