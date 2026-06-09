@@ -50,8 +50,8 @@ function RaceFeatures({ race, skinColor }: { race: string, skinColor: string }) 
     <rect x="3" y="9" width="3" height="4" fill={skinColor}/>
     <rect x="18" y="9" width="3" height="4" fill={skinColor}/>
     {/* Клыки */}
-    <rect x="9" y="16" width="2" height="3" fill="#e8e0d0"/>
-    <rect x="13" y="16" width="2" height="3" fill="#e8e0d0"/>
+    <rect x="11" y="16" width="2" height="3" fill="#e8e0d0"/>
+    <rect x="15" y="16" width="2" height="3" fill="#e8e0d0"/>
   </>
   if (race === 'undead') return <>
     <rect x="4" y="9" width="2" height="3" fill="#8a9a7a"/>
@@ -64,9 +64,9 @@ function RaceFeatures({ race, skinColor }: { race: string, skinColor: string }) 
     <rect x="2" y="9" width="3" height="4" fill={skinColor}/>
     <rect x="19" y="9" width="3" height="4" fill={skinColor}/>
     {/* Борода — прямо под подбородком */}
-    <rect x="7" y="14" width="10" height="4" fill="#8B6914"/>
-    <rect x="6" y="15" width="12" height="4" fill="#8B6914"/>
-    <rect x="5" y="16" width="14" height="2" fill="#6B4A10"/>
+    <rect x="9" y="14" width="10" height="4" fill="#8B6914"/>
+    <rect x="8" y="15" width="12" height="4" fill="#8B6914"/>
+    <rect x="7" y="16" width="14" height="2" fill="#6B4A10"/>
   </>
   // human — обычные уши
   return <>
@@ -91,6 +91,7 @@ export default function PixelCharacter({ race, skinColor, hairStyle, hairColor, 
       style={{ imageRendering: 'pixelated' }}
       xmlns="http://www.w3.org/2000/svg"
     >
+      <g transform={race === 'elf' ? 'scale(1, 1.15) translate(0, -3)' : race === 'dwarf' ? 'scale(1.1, 0.88) translate(-1.5, 2)' : ''}>
       {/* ТЕНЬ */}
       <ellipse cx="14" cy="46" rx="7" ry="2" fill="rgba(0,0,0,0.3)"/>
 
@@ -150,7 +151,7 @@ export default function PixelCharacter({ race, skinColor, hairStyle, hairColor, 
       <rect x="17" y="11" width="1" height="1" fill="#e0e8ff" opacity="0.8"/>
 
       {/* РОТ */}
-      {!isOrc && <rect x="11" y="15" width="6" height="1" fill="#1a1a2e" opacity="0.5"/>}
+      {!isOrc && <rect x="12" y="15" width="6" height="1" fill="#1a1a2e" opacity="0.5"/>}
 
       {/* ПРИЧЁСКА */}
       {HAIR_STYLES[hairStyle]?.(hairColor)}
@@ -165,6 +166,7 @@ export default function PixelCharacter({ race, skinColor, hairStyle, hairColor, 
 
       {/* БЛИК на мантии */}
       <rect x="7" y="21" width="2" height="6" fill="rgba(255,255,255,0.06)"/>
+      </g>
     </svg>
   )
 }
