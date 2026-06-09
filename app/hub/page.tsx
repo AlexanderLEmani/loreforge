@@ -9,7 +9,10 @@ export default function Hub() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [userData, setUserData] = useState<any>(null)
-
+  const [character, setCharacter] = useState<any>(null)
+  const RACE_ICONS: Record<string, string> = {
+  human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀'
+}
 
   useEffect(() => {
     async function getUser() {
@@ -22,6 +25,14 @@ export default function Hub() {
         avatar_url: user.user_metadata?.avatar_url,
       }, { onConflict: 'id' })
       setUser(user)
+      const { data: character } = await supabase
+      .from('characters')
+      .select('name, race')
+      .eq('user_id', user.id)
+      .single()
+
+    if (!character) { router.push('/create-character'); return }
+    setCharacter(character)
       const { data: ud } = await supabase
         .from('users')
         .select('xp, level, gold, streak, last_visit, quest_first_dungeon, total_answers')
@@ -73,10 +84,10 @@ export default function Hub() {
         <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '11px', marginBottom: '11px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: 'rgba(123,108,255,0.13)', border: '1px solid rgba(123,108,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
-              🧙
+              {RACE_ICONS[character?.race] || '🧙'}.
             </div>
             <div>
-              <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0' }}>Аркан</div>
+              <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0' }}>{character?.name || 'Аркан'} </div>
               <div style={{ fontSize: '11px', color: '#a99fff', marginTop: '1px', fontFamily: 'monospace' }}>СТРАНСТВУЮЩИЙ МАГ</div>
             </div>
           </div>
@@ -104,8 +115,8 @@ export default function Hub() {
         <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', margin: '14px 0 12px' }}>
           Навигация
         </div>
-        {[['🏰', 'Хаб', true], ['⚔️', 'В данж', false], ['🗺️', 'Карта мира', false], ['📖', 'Гримуар', false], ['🛒', 'Лавка', false]].map(([icon, label, active]) => (
-          <div key={label as string} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '7px', fontSize: '14px', color: active ? '#a99fff' : '#5a5670', background: active ? 'rgba(123,108,255,0.13)' : 'transparent', borderLeft: active ? '2px solid #7b6cff' : '2px solid transparent', cursor: 'pointer', marginBottom: '3px' }}>
+        {[['🏰', 'Хаб', '/hub', true], ['👤', 'Персонаж', '/character', false], ['⚔️', 'В данж', '/hub', false], ['🗺️', 'Карта мира', '/hub', false], ['📖', 'Гримуар', '/hub', false], ['🛒', 'Лавка', '/hub', false]].map(([icon, label, href, active]) => (
+          <div key={label as string} onClick={() => router.push(href as string)} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '7px', fontSize: '14px', color: active ? '#a99fff' : '#5a5670', background: active ? 'rgba(123,108,255,0.13)' : 'transparent', borderLeft: active ? '2px solid #7b6cff' : '2px solid transparent', cursor: 'pointer', marginBottom: '3px' }}>
             <span style={{ width: '18px', textAlign: 'center' }}>{icon as string}</span>{label as string}
           </div>
         ))}
