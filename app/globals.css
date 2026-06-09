@@ -8,6 +8,6 @@ body {
 
 @keyframes fadeUp {
   0%   { opacity: 1; transform: translateY(0px); }
-  60%  { opacity: 1; transform: translateY(-15px); }
-  100% { opacity: 0; transform: translateY(-25px); }
+  60%  { opacity: 1; transform: translateY(-22px); }
+  100% { opacity: 0; transform: translateY(-38px); }
 }

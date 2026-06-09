@@ -1,6 +1,6 @@
 'use client'
 
-import { createClient } from '../lib/supabase'
+import { createClient } from '@/lib/supabase'
 
 export default function Home() {
   const supabase = createClient()
