@@ -115,7 +115,7 @@ export default function Hub() {
         <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', margin: '14px 0 12px' }}>
           Навигация
         </div>
-        {[['🏰', 'Хаб', '/hub', true], ['👤', 'Персонаж', '/character', false], ['⚔️', 'В данж', '/hub', false], ['🗺️', 'Карта мира', '/hub', false], ['📖', 'Гримуар', '/hub', false], ['🛒', 'Лавка', '/hub', false]].map(([icon, label, href, active]) => (
+        {[['🏰', 'Хаб', '/hub', true], ['👤', 'Персонаж', '/character', false], ['🏛️', 'Коллегия', '/college', false], ['⚔️', 'В данж', '/hub', false], ['🗺️', 'Карта мира', '/hub', false], ['📖', 'Гримуар', '/hub', false], ['🛒', 'Лавка', '/hub', false]].map(([icon, label, href, active]) => (
           <div key={label as string} onClick={() => router.push(href as string)} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '7px', fontSize: '14px', color: active ? '#a99fff' : '#5a5670', background: active ? 'rgba(123,108,255,0.13)' : 'transparent', borderLeft: active ? '2px solid #7b6cff' : '2px solid transparent', cursor: 'pointer', marginBottom: '3px' }}>
             <span style={{ width: '18px', textAlign: 'center' }}>{icon as string}</span>{label as string}
           </div>
