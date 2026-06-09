@@ -1,3 +1,5 @@
+import React from 'react'
+
 type Props = {
   race: string
   skinColor: string
@@ -59,11 +61,12 @@ function RaceFeatures({ race, skinColor }: { race: string, skinColor: string }) 
     <rect x="14" y="9" width="1" height="3" fill="#2a3a2a" opacity="0.6"/>
   </>
   if (race === 'dwarf') return <>
-    <rect x="3" y="9" width="3" height="3" fill={skinColor}/>
-    <rect x="18" y="9" width="3" height="3" fill={skinColor}/>
-    {/* Борода */}
-    <rect x="7" y="16" width="10" height="5" fill="#8B6914"/>
-    <rect x="6" y="17" width="12" height="3" fill="#8B6914"/>
+    <rect x="2" y="9" width="3" height="4" fill={skinColor}/>
+    <rect x="19" y="9" width="3" height="4" fill={skinColor}/>
+    {/* Борода — прямо под подбородком */}
+    <rect x="7" y="14" width="10" height="4" fill="#8B6914"/>
+    <rect x="6" y="15" width="12" height="4" fill="#8B6914"/>
+    <rect x="5" y="16" width="14" height="2" fill="#6B4A10"/>
   </>
   // human — обычные уши
   return <>
@@ -113,8 +116,16 @@ export default function PixelCharacter({ race, skinColor, hairStyle, hairColor, 
       <rect x="2" y="33" width="4" height="3" fill={actualSkin}/>
       <rect x="22" y="33" width="4" height="3" fill={actualSkin}/>
 
+      {/* Пропорции по расе */}
+      {race === 'dwarf' && <>
+        {/* Дварф — широкие плечи */}
+        <rect x="3" y="20" width="22" height="10" fill={cloakColor}/>
+        <rect x="2" y="22" width="3" height="8" fill={cloakColor}/>
+        <rect x="23" y="22" width="3" height="8" fill={cloakColor}/>
+      </>}
       {/* ТЕЛО — МАНТИЯ ВЕРХ */}
-      <rect x="6" y="20" width="16" height="10" fill={cloakColor}/>
+      {race !== 'dwarf' && <rect x="6" y="20" width="16" height="10" fill={cloakColor}/>}
+      {race === 'dwarf' && <rect x="4" y="20" width="20" height="10" fill={cloakColor}/>}
       {/* Воротник */}
       <rect x="9" y="20" width="10" height="2" fill="#1a0a2e"/>
       <rect x="11" y="19" width="6" height="2" fill="#1a0a2e"/>
@@ -123,10 +134,10 @@ export default function PixelCharacter({ race, skinColor, hairStyle, hairColor, 
       <rect x="11" y="17" width="6" height="4" fill={actualSkin}/>
 
       {/* ГОЛОВА */}
-      <rect x="6" y="6" width="16" height="13" fill={actualSkin}/>
+      <rect x="6" y={race === 'elf' ? 4 : race === 'dwarf' ? 8 : 6} width={race === 'dwarf' ? 18 : 16} height={race === 'dwarf' ? 11 : 13} fill={actualSkin}/>
       {/* Форма головы */}
-      <rect x="5" y="8" width="2" height="9" fill={actualSkin}/>
-      <rect x="21" y="8" width="2" height="9" fill={actualSkin}/>
+      <rect x={race === 'dwarf' ? 4 : 5} y={race === 'elf' ? 6 : race === 'dwarf' ? 10 : 8} width="2" height="9" fill={actualSkin}/>
+      <rect x={race === 'dwarf' ? 20 : 21} y={race === 'elf' ? 6 : race === 'dwarf' ? 10 : 8} width="2" height="9" fill={actualSkin}/>
 
       {/* УШИ И ОСОБЕННОСТИ РАСЫ */}
       <RaceFeatures race={race} skinColor={actualSkin}/>
