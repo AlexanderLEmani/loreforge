@@ -33,6 +33,7 @@ export default function CollegePage() {
   const router = useRouter()
   const supabase = createClient()
   const [userData, setUserData] = useState<any>(null)
+  const [showNext, setShowNext] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -42,6 +43,7 @@ export default function CollegePage() {
       setUserData(data)
       if (data && (data.onboarding_step || 0) < 1) {
         await supabase.from('users').update({ onboarding_step: 1 }).eq('id', user.id)
+        setUserData({ ...data, onboarding_step: 1 })
       }
     }
     load()
@@ -49,15 +51,14 @@ export default function CollegePage() {
 
   const level = userData?.level || 1
   const xpThresholds = [0, 100, 250, 500, 900, 1400]
-  const xpToNext    = [100, 150, 250, 400, 500, 600]
-  const xpBase    = xpThresholds[level - 1] || 0
-  const xpNext    = xpToNext[level - 1] || 100
+  const xpToNext = [100, 150, 250, 400, 500, 600]
+  const xpBase = xpThresholds[level - 1] || 0
+  const xpNext = xpToNext[level - 1] || 100
   const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
 
-      {/* НАВБАР */}
       <nav style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ fontFamily: 'monospace', fontSize: '16px', color: '#e0bc6a', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '26px', height: '26px', border: '1.5px solid #c9a84c', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✦</div>
@@ -70,23 +71,20 @@ export default function CollegePage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr' }}>
 
-        {/* САЙДБАР */}
-       <Sidebar active="Коллегия" level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
+        <Sidebar active="Коллегия" level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
 
         {/* ОСНОВНАЯ ОБЛАСТЬ */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: '0', minHeight: 'calc(100vh - 56px)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', minHeight: 'calc(100vh - 56px)' }}>
 
           {/* ТЕКСТ ЛЕКЦИИ */}
           <div style={{ padding: '2rem', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
 
-            {/* Заголовок */}
             <div style={{ marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
               <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Лекция I</div>
               <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '6px' }}>Введение в Арифметику</div>
               <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff' }}>Профессор Горус · Архимаг Арифметики</div>
             </div>
 
-            {/* Секции */}
             {SECTIONS.map((s, i) => {
               if (s.type === 'professor') return (
                 <div key={i} style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '1.25rem', marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
@@ -127,21 +125,19 @@ export default function CollegePage() {
               return null
             })}
 
-            {/* Кнопки */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '2.5rem' }}>
-              <div onClick={() => router.push('/hub')} style={{ padding: '14px', background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px', color: '#5a5670', cursor: 'pointer' }}>
-                ← В хаб
+            {/* Кнопка */}
+            <div style={{ marginTop: '2.5rem' }}>
+              <div onClick={() => setShowNext(true)}
+                style={{ width: '100%', padding: '16px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '18px', color: '#e0bc6a', cursor: 'pointer' }}>
+                Ознакомился →
               </div>
-              <div onClick={() => router.push(`/exam?level=${level}`)} style={{ padding: '14px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px', color: '#e0bc6a', cursor: 'pointer' }}>
-  🎓 Сдать экзамен →
-</div>
             </div>
+
           </div>
 
           {/* ПРАВАЯ КОЛОНКА */}
           <div style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
-            {/* Список лекций */}
             <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Лекции</div>
             {LECTURES.map(l => (
               <div key={l.num} style={{ background: l.active ? 'rgba(123,108,255,0.1)' : '#1c1f2a', border: `1px solid ${l.active ? 'rgba(123,108,255,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '9px', padding: '10px 12px', opacity: l.active || l.done ? 1 : 0.4, cursor: l.active || l.done ? 'pointer' : 'default' }}>
@@ -157,7 +153,6 @@ export default function CollegePage() {
 
             <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }}></div>
 
-            {/* Заклинания уровня */}
             <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Заклинания</div>
             <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '9px', padding: '10px 12px' }}>
               {[['➕', 'Сложение', '#3db87a'], ['➖', 'Вычитание', '#3db87a']].map(([icon, name, color]) => (
@@ -171,7 +166,6 @@ export default function CollegePage() {
 
             <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }}></div>
 
-            {/* Подсказка */}
             <div style={{ background: 'rgba(123,108,255,0.06)', border: '1px solid rgba(123,108,255,0.2)', borderRadius: '9px', padding: '10px 12px' }}>
               <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#a99fff', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '6px' }}>Далее</div>
               <div style={{ fontSize: '12px', color: '#5a5670', lineHeight: 1.5 }}>Пройди данжи уровня 1 чтобы открыть Лекцию II и получить заклинания умножения.</div>
@@ -180,6 +174,51 @@ export default function CollegePage() {
           </div>
         </div>
       </div>
+
+      {/* МОДАЛКА */}
+      {showNext && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '2rem' }}>
+          <div style={{ background: '#1c1f2a', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '16px', padding: '2rem', maxWidth: '480px', width: '100%' }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <div style={{ fontSize: '40px', marginBottom: '10px' }}>🧙‍♂️</div>
+              <div style={{ fontFamily: 'serif', fontSize: '20px', color: '#e0bc6a', marginBottom: '6px' }}>Первый шаг сделан</div>
+              <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic', lineHeight: 1.6 }}>
+                Теория без практики — пустой звук. Куда идёшь дальше?
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '1rem' }}>
+              <div onClick={() => router.push('/training')}
+                style={{ background: 'rgba(61,184,122,0.08)', border: '1px solid rgba(61,184,122,0.3)', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                <div style={{ fontSize: '28px', flexShrink: 0 }}>🏋️</div>
+                <div>
+                  <div style={{ fontFamily: 'serif', fontSize: '15px', color: '#e6e2f0', marginBottom: '3px' }}>Тренировочный зал</div>
+                  <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic' }}>Попрактикуйся без риска. Рекомендуется новичкам.</div>
+                </div>
+                <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#3db87a', marginLeft: 'auto' }}>→</div>
+              </div>
+
+              <div onClick={() => (userData?.onboarding_step || 0) >= 2 && router.push('/guild')}
+                style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', cursor: (userData?.onboarding_step || 0) >= 2 ? 'pointer' : 'default', opacity: (userData?.onboarding_step || 0) >= 2 ? 1 : 0.4 }}>
+                <div style={{ fontSize: '28px', flexShrink: 0 }}>⚔️</div>
+                <div>
+                  <div style={{ fontFamily: 'serif', fontSize: '15px', color: '#e6e2f0', marginBottom: '3px' }}>Гильдия авантюристов</div>
+                  <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic' }}>
+                    {(userData?.onboarding_step || 0) >= 2 ? 'Иди в бой.' : 'Сначала потренируйся.'}
+                  </div>
+                </div>
+                <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#e0bc6a', marginLeft: 'auto' }}>→</div>
+              </div>
+            </div>
+
+            <div onClick={() => { setShowNext(false); router.push('/hub') }}
+              style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '11px', color: '#5a5670', cursor: 'pointer', padding: '8px' }}>
+              ← Вернуться в хаб
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
