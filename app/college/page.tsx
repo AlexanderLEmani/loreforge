@@ -129,9 +129,9 @@ export default function CollegePage() {
               <div onClick={() => router.push('/hub')} style={{ padding: '14px', background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px', color: '#5a5670', cursor: 'pointer' }}>
                 ← В хаб
               </div>
-              <div onClick={() => router.push('/hub')} style={{ padding: '14px', background: 'rgba(224,85,85,0.1)', border: '1px solid rgba(224,85,85,0.3)', borderRadius: '10px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px', color: '#e05555', cursor: 'pointer' }}>
-                ⚔️ Идти в данж →
-              </div>
+              <div onClick={() => router.push(`/exam?level=${level}`)} style={{ padding: '14px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px', color: '#e0bc6a', cursor: 'pointer' }}>
+  🎓 Сдать экзамен →
+</div>
             </div>
           </div>
 
