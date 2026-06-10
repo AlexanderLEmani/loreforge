@@ -10,6 +10,7 @@ function DebriefContent() {
   const params = useSearchParams()
   const supabase = createClient()
   const [saved, setSaved] = useState(false)
+  const [characterName, setCharacterName] = useState('Аркан')
   const result = params.get('result') // 'win' or 'lose'
   const score = params.get('score') || '0'
   const total = params.get('total') || '5'
@@ -23,6 +24,9 @@ function DebriefContent() {
   if (saved) return
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
+
+  const { data: ch } = await supabase.from('characters').select('name').eq('user_id', user.id).single()
+  if (ch) setCharacterName(ch.name)
   
   // Сохраняем прохождение
   await supabase.from('dungeon_runs').insert({
@@ -82,7 +86,8 @@ const xpGained = parseInt(score) * 10 * (isHard ? 2 : 1)
         {/* Заголовок */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem', paddingBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.06)', position: 'relative' }}>
           <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '8px' }}>
-            Данж завершён · {dungeonName}
+             {characterName} · {dungeonName}
+
           </div>
           <div style={{ fontFamily: 'serif', fontSize: '40px', color: '#e0bc6a', marginBottom: '6px' }}>Разбор похода</div>
           <div style={{ fontSize: '17px', color: '#9590a8', fontStyle: 'italic' }}>

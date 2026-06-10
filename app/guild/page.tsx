@@ -9,6 +9,7 @@ const DUNGEONS = [
   { id: 'add',   icon: '➕', name: 'Пещера сложения',   tag: 'Ур.1', desc: 'Сложение до 1000. Базовый данж. Бесплатно.', cost: 0,   color: '#c9a84c', rarity: null,    level: 1, route: 'Пещера сложения' },
   { id: 'sub',   icon: '➖', name: 'Пещера вычитания',  tag: 'Ур.1', desc: 'Вычитание до 1000. Базовый данж. Бесплатно.', cost: 0,  color: '#c9a84c', rarity: null,    level: 1, route: 'Пещера вычитания' },
   { id: 'mul',   icon: '✕',  name: 'Башня умножения',   tag: 'Ур.2', desc: 'Таблица умножения. Монстры атакуют быстро.', cost: 80,  color: '#a99fff', rarity: 'rare',  level: 2, route: 'Башня умножения' },
+  { id: 'div', icon: '÷', name: 'Пещера деления', tag: 'Ур.2', desc: 'Деление до 100. Остатки и комбинированные действия.', cost: 60, color: '#3db87a', rarity: null, level: 2, route: 'Пещера деления' },
   { id: 'lab',   icon: '🌀', name: 'Лабиринт порядка',  tag: 'Ур.2', desc: 'Смешанные действия со скобками. Повышенная сложность.', cost: 120, color: '#a99fff', rarity: 'rare', level: 2, route: 'Башня умножения' },
   { id: 'frac',  icon: '½',  name: 'Храм дробей',       tag: 'Ур.3', desc: 'Обыкновенные дроби. Босс использует все четыре действия.', cost: 200, color: '#e05555', rarity: 'epic', level: 3, route: 'Башня умножения' },
   { id: 'market',icon: '💰', name: 'Рынок процентов',   tag: 'Ур.4', desc: 'Проценты и пропорции. Требует Ур.4.', cost: 300, color: '#3a3d4a', rarity: null, level: 4, route: 'Башня умножения' },
