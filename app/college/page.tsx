@@ -38,8 +38,11 @@ export default function CollegePage() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
-      const { data } = await supabase.from('users').select('xp, level, gold').eq('id', user.id).single()
+      const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step').eq('id', user.id).single()
       setUserData(data)
+      if (data && (data.onboarding_step || 0) < 1) {
+        await supabase.from('users').update({ onboarding_step: 1 }).eq('id', user.id)
+      }
     }
     load()
   }, [])
@@ -68,7 +71,7 @@ export default function CollegePage() {
       <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr' }}>
 
         {/* САЙДБАР */}
-        <Sidebar active="Коллегия" level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} />
+       <Sidebar active="Коллегия" level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
 
         {/* ОСНОВНАЯ ОБЛАСТЬ */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: '0', minHeight: 'calc(100vh - 56px)' }}>

@@ -33,7 +33,7 @@ export default function Hub() {
 
       const { data: ud } = await supabase
         .from('users')
-        .select('xp, level, gold, glory, streak, last_visit, quest_first_dungeon, total_answers, onboarding_done')
+        .select('xp, level, gold, glory, streak, last_visit, quest_first_dungeon, total_answers, onboarding_done, onboarding_step')
         .eq('id', user.id)
         .single()
       setUserData(ud)
@@ -107,18 +107,25 @@ export default function Hub() {
           Навигация
         </div>
         {[
-          ['🏰', 'Хаб',        '/hub',       true],
-          ['👤', 'Персонаж',   '/character', false],
-          ['🏛️', 'Коллегия',   '/college',   false],
-          ['⚔️', 'Гильдия',    '/guild',     false],
-          ['🏋️', 'Тренировка', '/training',  false],
-          ['📖', 'Гримуар',    '/hub',       false],
-          ['🛒', 'Лавка',      '/hub',       false],
-        ].map(([icon, label, href, active]) => (
-          <div key={label as string} onClick={() => router.push(href as string)} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '7px', fontSize: '14px', color: active ? '#a99fff' : '#5a5670', background: active ? 'rgba(123,108,255,0.13)' : 'transparent', borderLeft: active ? '2px solid #7b6cff' : '2px solid transparent', cursor: 'pointer', marginBottom: '3px' }}>
-            <span style={{ width: '18px', textAlign: 'center' }}>{icon as string}</span>{label as string}
-          </div>
-        ))}
+          ['🏰', 'Хаб',        '/hub',       true,  0],
+          ['👤', 'Персонаж',   '/character', false, 0],
+          ['🏛️', 'Коллегия',   '/college',   false, 0],
+          ['🏋️', 'Тренировка', '/training',  false, 1],
+          ['⚔️', 'Гильдия',    '/guild',     false, 2],
+          ['📖', 'Гримуар',    '/hub',       false, 3],
+          ['🛒', 'Лавка',      '/hub',       false, 3],
+        ].map(([icon, label, href, active, minStep]) => {
+          const locked = (userData?.onboarding_step || 0) < (minStep as number)
+          return (
+            <div key={label as string}
+              onClick={() => !locked && router.push(href as string)}
+              style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '7px', fontSize: '14px', color: locked ? '#2a2d3a' : active ? '#a99fff' : '#5a5670', background: active ? 'rgba(123,108,255,0.13)' : 'transparent', borderLeft: active ? '2px solid #7b6cff' : '2px solid transparent', cursor: locked ? 'default' : 'pointer', marginBottom: '3px' }}>
+              <span style={{ width: '18px', textAlign: 'center', opacity: locked ? 0.3 : 1 }}>{icon as string}</span>
+              <span style={{ flex: 1 }}>{label as string}</span>
+              {locked && <span style={{ fontSize: '10px', color: '#2a2d3a' }}>🔒</span>}
+            </div>
+          )
+        })}
 
         <div onClick={signOut} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', fontSize: '14px', color: '#5a5670', cursor: 'pointer', marginTop: '8px' }}>
           <span>🚪</span>Выйти
@@ -127,7 +134,7 @@ export default function Hub() {
           if (!confirm('Сбросить весь прогресс? Это нельзя отменить.')) return
           await supabase.from('users').update({
             xp: 0, level: 1, gold: 0, glory: 0, streak: 0,
-            total_answers: 0, quest_first_dungeon: false, onboarding_done: false
+            total_answers: 0, quest_first_dungeon: false, onboarding_done: false, onboarding_step: 0
           }).eq('id', user?.id)
           await supabase.from('characters').delete().eq('user_id', user?.id)
           router.push('/')

@@ -44,7 +44,7 @@ export default function GuildPage() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
-      const { data } = await supabase.from('users').select('xp, level, gold, glory, streak').eq('id', user.id).single()
+      const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step').eq('id', user.id).single()
       setUserData({ ...data, id: user.id })
       setLoading(false)
     }
@@ -95,7 +95,7 @@ export default function GuildPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 280px' }}>
 
-        <Sidebar active="Гильдия" level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} />
+        <Sidebar active="Гильдия" level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
 
         {/* ЦЕНТР */}
         <div style={{ padding: '1.75rem 2rem', background: '#0b0c10' }}>
