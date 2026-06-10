@@ -9,7 +9,7 @@ const TOPICS = [
   { id: 'add', icon: '➕', name: 'Сложение',   level: 1, dungeon: 'Пещера сложения' },
   { id: 'sub', icon: '➖', name: 'Вычитание',  level: 1, dungeon: 'Пещера вычитания' },
   { id: 'mul', icon: '✕',  name: 'Умножение',  level: 2, dungeon: 'Башня умножения' },
-  { id: 'div', icon: '÷',  name: 'Деление',    level: 2, dungeon: 'Башня умножения' },
+  { id: 'div', icon: '÷',  name: 'Деление',    level: 2, dungeon: 'Пещера деления' },
   { id: 'frac',icon: '½',  name: 'Дроби',      level: 3, dungeon: null },
   { id: 'pct', icon: '%',  name: 'Проценты',   level: 4, dungeon: null },
 ]

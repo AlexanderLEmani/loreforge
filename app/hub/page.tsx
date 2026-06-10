@@ -10,9 +10,10 @@ export default function Hub() {
   const [user, setUser] = useState<any>(null)
   const [userData, setUserData] = useState<any>(null)
   const [character, setCharacter] = useState<any>(null)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const RACE_ICONS: Record<string, string> = {
-  human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀'
-}
+    human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀'
+  }
 
   useEffect(() => {
     async function getUser() {
@@ -25,37 +26,30 @@ export default function Hub() {
         avatar_url: user.user_metadata?.avatar_url,
       }, { onConflict: 'id' })
       setUser(user)
-      const { data: character } = await supabase
-      .from('characters')
-      .select('name, race')
-      .eq('user_id', user.id)
-      .single()
 
-    if (!character) { router.push('/create-character'); return }
-    setCharacter(character)
+      const { data: ch } = await supabase.from('characters').select('name, race').eq('user_id', user.id).single()
+      if (!ch) { router.push('/create-character'); return }
+      setCharacter(ch)
+
       const { data: ud } = await supabase
         .from('users')
-        .select('xp, level, gold, glory, streak, last_visit, quest_first_dungeon, total_answers')
+        .select('xp, level, gold, glory, streak, last_visit, quest_first_dungeon, total_answers, onboarding_done')
         .eq('id', user.id)
         .single()
-    setUserData(ud)
-    // Обновляем стрик
-    if (ud) {
+      setUserData(ud)
+
+      if (ud && !ud.onboarding_done) setShowOnboarding(true)
+
+      if (ud) {
         const today = new Date().toISOString().split('T')[0]
         const lastVisit = ud.last_visit
-  
-    if (lastVisit !== today) {
-        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
-        const newStreak = lastVisit === yesterday ? (ud.streak || 0) + 1 : 1
-    
-        await supabase.from('users').update({
-        last_visit: today,
-        streak: newStreak,
-    }).eq('id', user.id)
-
-    setUserData({ ...ud, streak: newStreak, last_visit: today })
-  }
-}
+        if (lastVisit !== today) {
+          const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+          const newStreak = lastVisit === yesterday ? (ud.streak || 0) + 1 : 1
+          await supabase.from('users').update({ last_visit: today, streak: newStreak }).eq('id', user.id)
+          setUserData({ ...ud, streak: newStreak, last_visit: today })
+        }
+      }
     }
     getUser()
   }, [])
@@ -80,27 +74,25 @@ export default function Hub() {
           Персонаж
         </div>
 
-        {/* Карточка персонажа */}
         <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '11px', marginBottom: '11px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: 'rgba(123,108,255,0.13)', border: '1px solid rgba(123,108,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
-              {RACE_ICONS[character?.race] || '🧙'}.
+              {RACE_ICONS[character?.race] || '🧙'}
             </div>
             <div>
-              <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0' }}>{character?.name || 'Аркан'} </div>
+              <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0' }}>{character?.name || 'Аркан'}</div>
               <div style={{ fontSize: '11px', color: '#a99fff', marginTop: '1px', fontFamily: 'monospace' }}>СТРАНСТВУЮЩИЙ МАГ</div>
             </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', marginBottom: '4px' }}>
-<span>УРОВЕНЬ {userData?.level || 1}</span>
-<span>{Math.max(0, (userData?.xp || 0) - ([0,100,250,500,900,1400,2000,2700,3500,4400,5400][(userData?.level||1)-1]||0))} / {[100,150,250,400,500,600,700,800,900,1000,1100][(userData?.level||1)-1]||1100}</span>          </div>
+            <span>УРОВЕНЬ {userData?.level || 1}</span>
+            <span>{Math.max(0, (userData?.xp || 0) - ([0,100,250,500,900,1400,2000,2700,3500,4400,5400][(userData?.level||1)-1]||0))} / {[100,150,250,400,500,600,700,800,900,1000,1100][(userData?.level||1)-1]||1100}</span>
+          </div>
           <div style={{ height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden' }}>
-            <div style={{ height: '100%', background: '#7b6cff', borderRadius: '2px', width: `${Math.min((Math.max(0, (userData?.xp || 0) - ([0,100,250,500,900,1400,2000,2700,3500,4400][(userData?.level||1)-1]||0)) / ([100,150,250,400,500,600,700,800,900,1000,1100][(userData?.level||1)-1]||1100)) * 100, 100)}%`
- }}></div>
+            <div style={{ height: '100%', background: '#7b6cff', borderRadius: '2px', width: `${Math.min((Math.max(0, (userData?.xp || 0) - ([0,100,250,500,900,1400,2000,2700,3500,4400][(userData?.level||1)-1]||0)) / ([100,150,250,400,500,600,700,800,900,1000,1100][(userData?.level||1)-1]||1100)) * 100, 100)}%` }}></div>
           </div>
         </div>
 
-        {/* Ресурсы */}
         <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>
           Ресурсы
         </div>
@@ -111,26 +103,36 @@ export default function Hub() {
           </div>
         ))}
 
-        {/* Навигация */}
         <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', margin: '14px 0 12px' }}>
           Навигация
         </div>
         {[
-  ['🏰', 'Хаб',        '/hub',       true],
-  ['👤', 'Персонаж',   '/character', false],
-  ['🏛️', 'Коллегия',   '/college',   false],
-  ['⚔️', 'Гильдия',    '/guild',     false],
-  ['🏋️', 'Тренировка', '/training',  false],
-  ['📖', 'Гримуар',    '/hub',       false],
-  ['🛒', 'Лавка',      '/hub',       false],
-].map(([icon, label, href, active]) => (
-  <div key={label as string} onClick={() => router.push(href as string)} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '7px', fontSize: '14px', color: active ? '#a99fff' : '#5a5670', background: active ? 'rgba(123,108,255,0.13)' : 'transparent', borderLeft: active ? '2px solid #7b6cff' : '2px solid transparent', cursor: 'pointer', marginBottom: '3px' }}>
-    <span style={{ width: '18px', textAlign: 'center' }}>{icon as string}</span>{label as string}
-  </div>
-))}
+          ['🏰', 'Хаб',        '/hub',       true],
+          ['👤', 'Персонаж',   '/character', false],
+          ['🏛️', 'Коллегия',   '/college',   false],
+          ['⚔️', 'Гильдия',    '/guild',     false],
+          ['🏋️', 'Тренировка', '/training',  false],
+          ['📖', 'Гримуар',    '/hub',       false],
+          ['🛒', 'Лавка',      '/hub',       false],
+        ].map(([icon, label, href, active]) => (
+          <div key={label as string} onClick={() => router.push(href as string)} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '7px', fontSize: '14px', color: active ? '#a99fff' : '#5a5670', background: active ? 'rgba(123,108,255,0.13)' : 'transparent', borderLeft: active ? '2px solid #7b6cff' : '2px solid transparent', cursor: 'pointer', marginBottom: '3px' }}>
+            <span style={{ width: '18px', textAlign: 'center' }}>{icon as string}</span>{label as string}
+          </div>
+        ))}
 
         <div onClick={signOut} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', fontSize: '14px', color: '#5a5670', cursor: 'pointer', marginTop: '8px' }}>
           <span>🚪</span>Выйти
+        </div>
+        <div onClick={async () => {
+          if (!confirm('Сбросить весь прогресс? Это нельзя отменить.')) return
+          await supabase.from('users').update({
+            xp: 0, level: 1, gold: 0, glory: 0, streak: 0,
+            total_answers: 0, quest_first_dungeon: false, onboarding_done: false
+          }).eq('id', user?.id)
+          await supabase.from('characters').delete().eq('user_id', user?.id)
+          router.push('/')
+        }} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', fontSize: '13px', color: '#3a3650', cursor: 'pointer', marginTop: '4px' }}>
+          <span>🔄</span>Сбросить прогресс
         </div>
       </div>
 
@@ -144,12 +146,10 @@ export default function Hub() {
           </div>
         </div>
 
-        {/* Ветки знаний */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', textTransform: 'uppercase', marginBottom: '12px' }}>
           Ветки знаний<div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
         </div>
 
-        {/* Математика */}
         <div style={{ background: '#1c1f2a', border: '1px solid rgba(201,168,76,0.35)', borderRadius: '10px', padding: '1.1rem 1.25rem', marginBottom: '8px', display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: '12px', alignItems: 'center', cursor: 'pointer' }}>
           <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: '#171920', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>∑</div>
           <div>
@@ -163,7 +163,6 @@ export default function Hub() {
           <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#c9a84c', textAlign: 'right' }}>{userData?.level || 1}<div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#5a5670' }}>уровень</div></div>
         </div>
 
-        {/* Физика — заблокирована */}
         <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '1.1rem 1.25rem', marginBottom: '20px', display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: '12px', alignItems: 'center', opacity: 0.4 }}>
           <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: '#171920', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>⚡</div>
           <div>
@@ -172,8 +171,6 @@ export default function Hub() {
           </div>
           <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', background: '#171920', padding: '3px 8px', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px' }}>🔒 Заперто</div>
         </div>
-
-        
       </div>
 
       {/* ПРАВЫЙ САЙДБАР */}
@@ -184,8 +181,7 @@ export default function Hub() {
         <div style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
           <div style={{ fontSize: '28px' }}>🔥</div>
           <div>
-            <div style={{ fontFamily: 'serif', fontSize: '36px', color: '#e0bc6a', lineHeight: 1 }}>{userData?.streak || 0}
-</div>
+            <div style={{ fontFamily: 'serif', fontSize: '36px', color: '#e0bc6a', lineHeight: 1 }}>{userData?.streak || 0}</div>
             <div style={{ fontSize: '12px', color: '#5a5670', fontFamily: 'monospace' }}>ДНЕЙ ПОДРЯД</div>
           </div>
         </div>
@@ -193,8 +189,8 @@ export default function Hub() {
         <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>
           Квесты дня
         </div>
-        {[{ title: 'Пройти первый данж', prog: userData?.quest_first_dungeon ? 1 : 0, total: 1, xp: '+50 XP', done: !!userData?.quest_first_dungeon },
-          
+        {[
+          { title: 'Пройти первый данж', prog: userData?.quest_first_dungeon ? 1 : 0, total: 1, xp: '+50 XP', done: !!userData?.quest_first_dungeon },
           { title: 'Ответить на 10 вопросов', prog: Math.min(userData?.total_answers || 0, 10), total: 10, xp: '+30 XP', done: (userData?.total_answers || 0) >= 10 },
           { title: 'Войти в игру', prog: 1, total: 1, xp: '+10 XP', done: true },
         ].map((q) => (
@@ -210,6 +206,41 @@ export default function Hub() {
           </div>
         ))}
       </div>
+
+      {/* ОНБОРДИНГ */}
+      {showOnboarding && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '2rem' }}>
+          <div style={{ background: '#1c1f2a', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '16px', padding: '2rem', maxWidth: '480px', width: '100%' }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <div style={{ fontSize: '44px', marginBottom: '10px' }}>🏰</div>
+              <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#e0bc6a', marginBottom: '4px' }}>
+                Добро пожаловать, {character?.name || 'авантюрист'}
+              </div>
+              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', letterSpacing: '0.2em' }}>
+                ЗНАНИЕ ЕСТЬ СИЛА
+              </div>
+            </div>
+
+            <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
+              Ты попал в LoreForge — обучающий RPG где математика это твоё оружие.
+              <br/><br/>
+              <span style={{ color: '#a99fff' }}>🏛️ Начни с Коллегии</span> — прослушай лекцию профессора Горуса и узнай зачем вообще нужна математика.
+              <br/><br/>
+              <span style={{ color: '#3db87a' }}>🏋️ Потренируйся в Зале</span> — здесь можно практиковаться без риска. Ошибки не убивают.
+              <br/><br/>
+              <span style={{ color: '#e0bc6a' }}>⚔️ Иди в Гильдию</span> — выбери данж, сразись с монстрами и зарабатывай очки славы.
+              <br/><br/>
+              Навигация слева. Удачи.
+            </div>
+
+            <div onClick={async () => { setShowOnboarding(false); await supabase.from('users').update({ onboarding_done: true }).eq('id', user?.id) }}
+              style={{ width: '100%', padding: '14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#e0bc6a', cursor: 'pointer' }}>
+              Понял, начинаем →
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
