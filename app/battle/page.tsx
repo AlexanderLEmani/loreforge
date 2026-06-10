@@ -268,9 +268,9 @@ if (!needsTimer) { if (timerRef.current) clearInterval(timerRef.current); return
     }
   }
 
-  function endBattle(result: 'win' | 'lose', finalMistakes: string[]) {
+function endBattle(result: 'win' | 'lose', finalMistakes: string[]) {
     const score = roundCount + 1 - finalMistakes.length
-    router.push(`/debrief?result=${result}&score=${Math.max(0, score)}&total=${roundCount + 1}&mistakes=${encodeURIComponent(finalMistakes.join('|'))}`)
+    router.push(`/debrief?result=${result}&score=${Math.max(0, score)}&total=${roundCount + 1}&mistakes=${encodeURIComponent(finalMistakes.join('|'))}&dungeon=${encodeURIComponent(dungeonName)}`)
   }
 
   if (loading) return <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>Загрузка данжа...</div>

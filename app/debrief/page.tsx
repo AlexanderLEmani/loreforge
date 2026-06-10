@@ -14,6 +14,7 @@ function DebriefContent() {
   const score = params.get('score') || '0'
   const total = params.get('total') || '5'
   const mistakesRaw = params.get('mistakes') || ''
+  const dungeonName = params.get('dungeon') || 'Данж'
   const isHard = params.get('hard') === 'true'
   const mistakes = mistakesRaw ? decodeURIComponent(mistakesRaw).split('|') : []
   const pct = Math.round((parseInt(score) / parseInt(total)) * 100)
@@ -26,7 +27,7 @@ function DebriefContent() {
   // Сохраняем прохождение
   await supabase.from('dungeon_runs').insert({
     user_id: user.id,
-    dungeon_name: 'Пещера сложения',
+    dungeon_name: dungeonName,
     score: parseInt(score),
     total: parseInt(total),
     result: result || 'win',
@@ -81,26 +82,49 @@ const xpGained = parseInt(score) * 10 * (isHard ? 2 : 1)
         {/* Заголовок */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem', paddingBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.06)', position: 'relative' }}>
           <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '8px' }}>
-            Данж завершён · Пещера сложения
+            Данж завершён · {dungeonName}
           </div>
           <div style={{ fontFamily: 'serif', fontSize: '40px', color: '#e0bc6a', marginBottom: '6px' }}>Разбор похода</div>
           <div style={{ fontSize: '17px', color: '#9590a8', fontStyle: 'italic' }}>
             Ошибки — это карта пробелов. Изучи внимательно.
           </div>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '12px' }}>
-  <div style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: '8px', padding: '8px 20px', fontFamily: 'monospace', fontSize: '14px', color: '#e0bc6a' }}>
-    +{parseInt(score) * 10} XP
-  </div>
-  <div style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: '8px', padding: '8px 20px', fontFamily: 'monospace', fontSize: '14px', color: '#e0bc6a' }}>
-    +{parseInt(score) * 10} XP
-  </div>
-  <div style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: '8px', padding: '8px 20px', fontFamily: 'monospace', fontSize: '14px', color: '#e0bc6a' }}>
-    +{parseInt(score) * 5} 💰
-  </div>
-  {result === 'win' && (
-    <div style={{ background: 'rgba(123,108,255,0.12)', border: '1px solid rgba(123,108,255,0.25)', borderRadius: '8px', padding: '8px 20px', fontFamily: 'monospace', fontSize: '14px', color: '#a99fff' }}>
-      +{Math.max(10, parseInt(score) * 8)} ⭐ славы
-    </div>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px', flexWrap: 'wrap' }}>
+  {result === 'win' ? (
+    <>
+      <div style={{ background: 'rgba(61,184,122,0.08)', border: '1px solid rgba(61,184,122,0.3)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
+        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#3db87a' }}>+{parseInt(score) * 10 * (isHard ? 2 : 1)}</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>XP</div>
+      </div>
+      <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
+        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#e0bc6a' }}>+{parseInt(score) * 5 * (isHard ? 2 : 1)}</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>💰 Золото</div>
+      </div>
+      <div style={{ background: 'rgba(123,108,255,0.08)', border: '1px solid rgba(123,108,255,0.3)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
+        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#a99fff' }}>+{Math.max(10, parseInt(score) * 8)}</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>⭐ Слава</div>
+      </div>
+      {isHard && (
+        <div style={{ background: 'rgba(224,188,106,0.08)', border: '1px solid rgba(224,188,106,0.3)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
+          <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#e0bc6a' }}>x2</div>
+          <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>⚡ Хард бонус</div>
+        </div>
+      )}
+    </>
+  ) : (
+    <>
+      <div style={{ background: 'rgba(224,85,85,0.06)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
+        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#e05555' }}>+{parseInt(score) * 10 * (isHard ? 2 : 1)}</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>XP (урезано)</div>
+      </div>
+      <div style={{ background: 'rgba(224,85,85,0.06)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
+        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#e05555' }}>0</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>⭐ Слава</div>
+      </div>
+      <div style={{ background: 'rgba(224,85,85,0.06)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
+        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#e05555' }}>💀</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>Провал</div>
+      </div>
+    </>
   )}
 </div>
         </div>
