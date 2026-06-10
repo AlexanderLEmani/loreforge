@@ -33,14 +33,15 @@ function DebriefContent() {
     mistakes: mistakes,
   })
 
-  // Начисляем XP и золото
-  const xpGained = parseInt(score) * 10 * (isHard ? 2 : 1)
+  // Начисляем XP и золото и славу
+const xpGained = parseInt(score) * 10 * (isHard ? 2 : 1)
   const goldGained = parseInt(score) * 5 * (isHard ? 2 : 1)
+  const gloryGained = result === 'win' ? Math.max(10, parseInt(score) * 8) : 0
   
 
   const { data: userData } = await supabase
     .from('users')
-    .select('xp, level, gold, quest_first_dungeon')
+    .select('xp, level, gold, glory, quest_first_dungeon')
     .eq('id', user.id)
     .single()
 
@@ -59,6 +60,7 @@ function DebriefContent() {
       xp: newXP,
       level: newLevel,
       gold: newGold,
+      glory: (userData.glory || 0) + gloryGained,
     }).eq('id', user.id)
   }
   // Отмечаем квест если первый данж
@@ -90,8 +92,16 @@ function DebriefContent() {
     +{parseInt(score) * 10} XP
   </div>
   <div style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: '8px', padding: '8px 20px', fontFamily: 'monospace', fontSize: '14px', color: '#e0bc6a' }}>
+    +{parseInt(score) * 10} XP
+  </div>
+  <div style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: '8px', padding: '8px 20px', fontFamily: 'monospace', fontSize: '14px', color: '#e0bc6a' }}>
     +{parseInt(score) * 5} 💰
   </div>
+  {result === 'win' && (
+    <div style={{ background: 'rgba(123,108,255,0.12)', border: '1px solid rgba(123,108,255,0.25)', borderRadius: '8px', padding: '8px 20px', fontFamily: 'monospace', fontSize: '14px', color: '#a99fff' }}>
+      +{Math.max(10, parseInt(score) * 8)} ⭐ славы
+    </div>
+  )}
 </div>
         </div>
 
