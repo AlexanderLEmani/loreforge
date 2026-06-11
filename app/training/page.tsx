@@ -36,13 +36,18 @@ export default function TrainingPage() {
   const [total, setTotal] = useState(0)
   const [timer, setTimer] = useState(180)
   const [timerActive, setTimerActive] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(false)
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
-      const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step').eq('id', user.id).single()
+      const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step, visited_training').eq('id', user.id).single()
       setUserData({ ...data, id: user.id })
+      if (data && !data.visited_training) {
+        setShowWelcome(true)
+        await supabase.from('users').update({ visited_training: true }).eq('id', user.id)
+      }
       setLoading(false)
     }
     load()
@@ -367,6 +372,31 @@ export default function TrainingPage() {
           ))}
         </div>
       </div>
+      {showWelcome && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '2rem' }}>
+          <div style={{ background: '#1c1f2a', border: '1px solid rgba(61,184,122,0.3)', borderRadius: '16px', padding: '2rem', maxWidth: '460px', width: '100%' }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <div style={{ fontSize: '44px', marginBottom: '10px' }}>🪖</div>
+              <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#3db87a', marginBottom: '6px' }}>Тренировочный зал</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', letterSpacing: '0.2em' }}>СЕРЖАНТ ВАРГ</div>
+            </div>
+            <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
+              Здесь ты можешь практиковаться <span style={{ color: '#3db87a' }}>без риска</span> — ошибки не убивают и не забирают ресурсы.
+              <br/><br/>
+              Выбирай <span style={{ color: '#3db87a' }}>тему</span> и <span style={{ color: '#3db87a' }}>режим</span>:
+              <br/>• <span style={{ color: '#e6e2f0' }}>С подсказками</span> — для изучения нового
+              <br/>• <span style={{ color: '#e6e2f0' }}>Без подсказок</span> — для повторения
+              <br/>• <span style={{ color: '#e6e2f0' }}>Спидран</span> — на скорость
+              <br/><br/>
+              Когда будешь готов — иди в Гильдию. Там уже по-настоящему.
+            </div>
+            <div onClick={() => setShowWelcome(false)}
+              style={{ width: '100%', padding: '14px', background: 'rgba(61,184,122,0.12)', border: '1px solid rgba(61,184,122,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#3db87a', cursor: 'pointer' }}>
+              Понял, приступаю →
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

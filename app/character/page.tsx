@@ -34,6 +34,8 @@ export default function CharacterPage() {
   const [userData, setUserData] = useState<any>(null)
   const [character, setCharacter] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [showWelcome, setShowWelcome] = useState(false)
+
 
   useEffect(() => {
     async function load() {
@@ -43,10 +45,14 @@ export default function CharacterPage() {
 
       const { data: ud } = await supabase
         .from('users')
-        .select('xp, level, gold, streak, total_answers')
+        .select('xp, level, gold, streak, total_answers, visited_character')
         .eq('id', user.id)
         .single()
       setUserData(ud)
+      if (ud && !ud.visited_character) {
+        setShowWelcome(true)
+        await supabase.from('users').update({ visited_character: true }).eq('id', user.id)
+      }
 
       const { data: ch } = await supabase
         .from('characters')
@@ -273,6 +279,32 @@ export default function CharacterPage() {
         </div>
 
       </div>
+      {showWelcome && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '2rem' }}>
+          <div style={{ background: '#1c1f2a', border: '1px solid rgba(123,108,255,0.3)', borderRadius: '16px', padding: '2rem', maxWidth: '460px', width: '100%' }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <div style={{ fontSize: '44px', marginBottom: '10px' }}>👤</div>
+              <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#a99fff', marginBottom: '6px' }}>Твой персонаж</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', letterSpacing: '0.2em' }}>СНАРЯЖЕНИЕ И СТАТИСТИКА</div>
+            </div>
+            <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
+              Здесь живёт твой персонаж. Со временем здесь появится:
+              <br/><br/>
+              <span style={{ color: '#e6e2f0' }}>🎽 Снаряжение</span> — предметы которые ты находишь в данжах. Надевай лучшее.
+              <br/>
+              <span style={{ color: '#e6e2f0' }}>📊 Характеристики</span> — растут с уровнем и зависят от расы.
+              <br/>
+              <span style={{ color: '#e6e2f0' }}>📦 Инвентарь</span> — зелья, свитки и расходники для боя.
+              <br/><br/>
+              Пока слоты пустые — иди в данжи и заполняй их.
+            </div>
+            <div onClick={() => setShowWelcome(false)}
+              style={{ width: '100%', padding: '14px', background: 'rgba(123,108,255,0.12)', border: '1px solid rgba(123,108,255,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#a99fff', cursor: 'pointer' }}>
+              Понял →
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

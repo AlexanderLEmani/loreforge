@@ -39,7 +39,7 @@ export default function CollegePage() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
-      const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step').eq('id', user.id).single()
+      const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step, visited_college').eq('id', user.id).single()
       setUserData(data)
       if (data && (data.onboarding_step || 0) < 1) {
         await supabase.from('users').update({ onboarding_step: 1 }).eq('id', user.id)
@@ -126,12 +126,19 @@ export default function CollegePage() {
             })}
 
             {/* Кнопка */}
-            <div style={{ marginTop: '2.5rem' }}>
-              <div onClick={() => setShowNext(true)}
-                style={{ width: '100%', padding: '16px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '18px', color: '#e0bc6a', cursor: 'pointer' }}>
-                Ознакомился →
+            {!userData?.visited_college && (
+              <div style={{ marginTop: '2.5rem' }}>
+                <div onClick={async () => {
+                  setShowNext(true)
+                  const { data: { user } } = await supabase.auth.getUser()
+                  if (user) await supabase.from('users').update({ visited_college: true }).eq('id', user.id)
+                  setUserData((prev: any) => ({ ...prev, visited_college: true }))
+                }}
+                  style={{ width: '100%', padding: '16px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '18px', color: '#e0bc6a', cursor: 'pointer' }}>
+                  Ознакомился →
+                </div>
               </div>
-            </div>
+            )}
 
           </div>
 

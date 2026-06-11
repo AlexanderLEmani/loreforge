@@ -39,13 +39,18 @@ export default function GuildPage() {
   const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [buying, setBuying] = useState<string | null>(null)
+  const [showWelcome, setShowWelcome] = useState(false)
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
-      const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step').eq('id', user.id).single()
+      const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step, visited_guild').eq('id', user.id).single()
       setUserData({ ...data, id: user.id })
+      if (data && !data.visited_guild) {
+        setShowWelcome(true)
+        await supabase.from('users').update({ visited_guild: true }).eq('id', user.id)
+      }
       setLoading(false)
     }
     load()
@@ -244,6 +249,32 @@ export default function GuildPage() {
           ))}
         </div>
       </div>
+      {showWelcome && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '2rem' }}>
+          <div style={{ background: '#1c1f2a', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '16px', padding: '2rem', maxWidth: '460px', width: '100%' }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <div style={{ fontSize: '44px', marginBottom: '10px' }}>⚔️</div>
+              <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#e0bc6a', marginBottom: '6px' }}>Гильдия Авантюристов</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', letterSpacing: '0.2em' }}>ДОСКА ЗАДАНИЙ</div>
+            </div>
+            <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
+              Здесь ты выбираешь <span style={{ color: '#e0bc6a' }}>данжи</span> и отправляешься в бой.
+              <br/><br/>
+              <span style={{ color: '#e6e2f0' }}>Бесплатные данжи</span> — всегда доступны. Меньше наград.
+              <br/>
+              <span style={{ color: '#e6e2f0' }}>Платные данжи</span> — покупаются за <span style={{ color: '#a99fff' }}>⭐ очки славы</span>. Больше наград и редкое снаряжение.
+              <br/><br/>
+              Выполняй <span style={{ color: '#e0bc6a' }}>квесты</span> чтобы зарабатывать дополнительную славу и повышать <span style={{ color: '#a99fff' }}>ранг</span> в гильдии.
+              <br/><br/>
+              Побеждай. Расти. Становись легендой.
+            </div>
+            <div onClick={() => setShowWelcome(false)}
+              style={{ width: '100%', padding: '14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#e0bc6a', cursor: 'pointer' }}>
+              Понял, ищу данж →
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
