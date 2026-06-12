@@ -29,17 +29,17 @@ export default function Home() {
   async function quickStart() {
     setLoading('guest')
     setError('')
-    const { data, error: authError } = await signInAsGuest(supabase)
-    if (authError || !data.user) {
+    const { user, errorMessage } = await signInAsGuest(supabase)
+    if (!user) {
       setError(
-        authError?.message?.includes('anonymous')
-          ? 'Гостевой вход не включён в Supabase. Включи Anonymous Sign-In в Authentication → Providers.'
-          : 'Не удалось начать игру. Попробуй ещё раз или войди через Google.',
+        errorMessage?.includes('Signups not allowed')
+          ? 'Регистрация отключена в Supabase. Включи Sign-ups в Authentication → Providers → Email.'
+          : errorMessage ?? 'Не удалось начать игру. Попробуй ещё раз или войди через Google.',
       )
       setLoading(null)
       return
     }
-    const path = await guestLandingPath(supabase, data.user.id)
+    const path = await guestLandingPath(supabase, user.id)
     router.push(path)
   }
 
