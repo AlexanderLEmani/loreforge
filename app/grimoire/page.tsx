@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
+import { scrollSupportsTraining } from '@/lib/scroll-training'
 
 const levelColors: Record<number, { border: string; accent: string; bg: string; tag: string }> = {
   1: { border: '#5a3e2b', accent: '#c9a45a', bg: '#1a1008', tag: '#3d2a14' },
@@ -113,6 +114,13 @@ export default function GrimoirePage() {
               <div style={{ color: c.accent, fontSize: '16px', flexShrink: 0, marginTop: '1px' }}>⚔</div>
               <div style={{ color: '#8a7a6a', fontSize: '13px', fontStyle: 'italic', lineHeight: 1.6 }}>{selected.combat}</div>
             </div>
+
+            {scrollSupportsTraining(selected) && (
+              <div onClick={() => router.push(`/training?scroll=${selected.id}`)}
+                style={{ display: 'block', width: '100%', background: 'rgba(61,184,122,0.12)', border: '1px solid rgba(61,184,122,0.45)', color: '#3db87a', padding: '12px', fontSize: '13px', letterSpacing: '0.08em', cursor: 'pointer', textAlign: 'center', borderRadius: '6px', marginBottom: '10px' }}>
+                🏋️ Тренировать по этому свитку →
+              </div>
+            )}
 
             <div onClick={() => setSelected(null)}
               style={{ display: 'block', width: '100%', background: 'transparent', border: `1px solid ${c.border}`, color: c.accent, padding: '10px', fontSize: '12px', letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer', textAlign: 'center', borderRadius: '4px' }}>

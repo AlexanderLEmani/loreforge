@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { loadTrainingStats, loadTopicProgress, recordTrainingAttempt, type TrainingStats, type TopicProgressMap } from '@/lib/training-stats'
@@ -9,6 +9,15 @@ import Sidebar from '@/components/Sidebar'
 import { navUnlockFromUser } from '@/lib/nav-unlock'
 import { trainingGoldPerCorrect, trainingXpPerCorrect } from '@/lib/economy'
 import { mergeWithFallback } from '@/lib/fallback-questions'
+import {
+  type ScrollRecord,
+  loadScrollTrainingQuestions,
+  parseScrollExample,
+  resolveScrollTrainingTag,
+  scrollSupportsTraining,
+  SCROLL_TRAINING_PROFILES,
+} from '@/lib/scroll-training'
+import { answersMatch } from '@/lib/scroll-display'
 
 const TOPICS = [
   { id: 'add', icon: '➕', name: 'Сложение',   level: 1, dungeon: 'Пещера сложения' },
@@ -34,6 +43,11 @@ const MODES = [
   { id: 'speed',  icon: '⏱️', name: 'Спидран',        desc: 'Максимум задач за 3 минуты. Только скорость.', color: '#e0bc6a', xpMod: '+1 💰 за ответ' },
 ]
 
+const ANSWER_FORMATS = [
+  { id: 'choice', icon: '🔘', name: 'Варианты', desc: 'Выбор из четырёх ответов — удобно для изучения' },
+  { id: 'typed', icon: '⌨️', name: 'Сам ввод', desc: 'Печатаешь ответ сам · Enter для подтверждения · без клика в поле' },
+]
+
 export default function TrainingPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -57,6 +71,13 @@ export default function TrainingPage() {
   const [trainingStats, setTrainingStats] = useState<TrainingStats | null>(null)
   const [topicProgress, setTopicProgress] = useState<TopicProgressMap>({})
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [setupSource, setSetupSource] = useState<'topics' | 'scroll'>('topics')
+  const [ownedScrolls, setOwnedScrolls] = useState<ScrollRecord[]>([])
+  const [selectedScrollId, setSelectedScrollId] = useState<number | null>(null)
+  const [activeScroll, setActiveScroll] = useState<ScrollRecord | null>(null)
+  const [answerFormat, setAnswerFormat] = useState<'choice' | 'typed'>('choice')
+  const [inputAnswer, setInputAnswer] = useState('')
+  const answerInputRef = useRef<HTMLInputElement>(null)
 
   async function refreshStats(userId: string) {
     const [stats, topics] = await Promise.all([
@@ -74,6 +95,27 @@ export default function TrainingPage() {
       const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills, quest_first_dungeon').eq('id', user.id).single()
       setUserData({ ...data, id: user.id })
       await refreshStats(user.id)
+
+      const { data: us } = await supabase
+        .from('user_scrolls')
+        .select('scroll_id, scrolls(*)')
+        .eq('user_id', user.id)
+      const scrollRows = (us ?? []) as unknown as Array<{ scrolls: ScrollRecord | null }>
+      const scrollList = scrollRows
+        .map(row => row.scrolls)
+        .filter((s): s is ScrollRecord => s != null)
+      const trainableScrolls = scrollList.filter(s => scrollSupportsTraining(s))
+      setOwnedScrolls(trainableScrolls)
+
+      const scrollParam = new URLSearchParams(window.location.search).get('scroll')
+      if (scrollParam) {
+        const id = Number(scrollParam)
+        if (trainableScrolls.some(s => s.id === id)) {
+          setSetupSource('scroll')
+          setSelectedScrollId(id)
+        }
+      }
+
       if (data && !data.visited_training) {
         setShowWelcome(true)
         await supabase.from('users').update({ visited_training: true }).eq('id', user.id)
@@ -86,8 +128,17 @@ export default function TrainingPage() {
   async function exitTraining() {
     setPhase('setup')
     setTimerActive(false)
+    setActiveScroll(null)
+    setInputAnswer('')
     if (userData?.id) await refreshStats(userData.id)
   }
+
+  // Автофокус в поле ввода — не нужно кликать мышкой
+  useEffect(() => {
+    if (phase !== 'battle' || answerFormat !== 'typed' || showHint || selected !== null) return
+    const t = setTimeout(() => answerInputRef.current?.focus(), 30)
+    return () => clearTimeout(t)
+  }, [phase, answerFormat, showHint, selected, current])
 
   // Таймер спидрана
   useEffect(() => {
@@ -98,15 +149,29 @@ export default function TrainingPage() {
   }, [timer, timerActive])
 
   async function startTraining() {
-    if (selectedTopics.length === 0) return
+    if (setupSource === 'topics' && selectedTopics.length === 0) return
+    if (setupSource === 'scroll' && !selectedScrollId) return
 
-    const dungeons = selectedTopics.map(id => TOPICS.find(t => t.id === id)?.dungeon).filter(Boolean) as string[]
     let allQ: any[] = []
-    for (const d of [...new Set(dungeons)]) {
-      const { data } = await supabase.from('questions').select('*').eq('dungeon_name', d).limit(120)
-      const merged = mergeWithFallback(d, data || [])
-      if (merged.length) allQ = [...allQ, ...merged]
+    let scrollSession: ScrollRecord | null = null
+
+    if (setupSource === 'scroll') {
+      const scroll = ownedScrolls.find(s => s.id === selectedScrollId)
+      if (!scroll) return
+      const tag = resolveScrollTrainingTag(scroll)
+      if (!tag) return
+      allQ = await loadScrollTrainingQuestions(supabase, tag)
+      scrollSession = scroll
+    } else {
+      const dungeons = selectedTopics.map(id => TOPICS.find(t => t.id === id)?.dungeon).filter(Boolean) as string[]
+      for (const d of [...new Set(dungeons)]) {
+        const { data } = await supabase.from('questions').select('*').eq('dungeon_name', d).limit(120)
+        const merged = mergeWithFallback(d, data || [])
+        if (merged.length) allQ = [...allQ, ...merged]
+      }
     }
+
+    if (allQ.length === 0) return
 
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
@@ -117,6 +182,7 @@ export default function TrainingPage() {
     }
 
     const shuffled = shuffleQuestions(allQ).sort(() => Math.random() - 0.5).slice(0, 20)
+    setActiveScroll(scrollSession)
     setSessionId(crypto.randomUUID())
     setQuestions(shuffled)
     setCurrent(0)
@@ -126,15 +192,25 @@ export default function TrainingPage() {
     setGoldEarned(0)
     setSelected(null)
     setShowHint(false)
+    setInputAnswer('')
     setPhase('battle')
     if (selectedMode === 'speed') { setTimer(180); setTimerActive(true) }
   }
 
-    async function handleAnswer(idx: number) {
-    if (selected !== null) return
-    setSelected(idx)
+  function advanceQuestion() {
+    setSelected(null)
+    setShowHint(false)
+    setInputAnswer('')
+    if (current + 1 >= questions.length) {
+      setQuestions(q => shuffleQuestions([...q]).sort(() => Math.random() - 0.5))
+      setCurrent(0)
+    } else {
+      setCurrent(c => c + 1)
+    }
+  }
+
+  async function processAnswer(isCorrect: boolean) {
     const q = questions[current]
-    const isCorrect = idx === q.correct_index
     setTotal(t => t + 1)
     if (isCorrect) {
       setCorrect(c => c + 1)
@@ -169,29 +245,30 @@ export default function TrainingPage() {
     if (!isCorrect && selectedMode === 'guided') setShowHint(true)
 
     if (isCorrect || selectedMode !== 'guided') {
-      setTimeout(() => {
-        setSelected(null)
-        setShowHint(false)
-        if (current + 1 >= questions.length) {
-          const reshuffled = shuffleQuestions([...questions]).sort(() => Math.random() - 0.5)
-          setQuestions(reshuffled)
-          setCurrent(0)
-        } else {
-          setCurrent(c => c + 1)
-        }
-      }, isCorrect ? 600 : 1200)
+      const delay = isCorrect
+        ? (answerFormat === 'typed' ? 350 : 600)
+        : 1200
+      setTimeout(() => advanceQuestion(), delay)
     }
   }
 
+  async function handleChoiceAnswer(idx: number) {
+    if (selected !== null) return
+    const q = questions[current]
+    setSelected(idx)
+    await processAnswer(idx === q.correct_index)
+  }
+
+  async function handleTypedSubmit() {
+    if (selected !== null || !inputAnswer.trim()) return
+    const q = questions[current]
+    const isCorrect = answersMatch(inputAnswer, q.answers[q.correct_index])
+    setSelected(isCorrect ? q.correct_index : -1)
+    await processAnswer(isCorrect)
+  }
+
   function dismissHint() {
-    setSelected(null)
-    setShowHint(false)
-    if (current + 1 >= questions.length) {
-      setQuestions(q => shuffleQuestions([...q]).sort(() => Math.random() - 0.5))
-      setCurrent(0)
-    } else {
-      setCurrent(c => c + 1)
-    }
+    advanceQuestion()
   }
 
   if (loading) return (
@@ -207,6 +284,11 @@ export default function TrainingPage() {
   const xpNext = xpToNext[level - 1] || 100
   const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
   const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0
+  const canStart = setupSource === 'topics' ? selectedTopics.length > 0 : selectedScrollId !== null
+  const selectedScroll = ownedScrolls.find(s => s.id === selectedScrollId)
+  const selectedScrollTag = selectedScroll ? resolveScrollTrainingTag(selectedScroll) : null
+  const selectedScrollProfile = selectedScrollTag ? SCROLL_TRAINING_PROFILES[selectedScrollTag] : null
+  const scrollExample = selectedScroll ? parseScrollExample(selectedScroll.example) : parseScrollExample(activeScroll?.example)
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
@@ -246,6 +328,21 @@ export default function TrainingPage() {
               </div>
             </div>
 
+            {/* ФОРМАТ ОТВЕТА */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>
+              <span>Как отвечать</span><div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1.5rem' }}>
+              {ANSWER_FORMATS.map(f => (
+                <div key={f.id} onClick={() => setAnswerFormat(f.id as 'choice' | 'typed')}
+                  style={{ background: answerFormat === f.id ? 'rgba(123,108,255,0.08)' : '#1c1f2a', border: `1px solid ${answerFormat === f.id ? 'rgba(123,108,255,0.45)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '12px', padding: '1rem 1.25rem', cursor: 'pointer', transition: 'all 0.15s' }}>
+                  <div style={{ fontSize: '22px', marginBottom: '6px' }}>{f.icon}</div>
+                  <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0', marginBottom: '4px' }}>{f.name}</div>
+                  <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic', lineHeight: 1.4 }}>{f.desc}</div>
+                </div>
+              ))}
+            </div>
+
             {/* РЕЖИМЫ */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>
               <span>Режим тренировки</span><div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
@@ -263,33 +360,100 @@ export default function TrainingPage() {
               ))}
             </div>
 
-            {/* ТЕМЫ */}
+            {/* ИСТОЧНИК ЗАДАНИЙ */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>
-              <span>Выбери тему</span><div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
+              <span>Задания</span><div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '1.5rem' }}>
-              {TOPICS.map(t => {
-                const locked = t.level > level || !t.dungeon
-                const sel = selectedTopics.includes(t.id)
-                return (
-                  <div key={t.id} onClick={() => {
-                    if (locked) return
-                    setSelectedTopics(prev => sel ? prev.filter(x => x !== t.id) : [...prev, t.id])
-                  }}
-                    style={{ background: sel ? 'rgba(61,184,122,0.06)' : '#1c1f2a', border: `1px solid ${sel ? 'rgba(61,184,122,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '9px', padding: '10px 14px', cursor: locked ? 'default' : 'pointer', opacity: locked ? 0.35 : 1, display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.15s' }}>
-                    <div style={{ fontSize: '20px', flexShrink: 0 }}>{t.icon}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '13px', color: '#e6e2f0', marginBottom: '2px' }}>{t.name}</div>
-                      <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>Ур.{t.level}{locked && !t.dungeon ? ' · Скоро' : locked ? ' · Требует Ур.' + t.level : ''}</div>
-                    </div>
-                    <div style={{ fontSize: '14px', color: '#3db87a', opacity: sel ? 1 : 0 }}>✓</div>
-                  </div>
-                )
-              })}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem' }}>
+              {[
+                { id: 'topics' as const, label: 'По темам', icon: '📚' },
+                { id: 'scroll' as const, label: 'По свитку', icon: '📜' },
+              ].map(src => (
+                <div key={src.id} onClick={() => setSetupSource(src.id)}
+                  style={{ flex: 1, background: setupSource === src.id ? 'rgba(201,168,76,0.1)' : '#1c1f2a', border: `1px solid ${setupSource === src.id ? 'rgba(201,168,76,0.45)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '10px', padding: '10px 12px', cursor: 'pointer', textAlign: 'center' }}>
+                  <div style={{ fontSize: '18px', marginBottom: '4px' }}>{src.icon}</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '10px', color: setupSource === src.id ? '#e0bc6a' : '#5a5670' }}>{src.label}</div>
+                </div>
+              ))}
             </div>
 
-            <div onClick={startTraining} style={{ width: '100%', padding: '16px', background: selectedTopics.length > 0 ? 'rgba(61,184,122,0.12)' : 'rgba(255,255,255,0.03)', border: `1px solid ${selectedTopics.length > 0 ? 'rgba(61,184,122,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '12px', textAlign: 'center', fontFamily: 'serif', fontSize: '20px', color: selectedTopics.length > 0 ? '#3db87a' : '#3a3650', cursor: selectedTopics.length > 0 ? 'pointer' : 'default', marginBottom: '8px' }}>
-              🏋️ Начать тренировку →
+            {setupSource === 'topics' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '1.5rem' }}>
+                {TOPICS.map(t => {
+                  const locked = t.level > level || !t.dungeon
+                  const sel = selectedTopics.includes(t.id)
+                  return (
+                    <div key={t.id} onClick={() => {
+                      if (locked) return
+                      setSelectedTopics(prev => sel ? prev.filter(x => x !== t.id) : [...prev, t.id])
+                    }}
+                      style={{ background: sel ? 'rgba(61,184,122,0.06)' : '#1c1f2a', border: `1px solid ${sel ? 'rgba(61,184,122,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '9px', padding: '10px 14px', cursor: locked ? 'default' : 'pointer', opacity: locked ? 0.35 : 1, display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.15s' }}>
+                      <div style={{ fontSize: '20px', flexShrink: 0 }}>{t.icon}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '13px', color: '#e6e2f0', marginBottom: '2px' }}>{t.name}</div>
+                        <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>Ур.{t.level}{locked && !t.dungeon ? ' · Скоро' : locked ? ' · Требует Ур.' + t.level : ''}</div>
+                      </div>
+                      <div style={{ fontSize: '14px', color: '#3db87a', opacity: sel ? 1 : 0 }}>✓</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {setupSource === 'scroll' && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                {ownedScrolls.length === 0 ? (
+                  <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '1.5rem', textAlign: 'center' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '8px' }}>📜</div>
+                    <div style={{ fontSize: '14px', color: '#9590a8', marginBottom: '8px' }}>Нет свитков для тренировки</div>
+                    <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic', marginBottom: '1rem' }}>Купи учебный свиток в Лавке (уровень I) — тренировка подстроится под его тему.</div>
+                    <div onClick={() => router.push('/shop')} style={{ display: 'inline-block', padding: '8px 18px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '8px', fontFamily: 'monospace', fontSize: '11px', color: '#e0bc6a', cursor: 'pointer' }}>
+                      🛒 Открыть Лавку
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                      {ownedScrolls.map(s => {
+                        const sel = selectedScrollId === s.id
+                        const tag = resolveScrollTrainingTag(s)
+                        const profile = tag ? SCROLL_TRAINING_PROFILES[tag] : null
+                        return (
+                          <div key={s.id} onClick={() => setSelectedScrollId(s.id)}
+                            style={{ background: sel ? 'rgba(201,168,76,0.08)' : '#1c1f2a', border: `1px solid ${sel ? 'rgba(201,168,76,0.45)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '9px', padding: '10px 14px', cursor: 'pointer', transition: 'all 0.15s' }}>
+                            <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#c9a45a', letterSpacing: '0.1em', marginBottom: '4px' }}>УР.I · {profile?.label ?? 'Свиток'}</div>
+                            <div style={{ fontSize: '13px', color: '#e6e2f0', marginBottom: '2px' }}>{s.title}</div>
+                            <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic' }}>{s.subtitle}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {selectedScroll && selectedScrollProfile && (
+                      <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: '12px', padding: '1rem 1.25rem' }}>
+                        <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#c9a84c', letterSpacing: '0.15em', marginBottom: '8px' }}>ТРЕНИРОВКА ПО СВИТКУ</div>
+                        <div style={{ fontSize: '14px', color: '#d4c4a0', fontStyle: 'italic', lineHeight: 1.6, marginBottom: '10px' }}>
+                          «{selectedScroll.gorus}»
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#9590a8', lineHeight: 1.6, marginBottom: '10px' }}>
+                          Примеры: <span style={{ color: '#e0bc6a' }}>{selectedScrollProfile.label}</span> · {selectedScrollProfile.dungeon}
+                        </div>
+                        {scrollExample.task && (
+                          <div style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '6px', padding: '10px 12px', fontFamily: "'Courier New', monospace", fontSize: '12px', color: '#c8b890' }}>
+                            <div style={{ color: '#e0bc6a', marginBottom: '4px' }}>{scrollExample.task}</div>
+                            {(scrollExample.steps || []).slice(0, 3).map((step, i) => (
+                              <div key={i} style={{ lineHeight: 1.7 }}>{step}</div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            <div onClick={() => canStart && startTraining()} style={{ width: '100%', padding: '16px', background: canStart ? 'rgba(61,184,122,0.12)' : 'rgba(255,255,255,0.03)', border: `1px solid ${canStart ? 'rgba(61,184,122,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '12px', textAlign: 'center', fontFamily: 'serif', fontSize: '20px', color: canStart ? '#3db87a' : '#3a3650', cursor: canStart ? 'pointer' : 'default', marginBottom: '8px' }}>
+              {setupSource === 'scroll' ? '📜 Тренировать по свитку →' : '🏋️ Начать тренировку →'}
             </div>
             <div style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '11px', color: '#5a5670', fontStyle: 'italic' }}>
               Ошибки не отнимают HP и славу — стипендия Коллегии капает на золото
@@ -329,14 +493,34 @@ export default function TrainingPage() {
                 </div>
 
                 {/* Режим-бейдж */}
-                <div style={{ marginBottom: '1rem', display: 'flex', gap: '8px' }}>
+                <div style={{ marginBottom: '1rem', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <span style={{ fontFamily: 'monospace', fontSize: '10px', padding: '3px 10px', borderRadius: '4px', background: 'rgba(61,184,122,0.08)', border: '1px solid rgba(61,184,122,0.2)', color: '#3db87a' }}>
                     🏋️ Тренировка
                   </span>
                   <span style={{ fontFamily: 'monospace', fontSize: '10px', padding: '3px 10px', borderRadius: '4px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', color: '#5a5670' }}>
                     {MODES.find(m => m.id === selectedMode)?.name}
                   </span>
+                  <span style={{ fontFamily: 'monospace', fontSize: '10px', padding: '3px 10px', borderRadius: '4px', background: 'rgba(123,108,255,0.08)', border: '1px solid rgba(123,108,255,0.25)', color: '#a99fff' }}>
+                    {answerFormat === 'typed' ? '⌨️ Сам ввод' : '🔘 Варианты'}
+                  </span>
+                  {activeScroll && (
+                    <span style={{ fontFamily: 'monospace', fontSize: '10px', padding: '3px 10px', borderRadius: '4px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', color: '#e0bc6a' }}>
+                      📜 {activeScroll.title}
+                    </span>
+                  )}
                 </div>
+
+                {activeScroll && scrollExample.task && (
+                  <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '10px', padding: '10px 14px', marginBottom: '1rem' }}>
+                    <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#c9a84c', letterSpacing: '0.12em', marginBottom: '6px' }}>МЕТОД СВИТКА</div>
+                    <div style={{ fontFamily: "'Courier New', monospace", fontSize: '12px', color: '#c8b890', lineHeight: 1.7 }}>
+                      <div style={{ color: '#e0bc6a' }}>{scrollExample.task}</div>
+                      {(scrollExample.steps || []).map((step, i) => (
+                        <div key={i}>{step}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Вопрос */}
                 <div style={{ background: '#1c1f2a', border: '1px solid rgba(61,184,122,0.2)', borderRadius: '14px', padding: '2rem', marginBottom: '1rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
@@ -352,7 +536,9 @@ export default function TrainingPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#e0bc6a', marginBottom: '4px' }}>ПРАВИЛЬНЫЙ ОТВЕТ</div>
                       <div style={{ fontSize: '24px', color: '#3db87a', fontFamily: 'serif', marginBottom: '4px' }}>{q.answers[q.correct_index]}</div>
-                      <div style={{ fontSize: '12px', color: '#9590a8', fontStyle: 'italic' }}>Запомни и двигайся дальше.</div>
+                      <div style={{ fontSize: '12px', color: '#9590a8', fontStyle: 'italic' }}>
+                        {activeScroll?.combat ? activeScroll.combat : 'Запомни и двигайся дальше.'}
+                      </div>
                     </div>
                     <div onClick={dismissHint} style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670', cursor: 'pointer', padding: '4px 10px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', whiteSpace: 'nowrap' }}>
                       Понял →
@@ -361,7 +547,7 @@ export default function TrainingPage() {
                 )}
 
                 {/* Ответы */}
-                {!showHint && (
+                {!showHint && answerFormat === 'choice' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
                     {q.answers.map((ans: string, idx: number) => {
                       let bg = '#1c1f2a', border = 'rgba(255,255,255,0.07)', color = '#e6e2f0'
@@ -370,7 +556,7 @@ export default function TrainingPage() {
                         else if (idx === selected) { bg = 'rgba(224,85,85,0.06)'; border = 'rgba(224,85,85,0.35)'; color = '#e05555' }
                       }
                       return (
-                        <div key={idx} onClick={() => handleAnswer(idx)}
+                        <div key={idx} onClick={() => handleChoiceAnswer(idx)}
                           style={{ background: bg, border: `1px solid ${border}`, borderRadius: '9px', padding: '14px', textAlign: 'center', fontFamily: 'serif', fontSize: '24px', color, cursor: selected !== null ? 'default' : 'pointer', transition: 'all 0.18s' }}>
                           {ans}
                         </div>
@@ -379,8 +565,54 @@ export default function TrainingPage() {
                   </div>
                 )}
 
+                {!showHint && answerFormat === 'typed' && (() => {
+                  const typedCorrect = selected !== null && selected === q.correct_index
+                  const typedWrong = selected !== null && selected === -1
+                  let inputBorder = 'rgba(123,108,255,0.45)'
+                  if (typedCorrect) inputBorder = 'rgba(61,184,122,0.55)'
+                  if (typedWrong) inputBorder = 'rgba(224,85,85,0.55)'
+                  return (
+                    <div>
+                      <input
+                        ref={answerInputRef}
+                        type="text"
+                        inputMode="numeric"
+                        value={inputAnswer}
+                        onChange={e => setInputAnswer(e.target.value.replace(/[^\d./\-\s,]/g, ''))}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleTypedSubmit()
+                          }
+                        }}
+                        placeholder="Ответ…"
+                        disabled={selected !== null}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        style={{
+                          width: '100%',
+                          background: typedWrong ? 'rgba(224,85,85,0.06)' : typedCorrect ? 'rgba(61,184,122,0.06)' : '#1c1f2a',
+                          border: `2px solid ${inputBorder}`,
+                          borderRadius: '12px',
+                          padding: '16px 20px',
+                          fontSize: '32px',
+                          color: typedWrong ? '#e05555' : typedCorrect ? '#3db87a' : '#e6e2f0',
+                          fontFamily: 'serif',
+                          textAlign: 'center',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                      <div style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '10px' }}>
+                        Enter — отправить · курсор уже в поле
+                      </div>
+                    </div>
+                  )
+                })()}
+
                 <div style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', color: '#3db87a', marginTop: '12px', opacity: 0.6 }}>
-                  ⚠️ Ошибка не убьёт — только покажет правильный ответ
+                  {answerFormat === 'typed' ? '⌨️ Печатай и жми Enter — без клика в поле' : '⚠️ Ошибка не убьёт — только покажет правильный ответ'}
                 </div>
               </div>
             )
