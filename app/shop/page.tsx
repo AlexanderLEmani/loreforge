@@ -9,6 +9,7 @@ import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
 import {
   BATTLE_CONSUMABLES,
   consumableMeta,
+  EMPTY_CONSUMABLES,
   parseConsumables,
   type ConsumableInventory,
 } from '@/lib/battle-consumables'
@@ -28,7 +29,7 @@ export default function ShopPage() {
   const [owned, setOwned] = useState<number[]>([])
   const [buying, setBuying] = useState<number | null>(null)
   const [buyingConsumable, setBuyingConsumable] = useState<string | null>(null)
-  const [consumables, setConsumables] = useState<ConsumableInventory>({ hint: 0, power: 0, shield: 0 })
+  const [consumables, setConsumables] = useState<ConsumableInventory>(EMPTY_CONSUMABLES)
   const [filterLevel, setFilterLevel] = useState(1)
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
@@ -140,13 +141,13 @@ export default function ShopPage() {
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Лавка магических знаний</div>
             <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '4px' }}>Свитки техник</div>
             <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic' }}>
-              Свитки — знания в Гримуаре. Расходники — одноразовые бафы в данже (один за бой).
+              Свитки — в Гримуар. Расходники — в запас; перед данжом возьми до 3 в рюкзак.
             </div>
           </div>
 
           <div style={{ marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>Расходники для данжа</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               {BATTLE_CONSUMABLES.map(c => {
                 const meta = consumableMeta(c.effect)
                 const canAfford = (userData?.gold || 0) >= c.cost

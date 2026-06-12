@@ -108,7 +108,7 @@ export default function GuildPage() {
     }
     setUserData((prev: any) => ({ ...prev, glory: (prev.glory || 0) - dungeon.cost }))
     setBuying(null)
-    router.push(`/battle?dungeon=${encodeURIComponent(dungeon.route)}`)
+    router.push(`/prepare?dungeon=${encodeURIComponent(dungeon.route)}`)
   }
 
   if (loading) return (
@@ -193,7 +193,7 @@ export default function GuildPage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '1.5rem' }}>
             {DUNGEONS.filter(d => d.cost === 0).map(d => (
-              <div key={d.id} onClick={() => router.push(`/battle?dungeon=${encodeURIComponent(d.route)}`)}
+              <div key={d.id} onClick={() => router.push(`/prepare?dungeon=${encodeURIComponent(d.route)}`)}
                 style={{ background: 'rgba(61,184,122,0.06)', border: '1px solid rgba(61,184,122,0.25)', borderRadius: '10px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', transition: 'all 0.15s' }}
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(61,184,122,0.5)'}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(61,184,122,0.25)'}

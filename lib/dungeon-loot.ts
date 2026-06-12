@@ -50,6 +50,7 @@ const DEFAULT_POOL: PoolEntry[] = [
   { kind: 'consumable', weight: 14, consumable: 'hint' },
   { kind: 'consumable', weight: 12, consumable: 'power' },
   { kind: 'consumable', weight: 10, consumable: 'shield' },
+  { kind: 'consumable', weight: 5, consumable: 'heal' },
   { kind: 'gold', weight: 8, goldMin: 10, goldMax: 22 },
 ]
 
@@ -59,6 +60,7 @@ const FRACTION_POOL: PoolEntry[] = [
   { kind: 'consumable', weight: 12, consumable: 'hint' },
   { kind: 'consumable', weight: 10, consumable: 'power' },
   { kind: 'consumable', weight: 8, consumable: 'shield' },
+  { kind: 'consumable', weight: 4, consumable: 'heal' },
   { kind: 'gold', weight: 8, goldMin: 15, goldMax: 28 },
 ]
 

@@ -17,14 +17,16 @@ import {
   getUnlockedTopics,
   pickMonster,
   SCROLL_EFFECT_LABELS,
+  HEAL_POTION_HP,
   STREAK_CRIT_MULT,
   STREAK_CRIT_THRESHOLD,
 } from '@/lib/battle-config'
 import {
   BATTLE_CONSUMABLES,
-  parseConsumables,
+  EMPTY_CONSUMABLES,
   type ConsumableInventory,
 } from '@/lib/battle-consumables'
+import { readBattleLoadout, loadoutToInventory } from '@/lib/battle-loadout'
 import {
   computeBattleBonuses,
   defaultSkillNodes,
@@ -39,6 +41,7 @@ import { computeEquipBonuses } from '@/lib/equipment'
 import { loadEquipped } from '@/lib/equipment-storage'
 import { answersMatch } from '@/lib/scroll-display'
 import { shuffleQuestions } from '@/lib/shuffle-question'
+import { isHintHighlighted, pickHintPair } from '@/lib/hint-pair'
 
 type Phase = 'choose_attack' | 'player_attack' | 'monster_attack' | 'result_flash'
 
@@ -74,9 +77,10 @@ function BattleContent() {
   const [timer, setTimer] = useState(15)
   const [flashMsg, setFlashMsg] = useState('')
   const [flashColor, setFlashColor] = useState('')
-  const [consumables, setConsumables] = useState<ConsumableInventory>({ hint: 0, power: 0, shield: 0 })
-  const [consumableUsed, setConsumableUsed] = useState(false)
-  const [hintActive, setHintActive] = useState(false)
+  const [consumables, setConsumables] = useState<ConsumableInventory>(EMPTY_CONSUMABLES)
+  const [attackHintIndices, setAttackHintIndices] = useState<number[] | null>(null)
+  const [defenseHintIndices, setDefenseHintIndices] = useState<number[] | null>(null)
+  const [itemToast, setItemToast] = useState<string | null>(null)
   const [powerBuff, setPowerBuff] = useState(false)
   const [shieldActive, setShieldActive] = useState(false)
   const [skillShieldActive, setSkillShieldActive] = useState(false)
@@ -149,14 +153,20 @@ function BattleContent() {
       }
       setQuestionBank(bank)
 
+      const loadout = readBattleLoadout(dungeonName)
+      if (loadout === null) {
+        router.replace(`/prepare?dungeon=${encodeURIComponent(dungeonName)}`)
+        return
+      }
+      setConsumables(loadoutToInventory(loadout))
+
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUser(user)
 
       if (user) {
-        const { data: ud } = await supabase.from('users').select('level, consumables').eq('id', user.id).single()
+        const { data: ud } = await supabase.from('users').select('level').eq('id', user.id).single()
         const lvl = ud?.level || 1
         setUserLevel(lvl)
-        setConsumables(parseConsumables(ud?.consumables))
 
         const allNodes = defaultSkillNodes()
         const { data: dbNodes } = await supabase.from('skill_tree_nodes').select('*')
@@ -255,24 +265,49 @@ function BattleContent() {
 
     setChosenAttack(atk)
     setCurrentQ(q)
+    setAttackHintIndices(null)
     setSelected(null)
     setInputAnswer('')
     setPhase('player_attack')
   }
 
+  function showItemToast(msg: string) {
+    setItemToast(msg)
+    setTimeout(() => setItemToast(null), 1400)
+  }
+
+  function canUseConsumable(effect: ScrollBattleEffect) {
+    if (consumables[effect] <= 0) return false
+    if (effect === 'hint') {
+      if (selected !== null) return false
+      if (phase === 'player_attack' && currentQ && attackHintIndices === null) return true
+      if (phase === 'monster_attack' && monsterQ && defenseHintIndices === null) return true
+      return false
+    }
+    return phase === 'choose_attack'
+  }
+
   async function useConsumable(effect: ScrollBattleEffect) {
-    if (consumableUsed || phase !== 'choose_attack') return
-    if (consumables[effect] <= 0) return
-    if (!currentUser) return
+    if (!canUseConsumable(effect)) return
 
     const newInv = { ...consumables, [effect]: consumables[effect] - 1 }
-    setConsumableUsed(true)
     setConsumables(newInv)
-    await supabase.from('users').update({ consumables: newInv }).eq('id', currentUser.id)
 
-    if (effect === 'hint') setHintActive(true)
+    if (effect === 'hint') {
+      if (phase === 'player_attack' && currentQ) {
+        setAttackHintIndices(pickHintPair(currentQ.correct_index, currentQ.answers.length))
+      } else if (phase === 'monster_attack' && monsterQ) {
+        setDefenseHintIndices(pickHintPair(monsterQ.correct_index, monsterQ.answers.length))
+      }
+      showItemToast('💡 Два варианта — один верный')
+      return
+    }
+
     if (effect === 'power') setPowerBuff(true)
     if (effect === 'shield') setShieldActive(true)
+    if (effect === 'heal') {
+      setPlayerHP(h => Math.min(100, h + HEAL_POTION_HP))
+    }
     flash(`${SCROLL_EFFECT_LABELS[effect].icon} ${SCROLL_EFFECT_LABELS[effect].label}!`, '#a99fff', () => setPhase('choose_attack'))
   }
 
@@ -352,6 +387,7 @@ function BattleContent() {
       )
       if (!mq) { endBattle('win', newMistakes, chosenAttack.kind === 'spell'); return }
       setMonsterQ(mq)
+      setDefenseHintIndices(null)
       setPhase('monster_attack')
     }, 800)
   }
@@ -369,7 +405,6 @@ function BattleContent() {
 
   async function handleAttack(idx: number) {
     if (selected !== null || !currentQ || !chosenAttack) return
-    setHintActive(false)
     setSelected(idx)
     const correct = idx === currentQ.correct_index
     await recordAnswer(currentQ, correct)
@@ -412,6 +447,7 @@ function BattleContent() {
         markUsed,
       )
         setMonsterQ(mq)
+        setDefenseHintIndices(null)
         setPhase('monster_attack')
       }, 800)
     } else {
@@ -540,11 +576,16 @@ function BattleContent() {
 
         <div>
           <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.2em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '8px' }}>Расходники</div>
-          <div style={{ fontSize: '10px', color: '#5a5670', marginBottom: '6px', lineHeight: 1.4 }}>Один за бой · в Лавке</div>
-          {BATTLE_CONSUMABLES.map(c => {
+          <div style={{ fontSize: '10px', color: '#5a5670', marginBottom: '6px', lineHeight: 1.4 }}>
+            Из рюкзака · подсказку — на примере (атака/защита)
+          </div>
+          {itemToast && (
+            <div style={{ fontSize: '11px', color: '#e0bc6a', marginBottom: '6px', fontFamily: 'monospace' }}>{itemToast}</div>
+          )}
+          {BATTLE_CONSUMABLES.filter(c => consumables[c.effect] > 0).map(c => {
             const meta = SCROLL_EFFECT_LABELS[c.effect]
             const qty = consumables[c.effect]
-            const canUse = qty > 0 && !consumableUsed && phase === 'choose_attack'
+            const canUse = canUseConsumable(c.effect)
             return (
               <div
                 key={c.effect}
@@ -552,7 +593,7 @@ function BattleContent() {
                 style={{
                   padding: '8px 10px', marginBottom: '4px', background: canUse ? '#1c1f2a' : '#161820',
                   border: `1px solid ${canUse ? 'rgba(169,159,255,0.25)' : 'rgba(255,255,255,0.04)'}`,
-                  borderRadius: '7px', cursor: canUse ? 'pointer' : 'default', opacity: qty === 0 ? 0.35 : consumableUsed ? 0.45 : 1,
+                  borderRadius: '7px', cursor: canUse ? 'pointer' : 'default', opacity: qty === 0 ? 0.35 : 1,
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px' }}>
@@ -563,6 +604,9 @@ function BattleContent() {
               </div>
             )
           })}
+          {BATTLE_CONSUMABLES.every(c => consumables[c.effect] === 0) && (
+            <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic' }}>Рюкзак пуст</div>
+          )}
         </div>
 
         <div onClick={() => setHardMode(!hardMode)} style={{ padding: '7px 10px', background: hardMode ? 'rgba(201,168,76,0.12)' : '#1c1f2a', border: `1px solid ${hardMode ? 'rgba(201,168,76,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '7px', fontFamily: 'monospace', fontSize: '11px', color: hardMode ? '#e0bc6a' : '#8a849c', cursor: 'pointer', textAlign: 'center' }}>
@@ -766,13 +810,13 @@ function BattleContent() {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
                 {currentQ.answers.map((ans: string, idx: number) => {
-                  const isHint = hintActive && idx === currentQ.correct_index
+                  const isHint = isHintHighlighted(attackHintIndices, idx)
                   let bg = '#1c1f2a', border = 'rgba(255,255,255,0.06)', color = '#e6e2f0'
                   if (selected !== null) {
                     if (idx === currentQ.correct_index) { bg = 'rgba(45,217,184,0.06)'; border = 'rgba(45,217,184,0.4)'; color = '#2dd9b8' }
                     else if (idx === selected) { bg = 'rgba(224,85,85,0.06)'; border = 'rgba(224,85,85,0.35)'; color = '#e05555' }
                   } else if (isHint) {
-                    bg = 'rgba(61,184,122,0.1)'; border = 'rgba(61,184,122,0.5)'; color = '#3db87a'
+                    bg = 'rgba(201,168,76,0.1)'; border = 'rgba(201,168,76,0.45)'; color = '#e0bc6a'
                   }
                   return (
                     <div key={idx} onClick={() => handleAttack(idx)}
@@ -799,12 +843,18 @@ function BattleContent() {
               <div style={{ fontSize: '12px', color: '#8a849c', marginTop: '8px' }}>Верный ответ блокирует · ошибка −{monster.attackDmg} HP</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
-              {monsterQ.answers.map((ans: string, idx: number) => (
-                <div key={idx} onClick={() => handleDefend(idx)}
-                  style={{ background: '#1c1f2a', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '9px', padding: '14px', textAlign: 'center', fontFamily: 'serif', fontSize: '24px', color: '#e6e2f0', cursor: 'pointer' }}>
-                  {ans}
-                </div>
-              ))}
+              {monsterQ.answers.map((ans: string, idx: number) => {
+                const isHint = isHintHighlighted(defenseHintIndices, idx)
+                const bg = isHint ? 'rgba(201,168,76,0.1)' : '#1c1f2a'
+                const border = isHint ? 'rgba(201,168,76,0.45)' : 'rgba(224,85,85,0.2)'
+                const color = isHint ? '#e0bc6a' : '#e6e2f0'
+                return (
+                  <div key={idx} onClick={() => handleDefend(idx)}
+                    style={{ background: bg, border: `1px solid ${border}`, borderRadius: '9px', padding: '14px', textAlign: 'center', fontFamily: 'serif', fontSize: '24px', color, cursor: 'pointer' }}>
+                    {ans}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

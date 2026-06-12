@@ -119,7 +119,7 @@ export const BATTLE_ATTACKS: BattleAttack[] = [
   },
 ]
 
-export type ScrollBattleEffect = 'hint' | 'power' | 'shield'
+export type ScrollBattleEffect = 'hint' | 'power' | 'shield' | 'heal'
 
 export function getUnlockedTopics(userLevel: number): string[] {
   return Object.entries(TOPIC_UNLOCK_LEVEL)
@@ -148,7 +148,10 @@ export function getAttacksForBattle(
 }
 
 export const SCROLL_EFFECT_LABELS: Record<ScrollBattleEffect, { label: string; icon: string; desc: string }> = {
-  hint: { label: 'Подсказка', icon: '💡', desc: 'Подсветит верный ответ' },
+  hint: { label: 'Подсказка', icon: '💡', desc: 'Сузит выбор: 2 из 4 вариантов' },
   power: { label: 'Мощь', icon: '⚡', desc: '×2 урон следующей атаки' },
   shield: { label: 'Щит', icon: '🛡', desc: 'Блокирует удар монстра' },
+  heal: { label: 'Зелье жизни', icon: '🧪', desc: '+40 HP в бою' },
 }
+
+export const HEAL_POTION_HP = 40
