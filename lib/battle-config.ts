@@ -1,3 +1,7 @@
+import { TOPIC_UNLOCK_LEVEL } from '@/lib/curriculum'
+
+export { TOPIC_UNLOCK_LEVEL }
+
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
 export type Monster = {
@@ -38,15 +42,6 @@ export const DUNGEON_TO_TOPIC: Record<string, string> = {
 export const BOSS_ENRAGE_HP_RATIO = 0.4
 export const BOSS_ENRAGE_BONUS_HP = 45
 export const BOSS_ENRAGE_TIMER_DELTA = -3
-
-export const TOPIC_UNLOCK_LEVEL: Record<string, number> = {
-  add: 1,
-  sub: 1,
-  mul: 2,
-  div: 2,
-  frac: 3,
-  pct: 4,
-}
 
 export const STREAK_CRIT_THRESHOLD = 3
 export const STREAK_CRIT_MULT = 1.5

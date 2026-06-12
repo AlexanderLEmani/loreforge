@@ -6,6 +6,9 @@ import { resetUserProgress } from '@/lib/reset-progress'
 import { useRouter } from 'next/navigation'
 import AppNav from '@/components/AppNav'
 import { currentOnboardingStep, onboardingProgress, ONBOARDING_STEPS } from '@/lib/onboarding-quest'
+import { currentLevelPlan, nextLevelPlan } from '@/lib/curriculum'
+import { HUB_GUIDE_SECTIONS } from '@/lib/hub-guide'
+import GuideModal from '@/components/GuideModal'
 
 export default function Hub() {
   const supabase = createClient()
@@ -14,6 +17,7 @@ export default function Hub() {
   const [userData, setUserData] = useState<any>(null)
   const [character, setCharacter] = useState<any>(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [showGuide, setShowGuide] = useState(false)
   const RACE_ICONS: Record<string, string> = {
     human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀'
   }
@@ -84,6 +88,8 @@ export default function Hub() {
   }
   const nextStep = currentOnboardingStep(onboardCtx)
   const onboardDone = onboardingProgress(onboardCtx)
+  const levelPlan = currentLevelPlan(level)
+  const nextPlan = nextLevelPlan(level)
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif', display: 'grid', gridTemplateColumns: '260px 1fr 280px' }}>
@@ -146,10 +152,20 @@ export default function Hub() {
       {/* ЦЕНТР */}
       <div style={{ padding: '1.75rem 2rem', background: '#0b0c10' }}>
         <div style={{ marginBottom: '1.75rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>База</div>
-          <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a' }}>Твой Хаб</div>
-          <div style={{ fontSize: '14px', color: '#5a5670', marginTop: '4px' }}>
-            Привет, {user.user_metadata?.full_name || user.email}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+            <div>
+              <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>База</div>
+              <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a' }}>Твой Хаб</div>
+              <div style={{ fontSize: '14px', color: '#5a5670', marginTop: '4px' }}>
+                Привет, {user.user_metadata?.full_name || user.email}
+              </div>
+            </div>
+            <div
+              onClick={() => setShowGuide(true)}
+              style={{ padding: '8px 14px', border: '1px solid rgba(201,168,76,0.35)', borderRadius: '8px', fontFamily: 'monospace', fontSize: '11px', color: '#e0bc6a', cursor: 'pointer', background: 'rgba(201,168,76,0.08)', whiteSpace: 'nowrap' }}
+            >
+              📖 Справка
+            </div>
           </div>
         </div>
 
@@ -198,6 +214,21 @@ export default function Hub() {
           <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#c9a84c', textAlign: 'right' }}>{level}<div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#5a5670' }}>уровень</div></div>
         </div>
 
+        <div style={{ background: '#1a1610', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '12px' }}>
+          <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', letterSpacing: '0.15em', marginBottom: '8px' }}>ПУТЬ УРОВНЯ {level}</div>
+          <div style={{ fontFamily: 'serif', fontSize: '15px', color: '#e0bc6a', marginBottom: '8px' }}>{levelPlan.title}</div>
+          <div style={{ fontSize: '12px', color: '#9590a8', lineHeight: 1.65, marginBottom: '10px' }}>
+            {levelPlan.competencies.slice(0, 2).map(c => (
+              <div key={c} style={{ marginBottom: '4px' }}>· {c}</div>
+            ))}
+          </div>
+          {nextPlan && (
+            <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic' }}>
+              До ур. {nextPlan.level} «{nextPlan.title}»: {examReady ? 'готов к экзамену' : `${xpNext - xpCurrent} XP`}
+            </div>
+          )}
+        </div>
+
         <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '1.1rem 1.25rem', marginBottom: '20px', display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: '12px', alignItems: 'center', opacity: 0.4 }}>
           <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: '#171920', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>⚡</div>
           <div>
@@ -242,6 +273,15 @@ export default function Hub() {
         ))}
       </div>
 
+      <GuideModal
+        open={showGuide}
+        onClose={() => setShowGuide(false)}
+        title="Как учиться в LoreForge"
+        subtitle="ТЕТРАДЬ · ТЕОРИЯ · ТРЕНАЖЁР"
+        sections={HUB_GUIDE_SECTIONS}
+        icon="📓"
+      />
+
       {/* ОНБОРДИНГ */}
       {showOnboarding && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '2rem' }}>
@@ -266,9 +306,13 @@ export default function Hub() {
               <br/><br/>
               Навигация слева. Удачи.
             </div>
-            <div onClick={async () => { setShowOnboarding(false); await supabase.from('users').update({ onboarding_done: true }).eq('id', user?.id) }}
-              style={{ width: '100%', padding: '14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#e0bc6a', cursor: 'pointer' }}>
+            <div onClick={async () => { setShowOnboarding(false); setShowGuide(true); await supabase.from('users').update({ onboarding_done: true }).eq('id', user?.id) }}
+              style={{ width: '100%', padding: '14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#e0bc6a', cursor: 'pointer', marginBottom: '8px' }}>
               Понял, начинаем →
+            </div>
+            <div onClick={() => setShowGuide(true)}
+              style={{ width: '100%', padding: '10px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px', color: '#5a5670', cursor: 'pointer' }}>
+              📖 Открыть полную справку
             </div>
           </div>
         </div>

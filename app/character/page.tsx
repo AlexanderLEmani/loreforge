@@ -5,6 +5,20 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import PixelCharacter from '@/components/PixelCharacter'
 import AppNav from '@/components/AppNav'
+import {
+  EQUIP_SLOTS,
+  EQUIPMENT_ITEMS,
+  DEFAULT_EQUIPMENT,
+  mergeEquipment,
+  computeEquipBonuses,
+  itemById,
+  itemsForSlot,
+  ownedItemIds,
+  bonusLabel,
+  type EquipSlot,
+  type EquipmentItem,
+} from '@/lib/equipment'
+import { addOwnedItem, loadEquipped, loadOwnedIds, saveEquipped } from '@/lib/equipment-storage'
 
 const RACE_ICONS: Record<string, string> = {
   human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀'
@@ -13,17 +27,6 @@ const RACE_ICONS: Record<string, string> = {
 const RACE_LABELS: Record<string, string> = {
   human: 'Странствующий маг', elf: 'Архивист', dwarf: 'Рунный кузнец', orc: 'Боевой учёный', undead: 'Некромант знаний'
 }
-
-const EQUIP_SLOTS = [
-  { id: 'head',    icon: '🎩', label: 'Голова' },
-  { id: 'body',    icon: '👕', label: 'Тело' },
-  { id: 'weapon',  icon: '🪄', label: 'Оружие' },
-  { id: 'belt',    icon: '💎', label: 'Пояс' },
-  { id: 'hands',   icon: '🧤', label: 'Руки' },
-  { id: 'feet',    icon: '👢', label: 'Ноги' },
-  { id: 'ring',    icon: '💍', label: 'Кольцо' },
-  { id: 'pet',     icon: '🐾', label: 'Питомец' },
-]
 
 const XP_THRESHOLDS = [0, 100, 250, 500, 900, 1400, 2000, 2700, 3500, 4400, 5400]
 const XP_TO_NEXT =    [100, 150, 250, 400, 500, 600, 700, 800, 900, 1000, 1100]
@@ -36,7 +39,11 @@ export default function CharacterPage() {
   const [character, setCharacter] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [showWelcome, setShowWelcome] = useState(false)
-
+  const [equipped, setEquipped] = useState<Record<EquipSlot, string>>(DEFAULT_EQUIPMENT)
+  const [ownedIds, setOwnedIds] = useState<string[]>([])
+  const [pickSlot, setPickSlot] = useState<EquipSlot | null>(null)
+  const [buying, setBuying] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -55,17 +62,49 @@ export default function CharacterPage() {
         await supabase.from('users').update({ visited_character: true }).eq('id', user.id)
       }
 
-      const { data: ch } = await supabase
+      const { data: ch, error: chError } = await supabase
         .from('characters')
         .select('name, race, skin_color, hair_style, hair_color, cloak_color')
         .eq('user_id', user.id)
-        .single()
-      if (!ch) { router.push('/create-character'); return }
+        .maybeSingle()
+      if (chError || !ch) { router.push('/create-character'); return }
       setCharacter(ch)
+
+      const level = ud?.level || 1
+      setEquipped(await loadEquipped(user.id))
+      const purchased = await loadOwnedIds(user.id)
+      setOwnedIds(ownedItemIds(level, purchased))
       setLoading(false)
     }
     load()
   }, [])
+
+  async function equipItem(item: EquipmentItem) {
+    if (!user?.id) return
+    const next = { ...equipped, [item.slot]: item.id }
+    setEquipped(next)
+    setPickSlot(null)
+    await saveEquipped(user.id, next)
+    setToast(`Надето: ${item.name}`)
+    setTimeout(() => setToast(null), 2000)
+  }
+
+  async function buyAndOwn(item: EquipmentItem) {
+    if (!user?.id || !userData || buying) return
+    if ((userData.gold || 0) < item.goldCost) {
+      setToast('Недостаточно золота')
+      setTimeout(() => setToast(null), 2000)
+      return
+    }
+    setBuying(item.id)
+    const newGold = userData.gold - item.goldCost
+    await supabase.from('users').update({ gold: newGold }).eq('id', user.id)
+    const nextOwned = await addOwnedItem(user.id, item.id)
+    setUserData({ ...userData, gold: newGold })
+    setOwnedIds(ownedItemIds(userData.level || 1, nextOwned))
+    await equipItem(item)
+    setBuying(null)
+  }
 
   if (loading) return (
     <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
@@ -82,11 +121,17 @@ export default function CharacterPage() {
 
   // Характеристики на основе уровня и расы
   const race = character?.race || 'human'
+  const equipBonuses = computeEquipBonuses(equipped)
   const stats = {
-    attack:  10 + level * 4 + (race === 'orc' ? 8 : 0),
-    defense: 5  + level * 2 + (race === 'dwarf' ? 5 : 0),
-    speed:   8  + level * 3 + (race === 'elf' ? 4 : 0),
-    intel:   10 + level * 6 + (race === 'elf' ? 10 : 0) + (race === 'human' ? 4 : 0),
+    attack:  10 + level * 4 + (race === 'orc' ? 8 : 0) + Math.round((equipBonuses.attackPct || 0) * 0.4),
+    defense: 5  + level * 2 + (race === 'dwarf' ? 5 : 0) + Math.round((equipBonuses.defensePct || 0) * 0.3),
+    speed:   8  + level * 3 + (race === 'elf' ? 4 : 0) + Math.round((equipBonuses.attackPct || 0) * 0.2),
+    intel:   10 + level * 6 + (race === 'elf' ? 10 : 0) + (race === 'human' ? 4 : 0) + Math.round((equipBonuses.spellDamagePct || 0) * 0.5),
+  }
+  const visualEquip: Partial<Record<EquipSlot, string>> = {}
+  for (const slot of EQUIP_SLOTS) {
+    const item = itemById(equipped[slot.id])
+    if (item) visualEquip[slot.id] = item.visualId
   }
 
   return (
@@ -164,18 +209,34 @@ export default function CharacterPage() {
                   hairStyle={character?.hair_style || 'a1'}
                   hairColor={character?.hair_color || '#3d2b1f'}
                   cloakColor={character?.cloak_color || '#4a1f6e'}
+                  equipment={visualEquip}
                   size={200}
                 />
               </div>
- 
-              {/* Слоты снаряжения */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', width: '100%' }}>
-                {EQUIP_SLOTS.map(slot => (
-                  <div key={slot.id} style={{ aspectRatio: '1', background: '#171920', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', gap: '4px', opacity: 0.4 }}>
-                    <span style={{ fontSize: '18px' }}>{slot.icon}</span>
-                    <span style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670' }}>{slot.label}</span>
-                  </div>
-                ))}
+
+              <div style={{ fontSize: '11px', color: '#7b6cff', textAlign: 'center', marginBottom: '12px', fontFamily: 'monospace' }}>
+                {bonusLabel(equipBonuses)}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', width: '100%' }}>
+                {EQUIP_SLOTS.map(slot => {
+                  const item = itemById(equipped[slot.id])
+                  const active = pickSlot === slot.id
+                  return (
+                    <div
+                      key={slot.id}
+                      onClick={() => setPickSlot(active ? null : slot.id)}
+                      style={{
+                        aspectRatio: '1', background: active ? 'rgba(123,108,255,0.12)' : '#171920',
+                        border: `1px solid ${active ? 'rgba(123,108,255,0.45)' : 'rgba(255,255,255,0.11)'}`,
+                        borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', gap: '2px',
+                      }}
+                    >
+                      <span style={{ fontSize: '18px' }}>{item?.icon ?? slot.icon}</span>
+                      <span style={{ fontFamily: 'monospace', fontSize: '8px', color: '#5a5670' }}>{slot.label}</span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
@@ -232,24 +293,58 @@ export default function CharacterPage() {
 
         {/* ПРАВЫЙ САЙДБАР — Инвентарь */}
         <div style={{ background: '#111318', borderLeft: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}>
-          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>Инвентарь</div>
+          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>
+            {pickSlot ? `Слот: ${EQUIP_SLOTS.find(s => s.id === pickSlot)?.label}` : 'Снаряжение'}
+          </div>
 
-          {/* Сетка инвентаря */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '1rem' }}>
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} style={{ aspectRatio: '1', background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', color: '#5a5670', opacity: 0.3 }}>
-                ·
+          {(pickSlot ? itemsForSlot(pickSlot) : EQUIPMENT_ITEMS.filter(i => ownedIds.includes(i.id))).map(item => {
+            const owned = ownedIds.includes(item.id)
+            const isEquipped = equipped[item.slot] === item.id
+            const canBuy = !owned && item.goldCost > 0 && level >= item.minLevel
+            return (
+              <div
+                key={item.id}
+                style={{
+                  background: isEquipped ? 'rgba(61,184,122,0.08)' : '#1c1f2a',
+                  border: `1px solid ${isEquipped ? 'rgba(61,184,122,0.35)' : 'rgba(255,255,255,0.08)'}`,
+                  borderRadius: '9px', padding: '10px 12px', marginBottom: '6px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '22px' }}>{item.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13px', color: '#e6e2f0' }}>{item.name}</div>
+                    <div style={{ fontSize: '10px', color: '#7b6cff', fontFamily: 'monospace' }}>{item.desc}</div>
+                  </div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670' }}>T{item.tier}</div>
+                </div>
+                {owned ? (
+                  <div
+                    onClick={() => !isEquipped && equipItem(item)}
+                    style={{
+                      padding: '6px', borderRadius: '6px', textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', cursor: isEquipped ? 'default' : 'pointer',
+                      background: isEquipped ? 'rgba(61,184,122,0.1)' : 'rgba(123,108,255,0.1)',
+                      border: `1px solid ${isEquipped ? 'rgba(61,184,122,0.3)' : 'rgba(123,108,255,0.3)'}`,
+                      color: isEquipped ? '#3db87a' : '#a99fff',
+                    }}
+                  >
+                    {isEquipped ? '✓ Надето' : 'Надеть'}
+                  </div>
+                ) : canBuy ? (
+                  <div
+                    onClick={() => buyAndOwn(item)}
+                    style={{ padding: '6px', borderRadius: '6px', textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', cursor: 'pointer', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.35)', color: '#e0bc6a' }}
+                  >
+                    {buying === item.id ? '...' : `💰 Купить ${item.goldCost}`}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '10px', color: '#5a5670', fontStyle: 'italic' }}>
+                    {item.minLevel > level ? `Нужен ур. ${item.minLevel}` : '—'}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-
-          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>Предметы</div>
-
-          <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '10px', padding: '1rem', marginBottom: '1rem' }}>
-            <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic', lineHeight: 1.5 }}>
-              Предметы открываются за прокачку веток знаний. Изучи математику — получи снаряжение мага. Изучи физику — получи инженерный пояс.
-            </div>
-          </div>
+            )
+          })}
 
           <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>Расходники</div>
 
@@ -268,6 +363,12 @@ export default function CharacterPage() {
         </div>
 
       </div>
+      {toast && (
+        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: '#1c1f2a', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', padding: '12px 24px', fontFamily: 'monospace', fontSize: '12px', color: '#e0bc6a', zIndex: 300 }}>
+          {toast}
+        </div>
+      )}
+
       {showWelcome && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '2rem' }}>
           <div style={{ background: '#1c1f2a', border: '1px solid rgba(123,108,255,0.3)', borderRadius: '16px', padding: '2rem', maxWidth: '460px', width: '100%' }}>

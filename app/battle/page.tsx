@@ -30,6 +30,8 @@ import {
 import { getDifficultyPool, pickUnused, poolForAttack } from '@/lib/battle-questions'
 import { mergeWithFallback } from '@/lib/fallback-questions'
 import { loadDemoSkillState } from '@/lib/skill-tree'
+import { computeEquipBonuses } from '@/lib/equipment'
+import { loadEquipped } from '@/lib/equipment-storage'
 import { shuffleQuestions } from '@/lib/shuffle-question'
 
 type Phase = 'choose_attack' | 'player_attack' | 'monster_attack' | 'result_flash'
@@ -81,6 +83,7 @@ function BattleContent() {
     damagePct: 0, damageReductionPct: 0, shieldOnCorrect: false, unlockedNames: [],
   })
   const [bossEnraged, setBossEnraged] = useState(false)
+  const [equipBonuses, setEquipBonuses] = useState(() => computeEquipBonuses({ head: '', body: '', weapon: '', hands: '', feet: '' } as any))
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   const unlockedTopics = useMemo(() => getUnlockedTopics(userLevel), [userLevel])
@@ -181,6 +184,9 @@ function BattleContent() {
           unlockedIds = demo.unlocked
         }
         setSkillBonuses(computeBattleBonuses(dungeonName, nodesByIds(unlockedIds, nodes)))
+
+        const equipped = await loadEquipped(user.id)
+        setEquipBonuses(computeEquipBonuses(equipped))
       }
 
       const m = pickMonster(dungeonName)
@@ -198,7 +204,7 @@ function BattleContent() {
       if (timerRef.current) clearInterval(timerRef.current)
       return
     }
-    const maxT = phase === 'player_attack' ? 60 : (monster?.defendTimer ?? 15)
+    const maxT = phase === 'player_attack' ? 60 : (monster?.defendTimer ?? 15) + (equipBonuses.defendTimerSec || 0)
     setTimer(maxT)
     timerRef.current = setInterval(() => {
       setTimer(t => {
@@ -270,8 +276,9 @@ function BattleContent() {
     flash(`${SCROLL_EFFECT_LABELS[bs.effect].icon} ${SCROLL_EFFECT_LABELS[bs.effect].label}!`, '#a99fff', () => setPhase('choose_attack'))
   }
 
-  function calcDamage(base: number, isCrit: boolean) {
-    let dmg = base * (1 + skillBonuses.damagePct / 100)
+  function calcDamage(base: number, isCrit: boolean, isSpell = false) {
+    let dmg = base * (1 + skillBonuses.damagePct / 100 + (equipBonuses.damagePct || 0) / 100)
+    if (isSpell) dmg *= 1 + (equipBonuses.spellDamagePct || 0) / 100
     if (powerBuff) dmg *= 2
     if (isCrit) dmg *= STREAK_CRIT_MULT
     return Math.round(dmg)
@@ -304,7 +311,7 @@ function BattleContent() {
     if (correct) {
       newStreak = correctStreak + 1
       const isCrit = newStreak >= STREAK_CRIT_THRESHOLD
-      const dmg = calcDamage(chosenAttack.dmg, isCrit)
+      const dmg = calcDamage(chosenAttack.dmg, isCrit, chosenAttack.kind === 'spell')
       playSound('hit')
       newEnemyHP = Math.max(0, enemyHP - dmg)
       setEnemyHP(newEnemyHP)
@@ -367,7 +374,7 @@ function BattleContent() {
     if (correct) {
       const newStreak = correctStreak + 1
       const isCrit = newStreak >= STREAK_CRIT_THRESHOLD
-      const dmg = calcDamage(Math.round(chosenAttack.dmg * 1.5), isCrit)
+      const dmg = calcDamage(Math.round(chosenAttack.dmg * 1.5), isCrit, chosenAttack.kind === 'spell')
       playSound('hit')
       const newEnemyHP = Math.max(0, enemyHP - dmg)
       setEnemyHP(newEnemyHP)
@@ -414,9 +421,8 @@ function BattleContent() {
     if (!correct) {
       playSound('miss')
       let dmg = timeout ? monster.timeoutDmg : monster.attackDmg
-      if (skillBonuses.damageReductionPct > 0) {
-        dmg = Math.round(dmg * (1 - skillBonuses.damageReductionPct / 100))
-      }
+      const reduction = skillBonuses.damageReductionPct + (equipBonuses.defensePct || 0)
+      if (reduction > 0) dmg = Math.round(dmg * (1 - reduction / 100))
       newPlayerHP = Math.max(0, playerHP - dmg)
       setPlayerHP(newPlayerHP)
       setDamageFlash({ target: 'player', amount: dmg })

@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import PixelCharacter from '@/components/PixelCharacter'
+import { DEFAULT_EQUIPMENT } from '@/lib/equipment'
+import { saveEquippedLocal, saveOwnedLocal } from '@/lib/equipment-storage'
 
 const RACES = [
   { id: 'human',  icon: '🧙', label: 'Человек',  desc: '+10% XP за всё' },
@@ -33,6 +35,16 @@ export default function CreateCharacter() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    async function checkExisting() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { router.push('/'); return }
+      const { data: ch } = await supabase.from('characters').select('user_id').eq('user_id', user.id).maybeSingle()
+      if (ch) router.push('/character')
+    }
+    checkExisting()
+  }, [])
+
   async function handleCreate() {
     if (!name.trim()) { setError('Дай имя персонажу'); return }
     if (name.trim().length < 2) { setError('Имя слишком короткое'); return }
@@ -52,6 +64,8 @@ export default function CreateCharacter() {
     })
 
     if (err) { setError('Ошибка сохранения. Попробуй ещё раз.'); setSaving(false); return }
+    saveEquippedLocal(user.id, DEFAULT_EQUIPMENT)
+    saveOwnedLocal(user.id, Object.values(DEFAULT_EQUIPMENT))
     router.push('/hub')
   }
 

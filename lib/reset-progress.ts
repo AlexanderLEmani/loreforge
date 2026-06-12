@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export async function resetUserProgress(supabase: SupabaseClient, userId: string) {
-  const tables = ['question_attempts', 'dungeon_runs', 'user_scrolls', 'user_skills', 'characters'] as const
+  const tables = ['question_attempts', 'dungeon_runs', 'user_scrolls', 'user_skills', 'user_equipment', 'characters'] as const
   const errors: string[] = []
 
   for (const table of tables) {
