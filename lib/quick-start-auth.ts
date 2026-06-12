@@ -74,45 +74,23 @@ async function signInWithCreds(
   return { user: data.user, errorMessage: null }
 }
 
-async function createGuestViaApi(): Promise<{ email: string; password: string } | null> {
+async function createGuestViaApi(supabase: SupabaseClient): Promise<GuestAuthResult> {
   try {
     const res = await fetch('/api/auth/guest', { method: 'POST' })
-    if (!res.ok) return null
-    const body = await res.json() as { email?: string; password?: string }
-    if (!body.email || !body.password) return null
-    return { email: body.email, password: body.password }
+    if (!res.ok) return { user: null, errorMessage: null }
+    const body = await res.json() as { email?: string; password?: string; error?: string }
+    if (!body.email || !body.password) return { user: null, errorMessage: body.error ?? null }
+    return signInWithCreds(supabase, body.email, body.password)
   } catch {
-    return null
+    return { user: null, errorMessage: null }
   }
 }
 
-async function createGuestViaSignUp(supabase: SupabaseClient): Promise<GuestAuthResult> {
-  const { email, password } = createGuestCredentials()
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { guest: true, display_name: 'Гость' } },
-  })
-
-  if (error) return { user: null, errorMessage: error.message }
-
-  if (data.session?.user) {
-    storeGuestCreds(email, password)
-    return { user: data.session.user, errorMessage: null }
-  }
-
-  if (data.user) {
-    const signIn = await signInWithCreds(supabase, email, password)
-    if (signIn.user) return signIn
-  }
-
-  return { user: null, errorMessage: 'Регистрация гостя не дала сессию. Отключи подтверждение email в Supabase Auth.' }
-}
-
-/** Гостевой вход: anonymous (если включён в Supabase) → API → креды → signUp */
+/** Анонимный вход (без email). Fallback — только API с service role. */
 export async function signInAsGuest(supabase: SupabaseClient): Promise<GuestAuthResult> {
   const anon = await supabase.auth.signInAnonymously()
   const anonUser = anon.data.session?.user ?? anon.data.user
+
   if (anonUser && !anon.error) {
     clearGuestCreds()
     return { user: anonUser, errorMessage: null }
@@ -123,10 +101,11 @@ export async function signInAsGuest(supabase: SupabaseClient): Promise<GuestAuth
     return { user: null, errorMessage: anonErr }
   }
 
-  const fromApi = await createGuestViaApi()
-  if (fromApi) {
-    const fromApiSignIn = await signInWithCreds(supabase, fromApi.email, fromApi.password)
-    if (fromApiSignIn.user) return fromApiSignIn
+  if (!anonUser && !isAnonymousDisabled(anonErr)) {
+    return {
+      user: null,
+      errorMessage: 'Анонимный вход не создал сессию. Обнови страницу (Cmd+Shift+R) и попробуй снова.',
+    }
   }
 
   const stored = readGuestCreds()
@@ -135,11 +114,23 @@ export async function signInAsGuest(supabase: SupabaseClient): Promise<GuestAuth
     if (fromStored.user) return fromStored
   }
 
-  const fromSignUp = await createGuestViaSignUp(supabase)
-  if (fromSignUp.user) return fromSignUp
+  const fromApi = await createGuestViaApi(supabase)
+  if (fromApi.user) return fromApi
 
-  const hint = fromSignUp.errorMessage ?? anon.error?.message ?? 'Неизвестная ошибка'
-  return { user: null, errorMessage: hint }
+  if (anonErr && isAnonymousDisabled(anonErr)) {
+    return {
+      user: null,
+      errorMessage:
+        'Включи Anonymous Sign-In: Supabase → Authentication → Providers → Anonymous → Enable.',
+    }
+  }
+
+  return {
+    user: null,
+    errorMessage:
+      fromApi.errorMessage
+      ?? 'Не удалось войти. Проверь Anonymous Sign-In в Supabase или добавь SUPABASE_SERVICE_ROLE_KEY в Vercel.',
+  }
 }
 
 export async function guestLandingPath(supabase: SupabaseClient, userId: string) {
