@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { resetUserProgress } from '@/lib/reset-progress'
 import { useRouter } from 'next/navigation'
+import AppNav from '@/components/AppNav'
+import { currentOnboardingStep, onboardingProgress, ONBOARDING_STEPS } from '@/lib/onboarding-quest'
 
 export default function Hub() {
   const supabase = createClient()
@@ -34,7 +36,7 @@ export default function Hub() {
 
       const { data: ud } = await supabase
         .from('users')
-        .select('xp, level, gold, glory, streak, last_visit, quest_first_dungeon, total_answers, onboarding_done, onboarding_step')
+        .select('xp, level, gold, glory, streak, last_visit, quest_first_dungeon, total_answers, onboarding_done, onboarding_step, visited_skills')
         .eq('id', user.id)
         .single()
       setUserData(ud)
@@ -73,6 +75,15 @@ export default function Hub() {
   const xpNext = xpToNext[level - 1] || 100
   const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
   const examReady = xpCurrent >= xpNext
+  const onboardCtx = {
+    onboarding_step: userData?.onboarding_step || 0,
+    quest_first_dungeon: !!userData?.quest_first_dungeon,
+    level,
+    visited_skills: !!userData?.visited_skills,
+    onboarding_done: !!userData?.onboarding_done,
+  }
+  const nextStep = currentOnboardingStep(onboardCtx)
+  const onboardDone = onboardingProgress(onboardCtx)
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif', display: 'grid', gridTemplateColumns: '260px 1fr 280px' }}>
@@ -112,29 +123,7 @@ export default function Hub() {
           </div>
         ))}
 
-        <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', margin: '14px 0 12px' }}>
-          Навигация
-        </div>
-        {[
-          ['🏰', 'Хаб',        '/hub',       true,  0],
-          ['👤', 'Персонаж',   '/character', false, 0],
-          ['🏛️', 'Коллегия',   '/college',   false, 0],
-          ['🏋️', 'Тренировка', '/training',  false, 1],
-          ['⚔️', 'Гильдия',    '/guild',     false, 1],
-          ['📖', 'Гримуар',    '/grimoire',       false, 1],
-          ['🛒', 'Лавка',      '/shop',       false, 1],
-        ].map(([icon, label, href, active, minStep]) => {
-          const locked = (userData?.onboarding_step || 0) < (minStep as number)
-          return (
-            <div key={label as string}
-              onClick={() => !locked && router.push(href as string)}
-              style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '7px', fontSize: '14px', color: locked ? '#2a2d3a' : active ? '#a99fff' : '#5a5670', background: active ? 'rgba(123,108,255,0.13)' : 'transparent', borderLeft: active ? '2px solid #7b6cff' : '2px solid transparent', cursor: locked ? 'default' : 'pointer', marginBottom: '3px' }}>
-              <span style={{ width: '18px', textAlign: 'center', opacity: locked ? 0.3 : 1 }}>{icon as string}</span>
-              <span style={{ flex: 1 }}>{label as string}</span>
-              {locked && <span style={{ fontSize: '10px', color: '#2a2d3a' }}>🔒</span>}
-            </div>
-          )
-        })}
+        <AppNav step={userData?.onboarding_step || 0} />
 
         <div onClick={signOut} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', fontSize: '14px', color: '#5a5670', cursor: 'pointer', marginTop: '8px' }}>
           <span>🚪</span>Выйти
@@ -163,6 +152,21 @@ export default function Hub() {
             Привет, {user.user_metadata?.full_name || user.email}
           </div>
         </div>
+
+        {nextStep && onboardDone < ONBOARDING_STEPS.length && (
+          <div onClick={() => router.push(nextStep.href)}
+            style={{ background: 'linear-gradient(135deg, rgba(123,108,255,0.12), rgba(201,168,76,0.08))', border: '1px solid rgba(123,108,255,0.35)', borderRadius: '10px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', marginBottom: '1.25rem' }}>
+            <div style={{ fontSize: '28px' }}>{nextStep.icon}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#a99fff', letterSpacing: '0.15em', marginBottom: '4px' }}>
+                КВЕСТ {onboardDone + 1} / {ONBOARDING_STEPS.length}
+              </div>
+              <div style={{ fontFamily: 'serif', fontSize: '15px', color: '#e6e2f0', marginBottom: '3px' }}>{nextStep.title}</div>
+              <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic' }}>{nextStep.desc}</div>
+            </div>
+            <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff' }}>→</div>
+          </div>
+        )}
 
         {/* Кнопка экзамена */}
         {examReady && (

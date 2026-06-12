@@ -71,7 +71,9 @@ export default function GrimoirePage() {
           <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>Гримуар · Свиток</div>
         </nav>
 
-        <div style={{ maxWidth: '680px', margin: '0 auto', padding: '3rem 2rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr' }}>
+          <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
+          <div style={{ maxWidth: '680px', padding: '3rem 2rem' }}>
           <div style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: '12px', padding: '2rem', position: 'relative', boxShadow: `0 0 40px ${c.accent}18` }}>
 
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
@@ -116,6 +118,7 @@ export default function GrimoirePage() {
               ← Вернуться в Гримуар
             </div>
           </div>
+          </div>
         </div>
       </div>
     )
@@ -140,7 +143,7 @@ export default function GrimoirePage() {
       </nav>
 
       <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr' }}>
-        <Sidebar active="Гримуар" level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
+        <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
 
         <div style={{ padding: '2rem', maxWidth: '900px' }}>
           <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>

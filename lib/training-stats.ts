@@ -8,17 +8,48 @@ export type TrainingStats = {
   source: 'question_attempts' | 'dungeon_runs' | 'none'
 }
 
+export type TopicProgressMap = Record<string, number | null>
+
+const DUNGEON_TO_TOPIC: Record<string, string> = {
+  'Пещера сложения': 'add',
+  'Пещера вычитания': 'sub',
+  'Башня умножения': 'mul',
+  'Пещера деления': 'div',
+}
+
 type AttemptRow = {
   is_correct: boolean
   session_id: string | null
   created_at: string
   source: string | null
+  dungeon_name?: string | null
 }
 
 type RunRow = {
   score: number
   total: number
   created_at: string | null
+  dungeon_name?: string | null
+}
+
+function topicIdFromDungeon(dungeonName: string | null | undefined) {
+  if (!dungeonName) return null
+  return DUNGEON_TO_TOPIC[dungeonName] ?? null
+}
+
+function aggregateByTopic(entries: { topicId: string | null; correct: number; total: number }[]): TopicProgressMap {
+  const map: Record<string, { correct: number; total: number }> = {}
+  for (const { topicId, correct, total } of entries) {
+    if (!topicId) continue
+    if (!map[topicId]) map[topicId] = { correct: 0, total: 0 }
+    map[topicId].correct += correct
+    map[topicId].total += total
+  }
+  const result: TopicProgressMap = {}
+  for (const [id, { correct, total }] of Object.entries(map)) {
+    result[id] = total > 0 ? Math.round((correct / total) * 100) : null
+  }
+  return result
 }
 
 function todayStartIso() {
@@ -95,6 +126,43 @@ export async function loadTrainingStats(
   }
 
   return empty
+}
+
+export async function loadTopicProgress(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<TopicProgressMap> {
+  const { data: attempts, error: attemptsError } = await supabase
+    .from('question_attempts')
+    .select('is_correct, dungeon_name')
+    .eq('user_id', userId)
+
+  if (!attemptsError && attempts && attempts.length > 0) {
+    return aggregateByTopic(
+      (attempts as Pick<AttemptRow, 'is_correct' | 'dungeon_name'>[]).map(a => ({
+        topicId: topicIdFromDungeon(a.dungeon_name),
+        correct: a.is_correct ? 1 : 0,
+        total: 1,
+      }))
+    )
+  }
+
+  const { data: runs, error: runsError } = await supabase
+    .from('dungeon_runs')
+    .select('score, total, dungeon_name')
+    .eq('user_id', userId)
+
+  if (!runsError && runs && runs.length > 0) {
+    return aggregateByTopic(
+      (runs as Pick<RunRow, 'score' | 'total' | 'dungeon_name'>[]).map(r => ({
+        topicId: topicIdFromDungeon(r.dungeon_name),
+        correct: r.score || 0,
+        total: r.total || 0,
+      }))
+    )
+  }
+
+  return {}
 }
 
 export async function recordTrainingAttempt(

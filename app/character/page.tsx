@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import PixelCharacter from '@/components/PixelCharacter'
+import AppNav from '@/components/AppNav'
 
 const RACE_ICONS: Record<string, string> = {
   human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀'
@@ -45,7 +46,7 @@ export default function CharacterPage() {
 
       const { data: ud } = await supabase
         .from('users')
-        .select('xp, level, gold, streak, total_answers, visited_character')
+        .select('xp, level, gold, streak, total_answers, visited_character, onboarding_step')
         .eq('id', user.id)
         .single()
       setUserData(ud)
@@ -135,20 +136,8 @@ export default function CharacterPage() {
             </div>
           ))}
 
-          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', margin: '14px 0 12px' }}>Навигация</div>
-
-          {[
-            ['🏰', 'Хаб', '/hub', false],
-            ['👤', 'Персонаж', '/character', true],
-            ['⚔️', 'В данж', '/hub', false],
-            ['📖', 'Гримуар', '/hub', false],
-            ['🛒', 'Лавка', '/hub', false],
-          ].map(([icon, label, href, active]) => (
-            <div key={label as string} onClick={() => router.push(href as string)}
-              style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', borderRadius: '7px', fontSize: '14px', color: active ? '#a99fff' : '#5a5670', background: active ? 'rgba(123,108,255,0.13)' : 'transparent', borderLeft: `2px solid ${active ? '#7b6cff' : 'transparent'}`, cursor: 'pointer', marginBottom: '3px' }}>
-              <span style={{ width: '18px', textAlign: 'center' }}>{icon as string}</span>{label as string}
-            </div>
-          ))}
+          <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '14px 0 12px' }}></div>
+          <AppNav step={userData?.onboarding_step || 0} />
         </div>
 
         {/* ЦЕНТР */}

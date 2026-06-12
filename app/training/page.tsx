@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { loadTrainingStats, recordTrainingAttempt, type TrainingStats } from '@/lib/training-stats'
+import { loadTrainingStats, loadTopicProgress, recordTrainingAttempt, type TrainingStats, type TopicProgressMap } from '@/lib/training-stats'
+import { shuffleQuestions } from '@/lib/shuffle-question'
 import Sidebar from '@/components/Sidebar'
 
 const TOPICS = [
@@ -11,9 +12,18 @@ const TOPICS = [
   { id: 'sub', icon: '➖', name: 'Вычитание',  level: 1, dungeon: 'Пещера вычитания' },
   { id: 'mul', icon: '✕',  name: 'Умножение',  level: 2, dungeon: 'Башня умножения' },
   { id: 'div', icon: '÷',  name: 'Деление',    level: 2, dungeon: 'Пещера деления' },
-  { id: 'frac',icon: '½',  name: 'Дроби',      level: 3, dungeon: null },
+  { id: 'frac',icon: '½',  name: 'Дроби',      level: 3, dungeon: 'Храм дробей' },
   { id: 'pct', icon: '%',  name: 'Проценты',   level: 4, dungeon: null },
 ]
+
+const TOPIC_COLORS: Record<string, string> = {
+  add: '#3db87a',
+  sub: '#e0bc6a',
+  mul: '#a99fff',
+  div: '#7b6cff',
+  frac: '#e0bc6a',
+  pct: '#e0bc6a',
+}
 
 const MODES = [
   { id: 'guided', icon: '📖', name: 'С подсказками',  desc: 'После каждой ошибки — объяснение. Для изучения новой темы.', color: '#3db87a', xpMod: '+3 XP за ответ' },
@@ -41,11 +51,16 @@ export default function TrainingPage() {
   const [xpEarned, setXpEarned] = useState(0)
   const [showXpFloat, setShowXpFloat] = useState(false)
   const [trainingStats, setTrainingStats] = useState<TrainingStats | null>(null)
+  const [topicProgress, setTopicProgress] = useState<TopicProgressMap>({})
   const [sessionId, setSessionId] = useState<string | null>(null)
 
   async function refreshStats(userId: string) {
-    const stats = await loadTrainingStats(supabase, userId)
+    const [stats, topics] = await Promise.all([
+      loadTrainingStats(supabase, userId),
+      loadTopicProgress(supabase, userId),
+    ])
     setTrainingStats(stats)
+    setTopicProgress(topics)
   }
 
   useEffect(() => {
@@ -96,7 +111,7 @@ export default function TrainingPage() {
       }
     }
 
-    const shuffled = allQ.sort(() => Math.random() - 0.5).slice(0, 20)
+    const shuffled = shuffleQuestions(allQ).sort(() => Math.random() - 0.5).slice(0, 20)
     setSessionId(crypto.randomUUID())
     setQuestions(shuffled)
     setCurrent(0)
@@ -142,7 +157,7 @@ export default function TrainingPage() {
         setSelected(null)
         setShowHint(false)
         if (current + 1 >= questions.length) {
-          const reshuffled = questions.sort(() => Math.random() - 0.5)
+          const reshuffled = shuffleQuestions([...questions]).sort(() => Math.random() - 0.5)
           setQuestions(reshuffled)
           setCurrent(0)
         } else {
@@ -156,7 +171,7 @@ export default function TrainingPage() {
     setSelected(null)
     setShowHint(false)
     if (current + 1 >= questions.length) {
-      setQuestions(q => [...q].sort(() => Math.random() - 0.5))
+      setQuestions(q => shuffleQuestions([...q]).sort(() => Math.random() - 0.5))
       setCurrent(0)
     } else {
       setCurrent(c => c + 1)
@@ -192,7 +207,7 @@ export default function TrainingPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 280px' }}>
 
-       <Sidebar active="Тренировка" level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
+       <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
 
         {/* ЦЕНТР */}
         <div style={{ padding: '1.75rem 2rem', background: '#0b0c10' }}>
@@ -387,11 +402,11 @@ export default function TrainingPage() {
             <>
               {(() => {
                 const acc = trainingStats?.accuracy
-                const accColor = acc === null ? '#5a5670' : acc >= 80 ? '#3db87a' : acc >= 60 ? '#e0bc6a' : '#e05555'
+                const accColor = acc == null ? '#5a5670' : acc >= 80 ? '#3db87a' : acc >= 60 ? '#e0bc6a' : '#e05555'
                 return [
                   ['🏋️', 'Сессий сегодня', String(trainingStats?.sessionsToday ?? 0), '#e0bc6a'],
                   ['📝', 'Задач решено', String(trainingStats?.totalSolved ?? 0), '#e0bc6a'],
-                  ['✅', 'Точность', acc === null ? '—' : `${acc}%`, accColor],
+                  ['✅', 'Точность', acc == null ? '—' : `${acc}%`, accColor],
                   ['🔥', 'Лучшая серия', trainingStats?.source === 'dungeon_runs' ? '—' : String(trainingStats?.bestStreak ?? 0), '#e0bc6a'],
                 ] as const
               })().map(([icon, name, val, color]) => (
@@ -407,21 +422,21 @@ export default function TrainingPage() {
             Прогресс по темам
           </div>
 
-          {[
-            ['➕', 'Сложение',  88, '#3db87a'],
-            ['➖', 'Вычитание', 71, '#e0bc6a'],
-            ['✕',  'Умножение', 0,  '#a99fff'],
-          ].map(([icon, name, pct, color]) => (
-            <div key={name as string} style={{ marginBottom: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#9590a8', marginBottom: '4px' }}>
-                <span>{icon as string} {name as string}</span>
-                <span style={{ fontFamily: 'monospace', color: pct as number > 0 ? color as string : '#3a3650' }}>{pct as number > 0 ? `${pct}%` : '—'}</span>
+          {TOPICS.filter(t => t.dungeon && t.level <= level).map(t => {
+            const pct = topicProgress[t.id] ?? null
+            const color = TOPIC_COLORS[t.id] || '#3db87a'
+            return (
+              <div key={t.id} style={{ marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#9590a8', marginBottom: '4px' }}>
+                  <span>{t.icon} {t.name}</span>
+                  <span style={{ fontFamily: 'monospace', color: pct !== null ? color : '#3a3650' }}>{pct !== null ? `${pct}%` : '—'}</span>
+                </div>
+                <div style={{ height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', background: color, width: pct !== null ? `${pct}%` : '0%', transition: 'width 0.4s' }}></div>
+                </div>
               </div>
-              <div style={{ height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', background: color as string, width: `${pct}%`, transition: 'width 0.4s' }}></div>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
       {showWelcome && (

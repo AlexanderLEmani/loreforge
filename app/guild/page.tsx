@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
+import { buildGuildQuests, todayIso } from '@/lib/guild-quests'
 
 const DUNGEONS = [
   { id: 'add',   icon: '➕', name: 'Пещера сложения',   tag: 'Ур.1', desc: 'Сложение до 1000. Базовый данж. Бесплатно.', cost: 0,   color: '#c9a84c', rarity: null,    level: 1, route: 'Пещера сложения' },
@@ -11,15 +12,10 @@ const DUNGEONS = [
   { id: 'mul',   icon: '✕',  name: 'Башня умножения',   tag: 'Ур.2', desc: 'Таблица умножения. Монстры атакуют быстро.', cost: 80,  color: '#a99fff', rarity: 'rare',  level: 2, route: 'Башня умножения' },
   { id: 'div', icon: '÷', name: 'Пещера деления', tag: 'Ур.2', desc: 'Деление до 100. Остатки и комбинированные действия.', cost: 60, color: '#3db87a', rarity: null, level: 2, route: 'Пещера деления' },
   { id: 'lab',   icon: '🌀', name: 'Лабиринт порядка',  tag: 'Ур.2', desc: 'Смешанные действия со скобками. Повышенная сложность.', cost: 120, color: '#a99fff', rarity: 'rare', level: 2, route: 'Башня умножения' },
-  { id: 'frac',  icon: '½',  name: 'Храм дробей',       tag: 'Ур.3', desc: 'Обыкновенные дроби. Босс использует все четыре действия.', cost: 200, color: '#e05555', rarity: 'epic', level: 3, route: 'Башня умножения' },
+  { id: 'frac',  icon: '½',  name: 'Храм дробей',       tag: 'Ур.3', desc: 'Обыкновенные дроби. Босс-фаза в конце забега.', cost: 200, color: '#e05555', rarity: 'epic', level: 3, route: 'Храм дробей' },
   { id: 'market',icon: '💰', name: 'Рынок процентов',   tag: 'Ур.4', desc: 'Проценты и пропорции. Требует Ур.4.', cost: 300, color: '#3a3d4a', rarity: null, level: 4, route: 'Башня умножения' },
 ]
 
-const QUESTS = [
-  { title: 'Убить 5 монстров атакой умножения', desc: 'Используй заклинание умножения в Башне умножения', prog: 2, total: 5, glory: 80, color: '#a99fff' },
-  { title: 'Пройти данж без единой ошибки', desc: 'Любой данж. Ни одного неверного ответа.', prog: 0, total: 1, glory: 150, color: '#e0bc6a' },
-  { title: 'Ответить на 20 вопросов за день', desc: 'Ежедневный квест. Обновляется в полночь.', prog: 15, total: 20, glory: 50, color: '#3db87a' },
-]
 
 const RANKS = [
   { name: '🗡️ Новичок',  min: 0,    max: 500,  color: '#9590a8' },
@@ -40,17 +36,44 @@ export default function GuildPage() {
   const [loading, setLoading] = useState(true)
   const [buying, setBuying] = useState<string | null>(null)
   const [showWelcome, setShowWelcome] = useState(false)
+  const [quests, setQuests] = useState<ReturnType<typeof buildGuildQuests>>([])
+  const [runHistory, setRunHistory] = useState<any[]>([])
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
-      const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step, visited_guild').eq('id', user.id).single()
+      const { data } = await supabase
+        .from('users')
+        .select('xp, level, gold, glory, streak, onboarding_step, visited_guild, spell_kills')
+        .eq('id', user.id)
+        .single()
       setUserData({ ...data, id: user.id })
       if (data && !data.visited_guild) {
         setShowWelcome(true)
         await supabase.from('users').update({ visited_guild: true }).eq('id', user.id)
       }
+
+      const { data: runs } = await supabase
+        .from('dungeon_runs')
+        .select('result, mistakes, dungeon_name, created_at, score, total')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      const today = todayIso()
+      const { count: answersToday } = await supabase
+        .from('question_attempts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', `${today}T00:00:00`)
+
+      setQuests(buildGuildQuests(
+        runs || [],
+        answersToday ?? 0,
+        data?.spell_kills ?? 0,
+      ))
+      setRunHistory((runs || []).slice(0, 5))
       setLoading(false)
     }
     load()
@@ -100,7 +123,7 @@ export default function GuildPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 280px' }}>
 
-        <Sidebar active="Гильдия" level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
+        <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
 
         {/* ЦЕНТР */}
         <div style={{ padding: '1.75rem 2rem', background: '#0b0c10' }}>
@@ -198,10 +221,10 @@ export default function GuildPage() {
             <span>Квесты гильдии</span>
             <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
           </div>
-          {QUESTS.map((q, i) => (
-            <div key={i} style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '9px', padding: '10px 14px', marginBottom: '6px' }}>
+          {quests.map(q => (
+            <div key={q.id} style={{ background: '#1c1f2a', border: `1px solid ${q.done ? 'rgba(61,184,122,0.25)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '9px', padding: '10px 14px', marginBottom: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                <div style={{ fontSize: '13px', color: '#e6e2f0' }}>{q.title}</div>
+                <div style={{ fontSize: '13px', color: q.done ? '#3db87a' : '#e6e2f0' }}>{q.done ? '✓ ' : ''}{q.title}</div>
                 <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#a99fff', whiteSpace: 'nowrap', marginLeft: '8px' }}>+{q.glory} ⭐</div>
               </div>
               <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic', marginBottom: '6px' }}>{q.desc}</div>
@@ -237,16 +260,21 @@ export default function GuildPage() {
 
           <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', margin: '14px 0 12px' }}>История данжей</div>
 
-          {[
-            ['➕', 'Пещера сложения', 'Победа', '#3db87a', '+40⭐'],
-            ['➖', 'Пещера вычитания', 'Победа', '#3db87a', '+35⭐'],
-            ['➕', 'Пещера сложения', 'Провал', '#e05555', ''],
-          ].map(([icon, name, result, color, bonus], i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-              <div style={{ fontSize: '13px', color: '#9590a8' }}>{icon} {name}</div>
-              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: color as string }}>{result} {bonus}</div>
-            </div>
-          ))}
+          {runHistory.length === 0 ? (
+            <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic' }}>Ещё нет забегов — войди в данж.</div>
+          ) : runHistory.map((r, i) => {
+            const win = r.result === 'win'
+            const gloryEst = win ? `+${Math.max(10, (r.score || 0) * 8)}⭐` : ''
+            const short = (r.dungeon_name || 'Данж').replace('Пещера ', '').replace('Башня ', '')
+            return (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ fontSize: '13px', color: '#9590a8' }}>{short}</div>
+                <div style={{ fontFamily: 'monospace', fontSize: '10px', color: win ? '#3db87a' : '#e05555' }}>
+                  {win ? 'Победа' : 'Провал'} {gloryEst}
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
       {showWelcome && (

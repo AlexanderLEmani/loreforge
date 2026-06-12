@@ -17,6 +17,7 @@ function DebriefContent() {
   const mistakesRaw = params.get('mistakes') || ''
   const dungeonName = params.get('dungeon') || 'Данж'
   const isHard = params.get('hard') === 'true'
+  const spellKill = params.get('spell') === '1'
   const mistakes = mistakesRaw ? decodeURIComponent(mistakesRaw).split('|') : []
   const pct = Math.round((parseInt(score) / parseInt(total)) * 100)
   useEffect(() => {
@@ -46,7 +47,7 @@ const xpGained = parseInt(score) * 10 * (isHard ? 2 : 1)
 
   const { data: userData } = await supabase
     .from('users')
-    .select('xp, level, gold, glory, quest_first_dungeon')
+    .select('xp, level, gold, glory, quest_first_dungeon, spell_kills')
     .eq('id', user.id)
     .single()
 
@@ -60,18 +61,19 @@ const xpGained = parseInt(score) * 10 * (isHard ? 2 : 1)
     const newGold = userData.gold + goldGained
 
 
-    await supabase.from('users').update({
+    const updates: Record<string, number | boolean> = {
       xp: newXP,
       gold: newGold,
       glory: (userData.glory || 0) + gloryGained,
-    }).eq('id', user.id)
+    }
+    if (spellKill && result === 'win') {
+      updates.spell_kills = (userData.spell_kills ?? 0) + 1
+    }
+    await supabase.from('users').update(updates).eq('id', user.id)
   }
-  // Отмечаем квест если первый данж
-    if (userData && !userData.quest_first_dungeon && result === 'win') {
-        await supabase.from('users').update({
-        quest_first_dungeon: true
-  }).eq('id', user.id)
-}
+  if (userData && !userData.quest_first_dungeon && result === 'win') {
+    await supabase.from('users').update({ quest_first_dungeon: true }).eq('id', user.id)
+  }
   setSaved(true)
 }
     saveRun()

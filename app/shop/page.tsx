@@ -103,7 +103,7 @@ export default function ShopPage() {
       </nav>
 
       <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr' }}>
-        <Sidebar active="Лавка" level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
+        <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
 
         <div style={{ padding: '2rem', maxWidth: '900px' }}>
           <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>

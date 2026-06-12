@@ -3,6 +3,8 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { SKILL_POINTS_PER_LEVEL } from '@/lib/skill-points'
+import { mergeWithFallback } from '@/lib/fallback-questions'
 
 const XP_THRESHOLDS = [0, 100, 250, 500, 900, 1400, 2000, 2700, 3500, 4400, 5400]
 
@@ -22,6 +24,7 @@ function ExamContent() {
   const [inputAnswer, setInputAnswer] = useState('')
   const [finalCorrect, setFinalCorrect] = useState(0)
   const [finalPassed, setFinalPassed] = useState(false)
+  const [skillPointsEarned, setSkillPointsEarned] = useState(0)
 
   useEffect(() => {
     async function load() {
@@ -32,8 +35,10 @@ function ExamContent() {
       const dungeons = examLevel === 1
         ? ['Пещера сложения', 'Пещера вычитания']
         : examLevel === 2
-        ? ['Башня умножения', 'Пещера вычитания']
-        : ['Пещера сложения']
+        ? ['Башня умножения', 'Пещера деления']
+        : examLevel === 3
+        ? ['Храм дробей', 'Башня умножения', 'Пещера деления']
+        : ['Пещера сложения', 'Пещера вычитания', 'Башня умножения']
 
       let allQ: any[] = []
       for (const d of dungeons) {
@@ -42,7 +47,7 @@ function ExamContent() {
           .select('*')
           .eq('dungeon_name', d)
           .limit(10)
-        if (data) allQ = [...allQ, ...data]
+        allQ = [...allQ, ...mergeWithFallback(d, data || [])]
       }
 
       const shuffled = allQ.sort(() => Math.random() - 0.5).slice(0, 10)
@@ -85,7 +90,18 @@ function ExamContent() {
     if (passed && user) {
       const newLevel = examLevel + 1
       const newXP = XP_THRESHOLDS[newLevel - 1] || 0
-      await supabase.from('users').update({ level: newLevel, xp: newXP }).eq('id', user.id)
+      const { data: ud } = await supabase
+        .from('users')
+        .select('skill_points')
+        .eq('id', user.id)
+        .single()
+      const newSkillPoints = (ud?.skill_points ?? 0) + SKILL_POINTS_PER_LEVEL
+      setSkillPointsEarned(SKILL_POINTS_PER_LEVEL)
+      await supabase.from('users').update({
+        level: newLevel,
+        xp: newXP,
+        skill_points: newSkillPoints,
+      }).eq('id', user.id)
     }
   }
 
@@ -116,12 +132,13 @@ function ExamContent() {
               </div>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px', marginTop: '1rem' }}>
             {[
               ['📝', `${questions.length} вопросов`],
               ['✅', `Нужно ${Math.ceil(questions.length * 0.8)}/${questions.length}`],
               ['🚫', 'Без подсказок'],
-              ['🎓', `Уровень ${examLevel + 1} при успехе`]
+              ['🎓', `Уровень ${examLevel + 1} при успехе`],
+              ['✦', `+${SKILL_POINTS_PER_LEVEL} очка способностей`],
             ].map(([icon, text]) => (
               <div key={text as string} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', background: '#171920', borderRadius: '7px', fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>
                 <span>{icon as string}</span>{text as string}
@@ -165,9 +182,12 @@ function ExamContent() {
         </div>
 
         {finalPassed && (
-          <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', padding: '1rem', marginBottom: '1.5rem' }}>
+          <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', padding: '1rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#e0bc6a', marginBottom: '4px' }}>ПОЛУЧЕНО</div>
             <div style={{ fontSize: '16px', color: '#e6e2f0' }}>🎓 Уровень {examLevel + 1} разблокирован</div>
+            {skillPointsEarned > 0 && (
+              <div style={{ fontSize: '16px', color: '#a99fff' }}>✦ +{skillPointsEarned} очка способностей</div>
+            )}
           </div>
         )}
 
