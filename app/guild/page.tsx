@@ -17,8 +17,8 @@ const DUNGEONS = [
   { id: 'mul',   icon: '✕',  name: 'Башня умножения',   tag: 'Ур.2', desc: 'Таблица умножения. Монстры атакуют быстро.', cost: 80,  color: '#a99fff', rarity: 'rare',  level: 2, route: 'Башня умножения' },
   { id: 'div', icon: '÷', name: 'Пещера деления', tag: 'Ур.2', desc: 'Деление до 100. Остатки и комбинированные действия.', cost: 60, color: '#3db87a', rarity: null, level: 2, route: 'Пещера деления' },
   { id: 'lab',   icon: '🌀', name: 'Лабиринт порядка',  tag: 'Ур.2', desc: 'Смешанные действия со скобками. Повышенная сложность.', cost: 120, color: '#a99fff', rarity: 'rare', level: 2, route: 'Башня умножения' },
-  { id: 'frac',  icon: '½',  name: 'Храм дробей',       tag: 'Ур.3', desc: 'Дроби: сложение, умножение, смешанные. Дроп свитков III.', cost: 200, color: '#e05555', rarity: 'epic', level: 3, route: 'Храм дробей' },
-  { id: 'market',icon: '💰', name: 'Рынок процентов',   tag: 'Ур.4', desc: 'Проценты и пропорции. Требует Ур.4.', cost: 300, color: '#3a3d4a', rarity: null, level: 4, route: 'Башня умножения' },
+  { id: 'frac',  icon: '½',  name: 'Храм дробей',       tag: 'Ур.3', desc: 'Дроби: ½ ⅓ ¼, общий знаменатель, × и ÷. Примеры с дробями — свитки III в дропе.', cost: 200, color: '#e05555', rarity: 'epic', level: 3, route: 'Храм дробей' },
+  { id: 'market',icon: '💰', name: 'Рынок процентов',   tag: 'Ур.4', desc: '10%, 25%, скидки и наценки. Нужен игровой ур.4.', cost: 300, color: '#3db87a', rarity: null, level: 4, route: 'Рынок процентов' },
 ]
 
 
@@ -39,10 +39,6 @@ export default function GuildPage() {
       if (!user) { router.push('/'); return }
       const data = await fetchUserRow(supabase, user.id)
       let ud: Record<string, unknown> | null = data ? { ...data, id: user.id } : null
-      if (ud && (Number(ud.onboarding_step) || 0) < 2) {
-        await supabase.from('users').update({ onboarding_step: 2 }).eq('id', user.id)
-        ud = { ...ud, onboarding_step: 2 }
-      }
       if (ud && !ud.visited_guild) {
         setShowWelcome(true)
         await supabase.from('users').update({ visited_guild: true }).eq('id', user.id)
@@ -207,6 +203,27 @@ export default function GuildPage() {
               </div>
             ))}
           </div>
+
+          {level >= 3 && (
+            <div style={{ background: 'rgba(224,85,85,0.06)', border: '1px solid rgba(224,85,85,0.25)', borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
+              <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#e05555', letterSpacing: '0.12em', marginBottom: '8px' }}>½ ХРАМ ДРОБЕЙ · КАК ПОДГОТОВИТЬСЯ</div>
+              <div style={{ fontSize: '13px', color: '#c8c0d8', lineHeight: 1.65 }}>
+                Примеры с дробями: <span style={{ color: '#e0bc6a' }}>½ + ⅓</span>, <span style={{ color: '#e0bc6a' }}>¾ − ¼</span>.
+                Сначала общий знаменатель, потом считай. Лекция III в Коллегии → тренировка на ½ → свитки из дропа.
+                В бою таймер чуть длиннее — можно записать шаги в Гримуар.
+              </div>
+            </div>
+          )}
+
+          {level >= 4 && (
+            <div style={{ background: 'rgba(61,184,122,0.06)', border: '1px solid rgba(61,184,122,0.25)', borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
+              <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#3db87a', letterSpacing: '0.12em', marginBottom: '8px' }}>% РЫНОК ПРОЦЕНТОВ</div>
+              <div style={{ fontSize: '13px', color: '#c8c0d8', lineHeight: 1.65 }}>
+                <span style={{ color: '#e0bc6a' }}>10% от 80 = 8</span>. Скидка 20%: вычти пятую часть цены.
+                Лекция IV → тренировка на % → данж ниже (300 ⭐ славы).
+              </div>
+            </div>
+          )}
 
           {/* ДОСКА */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>

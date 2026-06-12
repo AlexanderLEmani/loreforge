@@ -28,5 +28,11 @@
     "slug": "hram-drobei",
     "file": "hram-drobei.json",
     "count": 100
+  },
+  {
+    "dungeon_name": "Рынок процентов",
+    "slug": "rynok-procentov",
+    "file": "rynok-procentov.json",
+    "count": 100
   }
 ]

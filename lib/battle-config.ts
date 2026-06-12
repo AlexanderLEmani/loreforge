@@ -37,6 +37,7 @@ export const DUNGEON_TO_TOPIC: Record<string, string> = {
   'Башня умножения': 'mul',
   'Пещера деления': 'div',
   'Храм дробей': 'frac',
+  'Рынок процентов': 'pct',
 }
 
 export const BOSS_ENRAGE_HP_RATIO = 0.4
@@ -77,6 +78,11 @@ export const MONSTERS_BY_DUNGEON: Record<string, Monster[]> = {
     { id: 'pie', name: 'Пирог дробей', icon: '🥧', hp: 110, defendTimer: 14, attackDmg: 22, timeoutDmg: 31, trait: 'Липкий' },
     { id: 'half', name: 'Полуэльф половин', icon: '🧝', hp: 100, defendTimer: 12, attackDmg: 21, timeoutDmg: 30, trait: 'Хитрый' },
     { id: 'frac_boss', name: 'Архидробь', icon: '½', hp: 140, defendTimer: 16, attackDmg: 26, timeoutDmg: 35, trait: 'Босс-претендент' },
+  ],
+  'Рынок процентов': [
+    { id: 'merchant', name: 'Торговец скидок', icon: '🛒', hp: 105, defendTimer: 13, attackDmg: 21, timeoutDmg: 30, trait: 'Суетливый' },
+    { id: 'tax', name: 'Сборщик процентов', icon: '💰', hp: 115, defendTimer: 14, attackDmg: 23, timeoutDmg: 32, trait: 'Точный' },
+    { id: 'pct_boss', name: 'Лорд наценки', icon: '%', hp: 135, defendTimer: 15, attackDmg: 25, timeoutDmg: 34, trait: 'Жадный' },
   ],
 }
 

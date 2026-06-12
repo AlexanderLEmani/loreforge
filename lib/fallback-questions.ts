@@ -5,6 +5,7 @@ import pecheraVychitaniya from '@/data/question-banks/pechera-vychitaniya.json'
 import bashnyaUmnozheniya from '@/data/question-banks/bashnya-umnozheniya.json'
 import pecheraDeleniya from '@/data/question-banks/pechera-deleniya.json'
 import hramDrobei from '@/data/question-banks/hram-drobei.json'
+import rynokProcentov from '@/data/question-banks/rynok-procentov.json'
 
 export type FallbackQuestion = {
   id: number
@@ -21,6 +22,7 @@ export const FALLBACK_BY_DUNGEON: Record<string, FallbackQuestion[]> = {
   'Башня умножения': bashnyaUmnozheniya as FallbackQuestion[],
   'Пещера деления': pecheraDeleniya as FallbackQuestion[],
   'Храм дробей': hramDrobei as FallbackQuestion[],
+  'Рынок процентов': rynokProcentov as FallbackQuestion[],
 }
 
 export function mergeWithFallback(dungeon: string, fromDb: any[]): any[] {

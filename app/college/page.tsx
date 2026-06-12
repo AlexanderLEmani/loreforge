@@ -376,13 +376,13 @@ export default function CollegePage() {
                 <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#3db87a', marginLeft: 'auto' }}>→</div>
               </div>
 
-              <div onClick={() => (userData?.onboarding_step || 0) >= 2 && router.push('/guild')}
-                style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', cursor: (userData?.onboarding_step || 0) >= 2 ? 'pointer' : 'default', opacity: (userData?.onboarding_step || 0) >= 2 ? 1 : 0.4 }}>
+              <div onClick={() => userData?.visited_training && router.push('/guild')}
+                style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', cursor: userData?.visited_training ? 'pointer' : 'default', opacity: userData?.visited_training ? 1 : 0.4 }}>
                 <div style={{ fontSize: '28px', flexShrink: 0 }}>⚔️</div>
                 <div>
                   <div style={{ fontFamily: 'serif', fontSize: '15px', color: '#e6e2f0', marginBottom: '3px' }}>Гильдия авантюристов</div>
                   <div style={{ fontSize: '12px', color: '#8a849c' }}>
-                    {(userData?.onboarding_step || 0) >= 2 ? 'Иди в бой.' : 'Сначала потренируйся.'}
+                    {userData?.visited_training ? 'Иди в бой.' : 'Сначала зайди в тренировочный зал.'}
                   </div>
                 </div>
                 <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#e0bc6a', marginLeft: 'auto' }}>→</div>

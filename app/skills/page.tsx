@@ -19,6 +19,7 @@ import {
 } from '@/lib/skill-tree'
 import { SKILL_POINTS_PER_LEVEL } from '@/lib/skill-points'
 import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
+import { SKILL_TREE_PATH_HINT } from '@/lib/onboarding-quest'
 
 export default function SkillsPage() {
   const router = useRouter()
@@ -193,8 +194,15 @@ export default function SkillsPage() {
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '4px' }}>Древо знаний</div>
             <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '4px' }}>Способности</div>
             <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.5 }}>
-              Одно древо: сложение → вычитание → умножение → деление → дроби → проценты.
-              Следующая тема открывается только после пассивки «Мастер…» предыдущей. +{SKILL_POINTS_PER_LEVEL} очка за уровень.
+              Одно древо по темам математики. +{SKILL_POINTS_PER_LEVEL} очка за уровень.
+            </div>
+          </div>
+
+          <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.28)', borderRadius: '10px', padding: '12px 16px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+            <div style={{ fontSize: '20px', lineHeight: 1 }}>🧭</div>
+            <div style={{ fontSize: '13px', color: '#d4c4a0', lineHeight: 1.65 }}>
+              <span style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.12em', color: '#c9a84c', display: 'block', marginBottom: '6px' }}>ПОРЯДОК ТЕМ</span>
+              {SKILL_TREE_PATH_HINT}
             </div>
           </div>
 
@@ -336,9 +344,9 @@ export default function SkillsPage() {
               <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', letterSpacing: '0.2em' }}>PATH OF EXPEDITION</div>
             </div>
             <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
-              Одно большое древо: темы связаны в цепочку. Чтобы открыть умножение, нужна пассивка «Мастер вычитания» и т.д.
+              {SKILL_TREE_PATH_HINT}
               <br /><br />
-              <span style={{ color: '#e0bc6a' }}>Атаки</span> — урон, <span style={{ color: '#a99fff' }}>защиты</span> — щит, <span style={{ color: '#3db87a' }}>пассивки «Мастер…»</span> — открывают следующую тему.
+              <span style={{ color: '#e0bc6a' }}>Атаки</span> — урон, <span style={{ color: '#a99fff' }}>защиты</span> — щит, <span style={{ color: '#3db87a' }}>«Мастер…»</span> — ключ к следующей теме.
               <br /><br />
               Перетаскивай поле, колёсико — зум.
             </div>

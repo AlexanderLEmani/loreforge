@@ -65,9 +65,15 @@ export default function Home() {
     >
       <h1 style={{ fontSize: '48px', marginBottom: '8px' }}>LoreForge</h1>
       <p style={{ color: '#9590a8', marginBottom: '12px' }}>Знание есть сила</p>
-      <p style={{ color: '#5a5670', fontSize: '13px', marginBottom: '36px', maxWidth: '360px', textAlign: 'center', lineHeight: 1.6 }}>
-        Можно начать без Google — создай персонажа в один клик. Прогресс сохранится на этом устройстве.
-      </p>
+      <div style={{ maxWidth: '380px', marginBottom: '28px', padding: '12px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', background: 'rgba(255,255,255,0.03)' }}>
+        <p style={{ color: '#9590a8', fontSize: '13px', textAlign: 'center', lineHeight: 1.65, margin: 0 }}>
+          <span style={{ color: '#3db87a' }}>Быстрый старт</span> — без Google, персонаж в один клик.
+          Прогресс сохраняется <span style={{ color: '#e0bc6a' }}>на этом устройстве</span> (в этом браузере).
+        </p>
+        <p style={{ color: '#5a5670', fontSize: '12px', textAlign: 'center', lineHeight: 1.55, margin: '10px 0 0', fontStyle: 'italic' }}>
+          Нужен тот же прогресс на другом телефоне или после очистки данных? — войди через Google ниже.
+        </p>
+      </div>
 
       <div style={{ width: '100%', maxWidth: '320px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <button

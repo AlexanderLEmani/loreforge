@@ -12,6 +12,7 @@ const DUNGEONS = [
   { name: 'Башня умножения', level: 2, slug: 'bashnya-umnozheniya' },
   { name: 'Пещера деления', level: 2, slug: 'pechera-deleniya' },
   { name: 'Храм дробей', level: 3, slug: 'hram-drobei' },
+  { name: 'Рынок процентов', level: 4, slug: 'rynok-procentov' },
 ]
 
 let nextId = 10000
@@ -427,12 +428,84 @@ function buildFractions(dungeon, level) {
   return [...easy, ...medium, ...hard]
 }
 
+const PCT_VALUES = [5, 10, 15, 20, 25, 30, 40, 50]
+
+function buildPercentages(dungeon, level) {
+  const seen = new Set()
+  const easy = fillPool(seen, dungeon, level, 'easy', MIX.easy, () => {
+    const pct = PCT_VALUES[Math.floor(Math.random() * PCT_VALUES.length)]
+    const base = 10 * (2 + Math.floor(Math.random() * 18))
+    const ans = (base * pct) / 100
+    if (ans <= 0 || !Number.isInteger(ans)) return null
+    return {
+      question: `${pct}% от ${base} = ?`,
+      correct: ans,
+      distractors: nearInt(ans, 4),
+    }
+  })
+  const medium = fillPool(seen, dungeon, level, 'medium', MIX.medium, () => {
+    const pct = PCT_VALUES[1 + Math.floor(Math.random() * (PCT_VALUES.length - 1))]
+    const price = 20 * (2 + Math.floor(Math.random() * 9))
+    const discount = (price * pct) / 100
+    if (!Number.isInteger(discount) || discount <= 0) return null
+    const kind = Math.floor(Math.random() * 3)
+    if (kind === 0) {
+      const newPrice = price - discount
+      return {
+        question: `${price} − ${pct}% = ?`,
+        correct: newPrice,
+        distractors: nearInt(newPrice, 5),
+      }
+    }
+    if (kind === 1) {
+      return {
+        question: `Скидка ${pct}% на ${price} = ?`,
+        correct: discount,
+        distractors: nearInt(discount, 4),
+      }
+    }
+    const markup = discount
+    const newPrice = price + markup
+    return {
+      question: `${price} + ${pct}% = ?`,
+      correct: newPrice,
+      distractors: nearInt(newPrice, 5),
+    }
+  })
+  const hard = fillPool(seen, dungeon, level, 'hard', MIX.hard, () => {
+    const kind = Math.floor(Math.random() * 2)
+    if (kind === 0) {
+      const pct = [10, 20, 25, 50][Math.floor(Math.random() * 4)]
+      const whole = 20 * (2 + Math.floor(Math.random() * 8))
+      const part = (whole * pct) / 100
+      if (!Number.isInteger(part) || part <= 0) return null
+      return {
+        question: `${pct}% от ? = ${part}`,
+        correct: whole,
+        distractors: nearInt(whole, 10),
+      }
+    }
+    const pct = [10, 20, 25][Math.floor(Math.random() * 3)]
+    const part = 2 + Math.floor(Math.random() * 8)
+    const whole = 20 + Math.floor(Math.random() * 30)
+    const ans = Math.round((part / whole) * 100)
+    if (ans !== pct && Math.abs(ans - pct) > 15) return null
+    return {
+      question: `${part} из ${whole} = ?%`,
+      correct: ans,
+      distractors: nearInt(ans, 5),
+    }
+  })
+  return [...easy, ...medium, ...hard]
+}
+
 const BUILDERS = {
   'Пещера сложения': buildAddition,
   'Пещера вычитания': buildSubtraction,
   'Башня умножения': buildMultiplication,
   'Пещера деления': buildDivision,
   'Храм дробей': buildFractions,
+  'Рынок процентов': buildPercentages,
 }
 
 export function buildAllQuestionBanks() {

@@ -5,7 +5,14 @@ import { createClient } from '@/lib/supabase'
 import { resetUserProgress } from '@/lib/reset-progress'
 import { useRouter } from 'next/navigation'
 import AppNav from '@/components/AppNav'
-import { currentOnboardingStep, onboardingProgress, ONBOARDING_STEPS } from '@/lib/onboarding-quest'
+import {
+  CORE_ONBOARDING_STEPS,
+  currentCoreOnboardingStep,
+  coreOnboardingProgress,
+  currentOnboardingStep,
+  onboardingProgress,
+  ONBOARDING_STEPS,
+} from '@/lib/onboarding-quest'
 import { currentLevelPlan, nextLevelPlan } from '@/lib/curriculum'
 import { HUB_GUIDE_SECTIONS } from '@/lib/hub-guide'
 import GuideModal from '@/components/GuideModal'
@@ -119,10 +126,16 @@ export default function Hub() {
     quest_first_dungeon: !!userData?.quest_first_dungeon,
     level,
     visited_skills: !!userData?.visited_skills,
+    visited_training: !!userData?.visited_training,
+    visited_guild: !!userData?.visited_guild,
+    visited_college: !!userData?.visited_college,
     onboarding_done: !!userData?.onboarding_done,
   }
+  const nextCoreStep = currentCoreOnboardingStep(onboardCtx)
+  const coreDone = coreOnboardingProgress(onboardCtx)
   const nextStep = currentOnboardingStep(onboardCtx)
   const onboardDone = onboardingProgress(onboardCtx)
+  const coreQuestActive = coreDone < CORE_ONBOARDING_STEPS.length
   const levelPlan = currentLevelPlan(level)
   const nextPlan = nextLevelPlan(level)
 
@@ -207,18 +220,56 @@ export default function Hub() {
           </div>
         </div>
 
-        {nextStep && onboardDone < ONBOARDING_STEPS.length && (
-          <div onClick={() => router.push(nextStep.href)}
-            style={{ background: 'linear-gradient(135deg, rgba(123,108,255,0.12), rgba(201,168,76,0.08))', border: '1px solid rgba(123,108,255,0.35)', borderRadius: '10px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', marginBottom: '1.25rem' }}>
-            <div style={{ fontSize: '28px' }}>{nextStep.icon}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#a99fff', letterSpacing: '0.15em', marginBottom: '4px' }}>
-                КВЕСТ {onboardDone + 1} / {ONBOARDING_STEPS.length}
+        {coreQuestActive && nextCoreStep && (
+          <div style={{ background: 'linear-gradient(135deg, rgba(123,108,255,0.12), rgba(201,168,76,0.08))', border: '1px solid rgba(123,108,255,0.35)', borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
+            <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#a99fff', letterSpacing: '0.15em', marginBottom: '10px' }}>
+              СТАРТОВЫЙ КВЕСТ · {coreDone} / {CORE_ONBOARDING_STEPS.length}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              {CORE_ONBOARDING_STEPS.map((step, i) => {
+                const done = step.check(onboardCtx)
+                const active = step.id === nextCoreStep.id
+                return (
+                  <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{
+                      width: '28px', height: '28px', borderRadius: '50%',
+                      border: `1px solid ${done ? 'rgba(61,184,122,0.5)' : active ? 'rgba(201,168,76,0.6)' : 'rgba(255,255,255,0.1)'}`,
+                      background: done ? 'rgba(61,184,122,0.15)' : active ? 'rgba(201,168,76,0.12)' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px',
+                    }}>
+                      {done ? '✓' : step.icon}
+                    </div>
+                    {i < CORE_ONBOARDING_STEPS.length - 1 && (
+                      <div style={{ width: '20px', height: '1px', background: done ? 'rgba(61,184,122,0.35)' : 'rgba(255,255,255,0.08)' }} />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            <div onClick={() => router.push(nextCoreStep.href)}
+              style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }}>
+              <div style={{ fontSize: '28px' }}>{nextCoreStep.icon}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: 'serif', fontSize: '15px', color: '#e6e2f0', marginBottom: '3px' }}>{nextCoreStep.title}</div>
+                <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic' }}>{nextCoreStep.desc}</div>
               </div>
-              <div style={{ fontFamily: 'serif', fontSize: '15px', color: '#e6e2f0', marginBottom: '3px' }}>{nextStep.title}</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff' }}>→</div>
+            </div>
+          </div>
+        )}
+
+        {!coreQuestActive && nextStep && onboardDone < ONBOARDING_STEPS.length && (
+          <div onClick={() => router.push(nextStep.href)}
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', marginBottom: '1.25rem' }}>
+            <div style={{ fontSize: '24px' }}>{nextStep.icon}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', letterSpacing: '0.15em', marginBottom: '4px' }}>
+                ДАЛЬШЕ · {onboardDone + 1} / {ONBOARDING_STEPS.length}
+              </div>
+              <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0', marginBottom: '3px' }}>{nextStep.title}</div>
               <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic' }}>{nextStep.desc}</div>
             </div>
-            <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff' }}>→</div>
+            <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>→</div>
           </div>
         )}
 
@@ -334,15 +385,15 @@ export default function Hub() {
               </div>
             </div>
             <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
-              Ты попал в LoreForge — обучающий RPG где математика это твоё оружие.
+              Ты в LoreForge — RPG, где математика это оружие. Начни с трёх шагов:
               <br/><br/>
-              <span style={{ color: '#a99fff' }}>🏛️ Начни с Коллегии</span> — прослушай лекцию профессора Горуса и узнай зачем вообще нужна математика.
+              <span style={{ color: '#3db87a' }}>1. 🏋️ Тренировка</span> — разомнись без риска. Ошибки не убивают.
               <br/><br/>
-              <span style={{ color: '#3db87a' }}>🏋️ Потренируйся в Зале</span> — здесь можно практиковаться без риска. Ошибки не убивают.
+              <span style={{ color: '#a99fff' }}>2. 🏛️ Гильдия</span> — выбери данж и подготовься к бою.
               <br/><br/>
-              <span style={{ color: '#e0bc6a' }}>⚔️ Иди в Гильдию</span> — выбери данж, сразись с монстрами и зарабатывай очки славы.
+              <span style={{ color: '#e0bc6a' }}>3. ⚔️ Первый данж</span> — победи монстра в Пещере сложения.
               <br/><br/>
-              Навигация слева. Удачи.
+              Коллегия и способности — когда захочешь глубже. Навигация слева.
             </div>
             <div onClick={async () => { setShowOnboarding(false); setShowGuide(true); await supabase.from('users').update({ onboarding_done: true }).eq('id', user?.id) }}
               style={{ width: '100%', padding: '14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#e0bc6a', cursor: 'pointer', marginBottom: '8px' }}>

@@ -12,36 +12,52 @@ export type OnboardingContext = {
   quest_first_dungeon: boolean
   level: number
   visited_skills: boolean
+  visited_training: boolean
+  visited_guild: boolean
+  visited_college: boolean
   onboarding_done: boolean
 }
 
-export const ONBOARDING_STEPS: OnboardingStep[] = [
+/** Короткий путь новичка: тренировка → гильдия → первый данж */
+export const CORE_ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: 1,
-    title: 'Лекция в Коллегии',
-    desc: 'Профессор Горус объяснит зачем нужна математика.',
-    href: '/college',
-    icon: '🏛️',
-    check: c => c.onboarding_step >= 1,
+    title: 'Тренировка в Зале',
+    desc: 'Разомнись без риска — ошибки не убивают.',
+    href: '/training',
+    icon: '🏋️',
+    check: c => c.visited_training,
   },
   {
     id: 2,
-    title: 'Тренировка в Зале',
-    desc: '20 примеров без риска — разомнись перед боем.',
-    href: '/training',
-    icon: '🏋️',
-    check: c => c.onboarding_step >= 2,
+    title: 'Зайди в Гильдию',
+    desc: 'Выбери данж и подготовься к первому бою.',
+    href: '/guild',
+    icon: '🏛️',
+    check: c => c.visited_guild,
   },
   {
     id: 3,
     title: 'Первый данж',
-    desc: 'Победи монстра в Гильдии.',
+    desc: 'Победи монстра в Пещере сложения.',
     href: '/guild',
     icon: '⚔️',
     check: c => c.quest_first_dungeon,
   },
+]
+
+/** Дополнительные шаги после старта */
+export const EXTENDED_ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: 4,
+    title: 'Лекция в Коллегии',
+    desc: 'Профессор Горус объяснит зачем нужна математика.',
+    href: '/college',
+    icon: '📚',
+    check: c => c.visited_college,
+  },
+  {
+    id: 5,
     title: 'Экзамен на уровень 2',
     desc: 'Накопи XP в хабе и пройди экзамен.',
     href: '/exam?level=1',
@@ -49,7 +65,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     check: c => c.level >= 2,
   },
   {
-    id: 5,
+    id: 6,
     title: 'Открой способность',
     desc: 'Потрать очки в дереве навыков.',
     href: '/skills',
@@ -58,11 +74,26 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
 ]
 
+export const ONBOARDING_STEPS: OnboardingStep[] = [
+  ...CORE_ONBOARDING_STEPS,
+  ...EXTENDED_ONBOARDING_STEPS,
+]
+
 export function currentOnboardingStep(ctx: OnboardingContext): OnboardingStep | null {
   return ONBOARDING_STEPS.find(s => !s.check(ctx)) ?? null
 }
 
-export function onboardingProgress(ctx: OnboardingContext): number {
-  const done = ONBOARDING_STEPS.filter(s => s.check(ctx)).length
-  return done
+export function currentCoreOnboardingStep(ctx: OnboardingContext): OnboardingStep | null {
+  return CORE_ONBOARDING_STEPS.find(s => !s.check(ctx)) ?? null
 }
+
+export function onboardingProgress(ctx: OnboardingContext): number {
+  return ONBOARDING_STEPS.filter(s => s.check(ctx)).length
+}
+
+export function coreOnboardingProgress(ctx: OnboardingContext): number {
+  return CORE_ONBOARDING_STEPS.filter(s => s.check(ctx)).length
+}
+
+export const SKILL_TREE_PATH_HINT =
+  'Сначала открой пассивку «Мастер прибавления» (сложение), затем «Мастер вычитания», потом умножение, деление, дроби… Без мастера предыдущей темы следующая не откроется.'

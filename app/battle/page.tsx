@@ -39,7 +39,7 @@ import { mergeWithFallback } from '@/lib/fallback-questions'
 import { loadDemoSkillState } from '@/lib/skill-tree'
 import { computeEquipBonuses } from '@/lib/equipment'
 import { loadEquipped } from '@/lib/equipment-storage'
-import { answersMatch } from '@/lib/scroll-display'
+import { answersMatch, sanitizeAnswerInput } from '@/lib/scroll-display'
 import { shuffleQuestions } from '@/lib/shuffle-question'
 import { isHintHighlighted, pickHintPair } from '@/lib/hint-pair'
 
@@ -50,6 +50,7 @@ function BattleContent() {
   const supabase = createClient()
   const params = useSearchParams()
   const dungeonName = params.get('dungeon') || 'Пещера сложения'
+  const typedAnswerPlaceholder = dungeonName === 'Храм дробей' ? '2/3, ½ или 0…' : 'Введи ответ…'
 
   const [questionBank, setQuestionBank] = useState<Record<string, any[]>>({})
   const [loading, setLoading] = useState(true)
@@ -140,6 +141,7 @@ function BattleContent() {
         'Башня умножения',
         'Пещера деления',
         'Храм дробей',
+        'Рынок процентов',
       ]
       const bank: Record<string, any[]> = {}
       for (const d of dungeonsToLoad) {
@@ -738,12 +740,15 @@ function BattleContent() {
               <div style={{ display: 'flex', gap: '10px' }}>
                 <input
                   type="text"
+                  inputMode="text"
                   value={inputAnswer}
-                  onChange={e => setInputAnswer(e.target.value)}
+                  onChange={e => setInputAnswer(sanitizeAnswerInput(e.target.value))}
                   onKeyDown={e => e.key === 'Enter' && handleAttackHard()}
-                  placeholder="Введи ответ вручную…"
+                  placeholder={typedAnswerPlaceholder}
                   disabled={selected !== null}
                   autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   style={{
                     flex: 1,
                     background: '#1c1f2a',
@@ -775,11 +780,15 @@ function BattleContent() {
               <div style={{ display: 'flex', gap: '10px' }}>
                 <input
                   type="text"
+                  inputMode="text"
                   value={inputAnswer}
-                  onChange={e => setInputAnswer(e.target.value)}
+                  onChange={e => setInputAnswer(sanitizeAnswerInput(e.target.value))}
                   onKeyDown={e => e.key === 'Enter' && handleAttackHard()}
-                  placeholder="Ответ..."
+                  placeholder={typedAnswerPlaceholder}
                   disabled={selected !== null}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   style={{
                     flex: 1,
                     background: '#1c1f2a',

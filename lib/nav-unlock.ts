@@ -45,7 +45,7 @@ export function isNavItemUnlocked(
   const visitedKey = VISITED_KEY[item.href]
   if (visitedKey && state[visitedKey]) return true
 
-  if (item.href === '/guild' && state.quest_first_dungeon) return true
+  if (item.href === '/guild' && (state.visited_training || state.quest_first_dungeon)) return true
 
   const minLevel = MIN_LEVEL_BY_HREF[item.href]
   if (minLevel != null && (state.level ?? 1) >= minLevel) return true

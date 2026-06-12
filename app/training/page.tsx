@@ -17,7 +17,7 @@ import {
   scrollSupportsTraining,
   SCROLL_TRAINING_PROFILES,
 } from '@/lib/scroll-training'
-import { answersMatch } from '@/lib/scroll-display'
+import { answersMatch, sanitizeAnswerInput } from '@/lib/scroll-display'
 
 const TOPICS = [
   { id: 'add', icon: '➕', name: 'Сложение',   level: 1, dungeon: 'Пещера сложения' },
@@ -25,7 +25,7 @@ const TOPICS = [
   { id: 'mul', icon: '✕',  name: 'Умножение',  level: 2, dungeon: 'Башня умножения' },
   { id: 'div', icon: '÷',  name: 'Деление',    level: 2, dungeon: 'Пещера деления' },
   { id: 'frac',icon: '½',  name: 'Дроби',      level: 3, dungeon: 'Храм дробей' },
-  { id: 'pct', icon: '%',  name: 'Проценты',   level: 4, dungeon: null },
+  { id: 'pct', icon: '%',  name: 'Проценты',   level: 4, dungeon: 'Рынок процентов' },
 ]
 
 const TOPIC_COLORS: Record<string, string> = {
@@ -568,6 +568,7 @@ export default function TrainingPage() {
                 {!showHint && answerFormat === 'typed' && (() => {
                   const typedCorrect = selected !== null && selected === q.correct_index
                   const typedWrong = selected !== null && selected === -1
+                  const fracInput = selectedTopics.includes('frac') || q.dungeon_name === 'Храм дробей'
                   let inputBorder = 'rgba(123,108,255,0.45)'
                   if (typedCorrect) inputBorder = 'rgba(61,184,122,0.55)'
                   if (typedWrong) inputBorder = 'rgba(224,85,85,0.55)'
@@ -576,16 +577,16 @@ export default function TrainingPage() {
                       <input
                         ref={answerInputRef}
                         type="text"
-                        inputMode="numeric"
+                        inputMode="text"
                         value={inputAnswer}
-                        onChange={e => setInputAnswer(e.target.value.replace(/[^\d./\-\s,]/g, ''))}
+                        onChange={e => setInputAnswer(sanitizeAnswerInput(e.target.value))}
                         onKeyDown={e => {
                           if (e.key === 'Enter') {
                             e.preventDefault()
                             handleTypedSubmit()
                           }
                         }}
-                        placeholder="Ответ…"
+                        placeholder={fracInput ? '2/3, ½ или 0…' : 'Ответ…'}
                         disabled={selected !== null}
                         autoComplete="off"
                         autoCorrect="off"
@@ -605,7 +606,7 @@ export default function TrainingPage() {
                         }}
                       />
                       <div style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '10px' }}>
-                        Enter — отправить · курсор уже в поле
+                        Enter — отправить{fracInput ? ' · дроби: 2/3 или ½' : ''}
                       </div>
                     </div>
                   )

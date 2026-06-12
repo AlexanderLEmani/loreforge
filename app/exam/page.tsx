@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { SKILL_POINTS_PER_LEVEL } from '@/lib/skill-points'
 import { mergeWithFallback } from '@/lib/fallback-questions'
+import { dungeonsForExam, examConfigForLevel } from '@/lib/exam-config'
+import { answersMatch, sanitizeAnswerInput } from '@/lib/scroll-display'
 
 const XP_THRESHOLDS = [0, 100, 250, 500, 900, 1400, 2000, 2700, 3500, 4400, 5400]
 
@@ -26,27 +28,22 @@ function ExamContent() {
   const [finalPassed, setFinalPassed] = useState(false)
   const [skillPointsEarned, setSkillPointsEarned] = useState(0)
 
+  const examCfg = examConfigForLevel(examLevel)
+
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
       setUser(user)
 
-      const dungeons = examLevel === 1
-        ? ['Пещера сложения', 'Пещера вычитания']
-        : examLevel === 2
-        ? ['Башня умножения', 'Пещера деления']
-        : examLevel === 3
-        ? ['Храм дробей', 'Башня умножения', 'Пещера деления']
-        : ['Пещера сложения', 'Пещера вычитания', 'Башня умножения']
-
+      const dungeons = dungeonsForExam(examLevel)
       let allQ: any[] = []
       for (const d of dungeons) {
         const { data } = await supabase
           .from('questions')
           .select('*')
           .eq('dungeon_name', d)
-          .limit(10)
+          .limit(40)
         allQ = [...allQ, ...mergeWithFallback(d, data || [])]
       }
 
@@ -55,13 +52,13 @@ function ExamContent() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [examLevel])
 
   const q = questions[current]
 
   async function handleAnswerText() {
     if (selected !== null || !inputAnswer.trim() || !q) return
-    const correct = inputAnswer.trim() === q.answers[q.correct_index].trim()
+    const correct = answersMatch(inputAnswer, q.answers[q.correct_index])
     setSelected(correct ? 'correct' : 'wrong')
     setInputAnswer('')
     const newAnswers = [...answers, correct]
@@ -120,15 +117,21 @@ function ExamContent() {
           Коллегия Магов · Экзамен
         </div>
         <h1 style={{ fontFamily: 'serif', fontSize: '30px', color: '#e0bc6a', marginBottom: '12px', fontWeight: 'normal' }}>
-          Экзамен уровня {examLevel}
+          Экзамен: {examCfg.title}
         </h1>
+        <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff', marginBottom: '16px' }}>
+          Уровень {examLevel} → {examLevel + 1} · {examCfg.topicsLabel}
+        </div>
         <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '1.5rem', marginBottom: '2rem', textAlign: 'left' }}>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', marginBottom: '1rem' }}>
             <div style={{ fontSize: '32px', flexShrink: 0 }}>🧙‍♂️</div>
             <div>
               <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#e0bc6a', marginBottom: '6px' }}>ПРОФЕССОР ГОРУС</div>
               <div style={{ fontSize: '14px', color: '#c8c0d8', fontStyle: 'italic', lineHeight: 1.6 }}>
-                "Значит, думаешь что готов? Посмотрим. {questions.length} вопросов. Нужно {Math.ceil(questions.length * 0.8)} правильных. Меньше — возвращаешься тренироваться. Вводишь ответ сам. Никаких подсказок."
+                "{examCfg.gorusIntro} {questions.length} вопросов. Нужно {Math.ceil(questions.length * 0.8)} правильных. Вводишь ответ сам."
+              </div>
+              <div style={{ fontSize: '12px', color: '#5a5670', marginTop: '10px', fontStyle: 'italic' }}>
+                {examCfg.passHint}
               </div>
             </div>
           </div>
@@ -251,12 +254,16 @@ function ExamContent() {
         {selected === null ? (
           <div style={{ display: 'flex', gap: '10px' }}>
             <input
-              type="number"
+              type="text"
+              inputMode="text"
               autoFocus
               value={inputAnswer}
-              onChange={e => setInputAnswer(e.target.value)}
+              onChange={e => setInputAnswer(sanitizeAnswerInput(e.target.value))}
               onKeyDown={e => e.key === 'Enter' && handleAnswerText()}
-              placeholder="Введи ответ..."
+              placeholder={examLevel === 3 ? '2/3, ½ или 0…' : 'Введи ответ…'}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               style={{ flex: 1, background: '#1c1f2a', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', padding: '16px', fontSize: '28px', color: '#e6e2f0', fontFamily: 'serif', outline: 'none', textAlign: 'center' }}
             />
             <div onClick={handleAnswerText} style={{ padding: '16px 24px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', fontSize: '20px', cursor: 'pointer', color: '#e0bc6a', display: 'flex', alignItems: 'center' }}>✓</div>
