@@ -58,12 +58,10 @@ const xpGained = parseInt(score) * 10 * (isHard ? 2 : 1)
     const newXPInLevel = xpInLevel + xpGained
     const newXP = currentThreshold + newXPInLevel
     const newGold = userData.gold + goldGained
-    const newLevel = thresholds.findIndex(t => newXP < t)
 
 
     await supabase.from('users').update({
       xp: newXP,
-      level: newLevel,
       gold: newGold,
       glory: (userData.glory || 0) + gloryGained,
     }).eq('id', user.id)

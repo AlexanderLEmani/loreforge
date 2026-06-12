@@ -65,6 +65,14 @@ export default function Hub() {
     </div>
   )
 
+  const level = userData?.level || 1
+  const xpThresholds = [0, 100, 250, 500, 900, 1400, 2000, 2700, 3500, 4400, 5400]
+  const xpToNext = [100, 150, 250, 400, 500, 600, 700, 800, 900, 1000, 1100]
+  const xpBase = xpThresholds[level - 1] || 0
+  const xpNext = xpToNext[level - 1] || 100
+  const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
+  const examReady = xpCurrent >= xpNext
+
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif', display: 'grid', gridTemplateColumns: '260px 1fr 280px' }}>
 
@@ -85,11 +93,11 @@ export default function Hub() {
             </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', marginBottom: '4px' }}>
-            <span>УРОВЕНЬ {userData?.level || 1}</span>
-            <span>{Math.max(0, (userData?.xp || 0) - ([0,100,250,500,900,1400,2000,2700,3500,4400,5400][(userData?.level||1)-1]||0))} / {[100,150,250,400,500,600,700,800,900,1000,1100][(userData?.level||1)-1]||1100}</span>
+            <span>УРОВЕНЬ {level}</span>
+            <span>{xpCurrent} / {xpNext}</span>
           </div>
           <div style={{ height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden' }}>
-            <div style={{ height: '100%', background: '#7b6cff', borderRadius: '2px', width: `${Math.min((Math.max(0, (userData?.xp || 0) - ([0,100,250,500,900,1400,2000,2700,3500,4400][(userData?.level||1)-1]||0)) / ([100,150,250,400,500,600,700,800,900,1000,1100][(userData?.level||1)-1]||1100)) * 100, 100)}%` }}></div>
+            <div style={{ height: '100%', background: examReady ? '#e0bc6a' : '#7b6cff', borderRadius: '2px', width: `${Math.min((xpCurrent / xpNext) * 100, 100)}%` }}></div>
           </div>
         </div>
 
@@ -134,7 +142,8 @@ export default function Hub() {
           if (!confirm('Сбросить весь прогресс? Это нельзя отменить.')) return
           await supabase.from('users').update({
             xp: 0, level: 1, gold: 0, glory: 0, streak: 0,
-            total_answers: 0, quest_first_dungeon: false, onboarding_done: false, onboarding_step: 0
+            total_answers: 0, quest_first_dungeon: false, onboarding_done: false, onboarding_step: 0,
+            visited_college: false, visited_training: false, visited_guild: false, visited_character: false
           }).eq('id', user?.id)
           await supabase.from('characters').delete().eq('user_id', user?.id)
           router.push('/')
@@ -153,6 +162,19 @@ export default function Hub() {
           </div>
         </div>
 
+        {/* Кнопка экзамена */}
+        {examReady && (
+          <div onClick={() => router.push(`/exam?level=${level}`)}
+            style={{ background: 'rgba(224,188,106,0.08)', border: '1px solid rgba(224,188,106,0.4)', borderRadius: '10px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', marginBottom: '1.25rem' }}>
+            <div style={{ fontSize: '28px' }}>🎓</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'serif', fontSize: '15px', color: '#e0bc6a', marginBottom: '3px' }}>Готов к экзамену!</div>
+              <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic' }}>Достаточно опыта для перехода на уровень {level + 1}</div>
+            </div>
+            <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#e0bc6a' }}>→</div>
+          </div>
+        )}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', textTransform: 'uppercase', marginBottom: '12px' }}>
           Ветки знаний<div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
         </div>
@@ -163,11 +185,11 @@ export default function Hub() {
             <div style={{ fontFamily: 'serif', fontSize: '15px', color: '#e6e2f0', marginBottom: '5px' }}>Математика</div>
             <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic', marginBottom: '7px' }}>Арифметика → Алгебра → Тригонометрия → Мат.анализ</div>
             <div style={{ height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden', marginBottom: '3px' }}>
-              <div style={{ height: '100%', background: '#c9a84c', borderRadius: '2px', width: '0%' }}></div>
+              <div style={{ height: '100%', background: '#c9a84c', borderRadius: '2px', width: `${Math.min((xpCurrent / xpNext) * 100, 100)}%` }}></div>
             </div>
-            <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>Ур.{userData?.level || 1} · {(userData?.total_answers || 0)} ответов дано</div>
+            <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>Ур.{level} · {userData?.total_answers || 0} ответов дано</div>
           </div>
-          <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#c9a84c', textAlign: 'right' }}>{userData?.level || 1}<div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#5a5670' }}>уровень</div></div>
+          <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#c9a84c', textAlign: 'right' }}>{level}<div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#5a5670' }}>уровень</div></div>
         </div>
 
         <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '1.1rem 1.25rem', marginBottom: '20px', display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: '12px', alignItems: 'center', opacity: 0.4 }}>
@@ -227,7 +249,6 @@ export default function Hub() {
                 ЗНАНИЕ ЕСТЬ СИЛА
               </div>
             </div>
-
             <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
               Ты попал в LoreForge — обучающий RPG где математика это твоё оружие.
               <br/><br/>
@@ -239,7 +260,6 @@ export default function Hub() {
               <br/><br/>
               Навигация слева. Удачи.
             </div>
-
             <div onClick={async () => { setShowOnboarding(false); await supabase.from('users').update({ onboarding_done: true }).eq('id', user?.id) }}
               style={{ width: '100%', padding: '14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#e0bc6a', cursor: 'pointer' }}>
               Понял, начинаем →

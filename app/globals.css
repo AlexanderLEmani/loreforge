@@ -11,3 +11,8 @@ body {
   60%  { opacity: 1; transform: translateY(-22px); }
   100% { opacity: 0; transform: translateY(-38px); }
 }
+
+@keyframes fadeUp {
+  0% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -20px); }
+}

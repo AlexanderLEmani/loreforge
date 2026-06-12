@@ -15,9 +15,9 @@ const TOPICS = [
 ]
 
 const MODES = [
-  { id: 'guided', icon: '📖', name: 'С подсказками',  desc: 'После каждой ошибки — объяснение. Для изучения новой темы.', color: '#3db87a', xpMod: '-50% XP' },
-  { id: 'clean',  icon: '⚡', name: 'Без подсказок',  desc: 'Как настоящий бой, но без потери HP и ресурсов.', color: '#a99fff', xpMod: '-25% XP' },
-  { id: 'speed',  icon: '⏱️', name: 'Спидран',        desc: 'Максимум задач за 3 минуты. Только скорость.', color: '#e0bc6a', xpMod: 'Нет XP' },
+  { id: 'guided', icon: '📖', name: 'С подсказками',  desc: 'После каждой ошибки — объяснение. Для изучения новой темы.', color: '#3db87a', xpMod: '+3 XP за ответ' },
+  { id: 'clean',  icon: '⚡', name: 'Без подсказок',  desc: 'Как настоящий бой, но без потери HP и ресурсов.', color: '#a99fff', xpMod: '+5 XP за ответ' },
+  { id: 'speed',  icon: '⏱️', name: 'Спидран',        desc: 'Максимум задач за 3 минуты. Только скорость.', color: '#e0bc6a', xpMod: 'Без XP' },
 ]
 
 export default function TrainingPage() {
@@ -37,6 +37,8 @@ export default function TrainingPage() {
   const [timer, setTimer] = useState(180)
   const [timerActive, setTimerActive] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
+  const [xpEarned, setXpEarned] = useState(0)
+  const [showXpFloat, setShowXpFloat] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -90,13 +92,23 @@ export default function TrainingPage() {
     if (selectedMode === 'speed') { setTimer(180); setTimerActive(true) }
   }
 
-  function handleAnswer(idx: number) {
+    async function handleAnswer(idx: number) {
     if (selected !== null) return
     setSelected(idx)
     const q = questions[current]
     const isCorrect = idx === q.correct_index
     setTotal(t => t + 1)
-    if (isCorrect) setCorrect(c => c + 1)
+    if (isCorrect) {
+      setCorrect(c => c + 1)
+      const xpPerAnswer = selectedMode === 'guided' ? 3 : selectedMode === 'clean' ? 5 : 0
+      if (xpPerAnswer > 0 && userData?.id) {
+        const { data: ud } = await supabase.from('users').select('xp').eq('id', userData.id).single()
+        if (ud) await supabase.from('users').update({ xp: ud.xp + xpPerAnswer }).eq('id', userData.id)
+        setXpEarned(x => x + xpPerAnswer)
+        setShowXpFloat(true)
+        setTimeout(() => setShowXpFloat(false), 800)
+      }
+    }
     if (!isCorrect && selectedMode === 'guided') setShowHint(true)
 
     if (isCorrect || selectedMode !== 'guided') {
@@ -237,6 +249,16 @@ export default function TrainingPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontFamily: 'monospace', fontSize: '11px' }}>
                     <span style={{ color: '#3db87a' }}>✓ {correct}</span>
                     <span style={{ color: '#5a5670' }}>/{total}</span>
+                    {selectedMode !== 'speed' && (
+                      <span style={{ color: '#a99fff', position: 'relative' }}>
+                        ✨ +{xpEarned} XP
+                        {showXpFloat && (
+                          <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: '-20px', color: '#3db87a', fontSize: '12px', animation: 'fadeUp 0.8s ease-out forwards', whiteSpace: 'nowrap' }}>
+                            +{selectedMode === 'guided' ? 3 : 5}
+                          </span>
+                        )}
+                      </span>
+                    )}
                     {selectedMode === 'speed' && (
                       <span style={{ color: timer > 60 ? '#3db87a' : timer > 30 ? '#e0bc6a' : '#e05555', fontSize: '14px', fontWeight: 'bold' }}>
                         ⏱ {Math.floor(timer / 60)}:{String(timer % 60).padStart(2, '0')}
