@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import { resetUserProgress } from '@/lib/reset-progress'
 import { useRouter } from 'next/navigation'
 
 export default function Hub() {
@@ -119,9 +120,9 @@ export default function Hub() {
           ['👤', 'Персонаж',   '/character', false, 0],
           ['🏛️', 'Коллегия',   '/college',   false, 0],
           ['🏋️', 'Тренировка', '/training',  false, 1],
-          ['⚔️', 'Гильдия',    '/guild',     false, 2],
-          ['📖', 'Гримуар',    '/hub',       false, 3],
-          ['🛒', 'Лавка',      '/hub',       false, 3],
+          ['⚔️', 'Гильдия',    '/guild',     false, 1],
+          ['📖', 'Гримуар',    '/grimoire',       false, 1],
+          ['🛒', 'Лавка',      '/shop',       false, 1],
         ].map(([icon, label, href, active, minStep]) => {
           const locked = (userData?.onboarding_step || 0) < (minStep as number)
           return (
@@ -140,12 +141,13 @@ export default function Hub() {
         </div>
         <div onClick={async () => {
           if (!confirm('Сбросить весь прогресс? Это нельзя отменить.')) return
-          await supabase.from('users').update({
-            xp: 0, level: 1, gold: 0, glory: 0, streak: 0,
-            total_answers: 0, quest_first_dungeon: false, onboarding_done: false, onboarding_step: 0,
-            visited_college: false, visited_training: false, visited_guild: false, visited_character: false
-          }).eq('id', user?.id)
-          await supabase.from('characters').delete().eq('user_id', user?.id)
+          if (!user?.id) return
+          const { ok, errors } = await resetUserProgress(supabase, user.id)
+          if (!ok) {
+            alert('Не удалось полностью сбросить прогресс:\n' + errors.join('\n'))
+            return
+          }
+          await supabase.auth.signOut()
           router.push('/')
         }} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', fontSize: '13px', color: '#3a3650', cursor: 'pointer', marginTop: '4px' }}>
           <span>🔄</span>Сбросить прогресс

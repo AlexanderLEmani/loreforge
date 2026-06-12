@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { loadTrainingStats, recordTrainingAttempt, type TrainingStats } from '@/lib/training-stats'
 import Sidebar from '@/components/Sidebar'
 
 const TOPICS = [
@@ -39,6 +40,13 @@ export default function TrainingPage() {
   const [showWelcome, setShowWelcome] = useState(false)
   const [xpEarned, setXpEarned] = useState(0)
   const [showXpFloat, setShowXpFloat] = useState(false)
+  const [trainingStats, setTrainingStats] = useState<TrainingStats | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+
+  async function refreshStats(userId: string) {
+    const stats = await loadTrainingStats(supabase, userId)
+    setTrainingStats(stats)
+  }
 
   useEffect(() => {
     async function load() {
@@ -46,6 +54,7 @@ export default function TrainingPage() {
       if (!user) { router.push('/'); return }
       const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step, visited_training').eq('id', user.id).single()
       setUserData({ ...data, id: user.id })
+      await refreshStats(user.id)
       if (data && !data.visited_training) {
         setShowWelcome(true)
         await supabase.from('users').update({ visited_training: true }).eq('id', user.id)
@@ -55,10 +64,16 @@ export default function TrainingPage() {
     load()
   }, [])
 
+  async function exitTraining() {
+    setPhase('setup')
+    setTimerActive(false)
+    if (userData?.id) await refreshStats(userData.id)
+  }
+
   // Таймер спидрана
   useEffect(() => {
     if (!timerActive) return
-    if (timer <= 0) { setPhase('setup'); setTimerActive(false); return }
+    if (timer <= 0) { exitTraining(); return }
     const t = setTimeout(() => setTimer(v => v - 1), 1000)
     return () => clearTimeout(t)
   }, [timer, timerActive])
@@ -82,6 +97,7 @@ export default function TrainingPage() {
     }
 
     const shuffled = allQ.sort(() => Math.random() - 0.5).slice(0, 20)
+    setSessionId(crypto.randomUUID())
     setQuestions(shuffled)
     setCurrent(0)
     setCorrect(0)
@@ -108,6 +124,16 @@ export default function TrainingPage() {
         setShowXpFloat(true)
         setTimeout(() => setShowXpFloat(false), 800)
       }
+    }
+
+    if (userData?.id && sessionId && q.id) {
+      await recordTrainingAttempt(supabase, {
+        userId: userData.id,
+        questionId: q.id,
+        isCorrect,
+        sessionId,
+        dungeonName: q.dungeon_name,
+      })
     }
     if (!isCorrect && selectedMode === 'guided') setShowHint(true)
 
@@ -245,7 +271,7 @@ export default function TrainingPage() {
               <div>
                 {/* Шапка боя */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <div onClick={() => { setPhase('setup'); setTimerActive(false) }} style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670', cursor: 'pointer' }}>← Выйти</div>
+                  <div onClick={exitTraining} style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670', cursor: 'pointer' }}>← Выйти</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontFamily: 'monospace', fontSize: '11px' }}>
                     <span style={{ color: '#3db87a' }}>✓ {correct}</span>
                     <span style={{ color: '#5a5670' }}>/{total}</span>
@@ -359,15 +385,19 @@ export default function TrainingPage() {
             </>
           ) : (
             <>
-              {[
-                ['🏋️', 'Сессий сегодня', '2'],
-                ['📝', 'Задач решено', '47'],
-                ['✅', 'Точность', '84%'],
-                ['🔥', 'Лучшая серия', '12'],
-              ].map(([icon, name, val]) => (
-                <div key={name as string} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '13px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9590a8' }}><span>{icon as string}</span>{name as string}</div>
-                  <div style={{ fontFamily: 'monospace', fontSize: '12px', color: '#e0bc6a' }}>{val as string}</div>
+              {(() => {
+                const acc = trainingStats?.accuracy
+                const accColor = acc === null ? '#5a5670' : acc >= 80 ? '#3db87a' : acc >= 60 ? '#e0bc6a' : '#e05555'
+                return [
+                  ['🏋️', 'Сессий сегодня', String(trainingStats?.sessionsToday ?? 0), '#e0bc6a'],
+                  ['📝', 'Задач решено', String(trainingStats?.totalSolved ?? 0), '#e0bc6a'],
+                  ['✅', 'Точность', acc === null ? '—' : `${acc}%`, accColor],
+                  ['🔥', 'Лучшая серия', trainingStats?.source === 'dungeon_runs' ? '—' : String(trainingStats?.bestStreak ?? 0), '#e0bc6a'],
+                ] as const
+              })().map(([icon, name, val, color]) => (
+                <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9590a8' }}><span>{icon}</span>{name}</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '12px', color }}>{val}</div>
                 </div>
               ))}
             </>
