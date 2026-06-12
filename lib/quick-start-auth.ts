@@ -1,4 +1,5 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
+import { createGuestCredentials } from '@/lib/guest-credentials'
 
 const GUEST_EMAIL_KEY = 'loreforge_guest_email'
 const GUEST_PASS_KEY = 'loreforge_guest_pass'
@@ -14,13 +15,6 @@ function readGuestCreds(): { email: string; password: string } | null {
   const email = localStorage.getItem(GUEST_EMAIL_KEY)
   const password = localStorage.getItem(GUEST_PASS_KEY)
   if (!email || !password) return null
-  return { email, password }
-}
-
-function newGuestCredentials() {
-  const id = crypto.randomUUID()
-  const email = `guest-${id}@users.loreforge.app`
-  const password = `${crypto.randomUUID().replace(/-/g, '')}${crypto.randomUUID().replace(/-/g, '')}`
   return { email, password }
 }
 
@@ -54,7 +48,7 @@ async function createGuestViaApi(): Promise<{ email: string; password: string } 
 }
 
 async function createGuestViaSignUp(supabase: SupabaseClient): Promise<GuestAuthResult> {
-  const { email, password } = newGuestCredentials()
+  const { email, password } = createGuestCredentials()
   const { data, error } = await supabase.auth.signUp({
     email,
     password,

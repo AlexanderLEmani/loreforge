@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { createGuestCredentials } from '@/lib/guest-credentials'
 
 /** Создаёт гостя через service role (не требует Anonymous Sign-In). */
 export async function POST() {
@@ -14,9 +15,7 @@ export async function POST() {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
-  const id = crypto.randomUUID()
-  const email = `guest-${id}@users.loreforge.app`
-  const password = `${crypto.randomUUID().replace(/-/g, '')}${crypto.randomUUID().replace(/-/g, '')}`
+  const { email, password } = createGuestCredentials()
 
   const { data, error } = await admin.auth.admin.createUser({
     email,
