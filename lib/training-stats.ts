@@ -15,6 +15,7 @@ const DUNGEON_TO_TOPIC: Record<string, string> = {
   'Пещера вычитания': 'sub',
   'Башня умножения': 'mul',
   'Пещера деления': 'div',
+  'Храм дробей': 'frac',
 }
 
 type AttemptRow = {

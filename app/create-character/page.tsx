@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import PixelCharacter from '@/components/PixelCharacter'
-import { starterItemIds } from '@/lib/equipment'
-import { saveOwnedLocal } from '@/lib/equipment-storage'
 
 const RACES = [
   { id: 'human',  icon: '🧙', label: 'Человек',  desc: '+10% XP за всё' },
@@ -64,7 +62,6 @@ export default function CreateCharacter() {
     })
 
     if (err) { setError('Ошибка сохранения. Попробуй ещё раз.'); setSaving(false); return }
-    saveOwnedLocal(user.id, starterItemIds())
     router.push('/hub')
   }
 

@@ -80,11 +80,11 @@ function BattleContent() {
   const [powerBuff, setPowerBuff] = useState(false)
   const [shieldActive, setShieldActive] = useState(false)
   const [skillShieldActive, setSkillShieldActive] = useState(false)
+  const [equipBonuses, setEquipBonuses] = useState(() => computeEquipBonuses({}))
   const [skillBonuses, setSkillBonuses] = useState<BattleSkillBonuses>({
     damagePct: 0, damageReductionPct: 0, shieldOnCorrect: false, unlockedNames: [],
   })
   const [bossEnraged, setBossEnraged] = useState(false)
-  const [equipBonuses, setEquipBonuses] = useState(() => computeEquipBonuses({ head: '', body: '', weapon: '', hands: '', feet: '' } as any))
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   const unlockedTopics = useMemo(() => getUnlockedTopics(userLevel), [userLevel])

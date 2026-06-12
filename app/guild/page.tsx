@@ -17,7 +17,7 @@ const DUNGEONS = [
   { id: 'mul',   icon: '✕',  name: 'Башня умножения',   tag: 'Ур.2', desc: 'Таблица умножения. Монстры атакуют быстро.', cost: 80,  color: '#a99fff', rarity: 'rare',  level: 2, route: 'Башня умножения' },
   { id: 'div', icon: '÷', name: 'Пещера деления', tag: 'Ур.2', desc: 'Деление до 100. Остатки и комбинированные действия.', cost: 60, color: '#3db87a', rarity: null, level: 2, route: 'Пещера деления' },
   { id: 'lab',   icon: '🌀', name: 'Лабиринт порядка',  tag: 'Ур.2', desc: 'Смешанные действия со скобками. Повышенная сложность.', cost: 120, color: '#a99fff', rarity: 'rare', level: 2, route: 'Башня умножения' },
-  { id: 'frac',  icon: '½',  name: 'Храм дробей',       tag: 'Ур.3', desc: 'Обыкновенные дроби. Босс-фаза в конце забега.', cost: 200, color: '#e05555', rarity: 'epic', level: 3, route: 'Храм дробей' },
+  { id: 'frac',  icon: '½',  name: 'Храм дробей',       tag: 'Ур.3', desc: 'Дроби: сложение, умножение, смешанные. Дроп свитков III.', cost: 200, color: '#e05555', rarity: 'epic', level: 3, route: 'Храм дробей' },
   { id: 'market',icon: '💰', name: 'Рынок процентов',   tag: 'Ур.4', desc: 'Проценты и пропорции. Требует Ур.4.', cost: 300, color: '#3a3d4a', rarity: null, level: 4, route: 'Башня умножения' },
 ]
 
@@ -339,7 +339,7 @@ export default function GuildPage() {
               <br/><br/>
               <span style={{ color: '#e6e2f0' }}>Бесплатные данжи</span> — всегда доступны. Меньше наград.
               <br/>
-              <span style={{ color: '#e6e2f0' }}>Платные данжи</span> — покупаются за <span style={{ color: '#a99fff' }}>⭐ очки славы</span>. Больше наград и редкое снаряжение.
+              <span style={{ color: '#e6e2f0' }}>Платные данжи</span> — за <span style={{ color: '#a99fff' }}>⭐ славу</span>. Дроп: снаряжение, свитки, расходники.
               <br/><br/>
               Выполняй <span style={{ color: '#e0bc6a' }}>квесты</span> чтобы зарабатывать дополнительную славу и повышать <span style={{ color: '#a99fff' }}>ранг</span> в гильдии.
               <br/><br/>

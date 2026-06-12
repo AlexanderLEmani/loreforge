@@ -1,6 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase'
+import { tryGrantDungeonLoot, type LootDrop } from '@/lib/dungeon-loot'
 import { battleDebriefRewards } from '@/lib/economy'
 import { grantGlory } from '@/lib/glory-wallet'
 import { syncQuestRewards } from '@/lib/quest-rewards'
@@ -14,6 +15,7 @@ function DebriefContent() {
   const supabase = createClient()
   const [saved, setSaved] = useState(false)
   const [characterName, setCharacterName] = useState('Аркан')
+  const [lootDrop, setLootDrop] = useState<LootDrop | null>(null)
   const result = params.get('result') // 'win' or 'lose'
   const score = params.get('score') || '0'
   const total = params.get('total') || '5'
@@ -47,6 +49,21 @@ function DebriefContent() {
 
   const { xpGained, goldGained, gloryGained } = rewards
 
+  const lootKey = `loot:${user.id}:${dungeonName}:${score}:${total}:${result}:${isHard}`
+  let loot: LootDrop | null = null
+  if (won && !sessionStorage.getItem(lootKey)) {
+    loot = await tryGrantDungeonLoot(supabase, user.id, dungeonName, true)
+    if (loot) {
+      sessionStorage.setItem(lootKey, JSON.stringify(loot))
+      setLootDrop(loot)
+    }
+  } else if (won) {
+    try {
+      const cached = sessionStorage.getItem(lootKey)
+      if (cached) setLootDrop(JSON.parse(cached))
+    } catch { /* ignore */ }
+  }
+
   const { data: userData, error: userError } = await supabase
     .from('users')
     .select('xp, level, gold, glory, quest_first_dungeon')
@@ -63,7 +80,8 @@ function DebriefContent() {
     const currentThreshold = thresholds[level - 1] || 0
     const xpInLevel = (userData.xp ?? 0) - currentThreshold
     const newXP = currentThreshold + xpInLevel + xpGained
-    const newGold = (userData.gold ?? 0) + goldGained
+    const lootGold = loot?.kind === 'gold' ? loot.gold ?? 0 : 0
+    const newGold = (userData.gold ?? 0) + goldGained + lootGold
 
     const { error: rewardError } = await supabase
       .from('users')
@@ -131,6 +149,15 @@ function DebriefContent() {
         <div style={{ background: 'rgba(224,188,106,0.08)', border: '1px solid rgba(224,188,106,0.3)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
           <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#e0bc6a' }}>x2</div>
           <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>⚡ Хард бонус</div>
+        </div>
+      )}
+      {lootDrop && (
+        <div style={{ background: 'rgba(169,159,255,0.1)', border: '1px solid rgba(169,159,255,0.35)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '120px' }}>
+          <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#a99fff' }}>{lootDrop.icon}</div>
+          <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#c8c0d8', marginTop: '3px', lineHeight: 1.3 }}>
+            {lootDrop.kind === 'scroll' ? 'Свиток' : lootDrop.kind === 'consumable' ? 'Расходник' : lootDrop.kind === 'equipment' ? 'Снаряжение' : 'Дроп'}
+            <br />{lootDrop.label}
+          </div>
         </div>
       )}
     </>

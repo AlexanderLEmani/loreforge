@@ -1,3 +1,5 @@
+import { ALL_SKILL_TREE_NODES } from '@/lib/skill-tree-nodes-data'
+
 export type SkillBranch = 'add' | 'sub' | 'mul' | 'div' | 'frac' | 'pct'
 export type SkillNodeType = 'attack' | 'defense' | 'passive'
 
@@ -48,51 +50,8 @@ export function branchUnlocked(branch: SkillBranch, userLevel: number): boolean 
   return userLevel >= (meta?.minLevel ?? 99)
 }
 
-/** Прототип ветки сложения — показывается если в БД ещё нет узлов */
-export const PROTOTYPE_NODES: SkillTreeNode[] = [
-  {
-    id: 1, branch: 'add', name: 'Корень сложения', type: 'passive',
-    description: 'Базовый узел ветки. Открывает путь к атакам и защитам сложения.',
-    effect: { kind: 'xp_bonus', value: 5, topic: 'add', detail: '+5% XP за задачи на сложение' },
-    cost: 0, requires: null, position_x: 400, position_y: 300, icon: '➕',
-  },
-  {
-    id: 2, branch: 'add', name: 'Удар сложением', type: 'attack',
-    description: 'Правильный ответ на пример «два однозначных числа» наносит дополнительный урон.',
-    effect: { kind: 'damage_bonus', value: 15, topic: 'add', detail: '+15% урона при сложении до 18' },
-    cost: 1, requires: 1, position_x: 260, position_y: 220, icon: '⚔',
-  },
-  {
-    id: 3, branch: 'add', name: 'Двузначный разряд', type: 'attack',
-    description: 'Усилённая атака для примеров с двузначными числами.',
-    effect: { kind: 'damage_bonus', value: 25, topic: 'add', detail: '+25% урона при сложении двузначных' },
-    cost: 2, requires: 2, position_x: 160, position_y: 140, icon: '⚔',
-  },
-  {
-    id: 4, branch: 'add', name: 'Тройной удар', type: 'attack',
-    description: 'Мощный удар при сложении трёх чисел в одном примере.',
-    effect: { kind: 'damage_bonus', value: 35, topic: 'add', detail: '+35% урона на тройные суммы' },
-    cost: 2, requires: 3, position_x: 80, position_y: 60, icon: '⚔',
-  },
-  {
-    id: 5, branch: 'add', name: 'Щит суммы', type: 'defense',
-    description: 'Правильный ответ на пример сложения даёт щит, поглощающий следующий удар.',
-    effect: { kind: 'shield', value: 1, topic: 'add', detail: 'Щит после верного сложения' },
-    cost: 1, requires: 1, position_x: 540, position_y: 220, icon: '🛡',
-  },
-  {
-    id: 6, branch: 'add', name: 'Стойкость счёта', type: 'defense',
-    description: 'Снижает входящий урон, если последний верный ответ был на сложение.',
-    effect: { kind: 'damage_reduction', value: 20, topic: 'add', detail: '−20% урона после верного сложения' },
-    cost: 2, requires: 5, position_x: 640, position_y: 140, icon: '🛡',
-  },
-  {
-    id: 7, branch: 'add', name: 'Мастер прибавления', type: 'passive',
-    description: 'Бонус XP и скидка на свитки сложения в Лавке.',
-    effect: { kind: 'shop_discount', value: 10, topic: 'add', detail: '−10% на свитки сложения, +8% XP' },
-    cost: 2, requires: 1, position_x: 400, position_y: 180, icon: '✦',
-  },
-]
+/** Локальный fallback если в БД нет узлов */
+export const PROTOTYPE_NODES: SkillTreeNode[] = ALL_SKILL_TREE_NODES
 
 export const DEMO_SKILL_POINTS = 5
 export const DEMO_STORAGE_KEY = 'loreforge_skill_demo'

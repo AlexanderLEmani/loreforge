@@ -1,5 +1,6 @@
 import { DUNGEON_TO_TOPIC } from '@/lib/battle-config'
-import { PROTOTYPE_NODES, type SkillEffect, type SkillTreeNode } from '@/lib/skill-tree'
+import { ALL_SKILL_TREE_NODES } from '@/lib/skill-tree-nodes-data'
+import type { SkillEffect, SkillTreeNode } from '@/lib/skill-tree'
 
 export type BattleSkillBonuses = {
   damagePct: number
@@ -52,5 +53,5 @@ export function nodesByIds(ids: number[], allNodes: SkillTreeNode[]): SkillTreeN
 }
 
 export function defaultSkillNodes(): SkillTreeNode[] {
-  return PROTOTYPE_NODES
+  return ALL_SKILL_TREE_NODES
 }

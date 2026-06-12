@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase'
-import { normalizeEquipped, starterItemIds, type EquippedMap } from '@/lib/equipment'
+import { normalizeEquipped, type EquippedMap } from '@/lib/equipment'
 
 const LOCAL_KEY = (userId: string) => `loreforge_equipped_${userId}`
 
@@ -46,13 +46,13 @@ export async function saveEquipped(userId: string, equipped: EquippedMap) {
 const OWNED_LOCAL_KEY = (userId: string) => `loreforge_owned_equipment_${userId}`
 
 export function loadOwnedLocal(userId: string): string[] {
-  if (typeof window === 'undefined') return starterItemIds()
+  if (typeof window === 'undefined') return []
   try {
     const raw = localStorage.getItem(OWNED_LOCAL_KEY(userId))
-    if (!raw) return starterItemIds()
+    if (!raw) return []
     return JSON.parse(raw) as string[]
   } catch {
-    return starterItemIds()
+    return []
   }
 }
 
@@ -66,13 +66,7 @@ export async function loadOwnedIds(userId: string): Promise<string[]> {
   const { data, error } = await supabase.from('user_equipment').select('item_id').eq('user_id', userId)
   if (!error && data?.length) return data.map(r => r.item_id)
 
-  const local = loadOwnedLocal(userId)
-  const starters = starterItemIds()
-  if (local.length === 0) {
-    saveOwnedLocal(userId, starters)
-    return starters
-  }
-  return local
+  return loadOwnedLocal(userId)
 }
 
 export async function addOwnedItem(userId: string, itemId: string): Promise<string[]> {

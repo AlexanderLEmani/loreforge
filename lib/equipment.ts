@@ -31,39 +31,35 @@ export const EQUIP_SLOTS: { id: EquipSlot; icon: string; label: string }[] = [
   { id: 'feet', icon: '👢', label: 'Ноги' },
 ]
 
+/** Снаряжение только из данжей — не продаётся в лавке */
 export const EQUIPMENT_ITEMS: EquipmentItem[] = [
-  // Голова
   { id: 'head_cowl', slot: 'head', name: 'Капюшон ученика', tier: 1, icon: '🎓', visualId: 'head_cowl', minLevel: 1, goldCost: 0, bonuses: { xpPct: 3 }, desc: '+3% XP' },
-  { id: 'head_cap', slot: 'head', name: 'Шапка теоретика', tier: 2, icon: '📐', visualId: 'head_cap', minLevel: 2, goldCost: 120, bonuses: { xpPct: 5, spellDamagePct: 2 }, desc: '+5% XP, +2% магия' },
-  { id: 'head_crown', slot: 'head', name: 'Диадема архимага', tier: 3, icon: '👑', visualId: 'head_crown', minLevel: 3, goldCost: 280, bonuses: { damagePct: 4, xpPct: 3 }, desc: '+4% урон, +3% XP' },
-
-  // Мантия / тело
+  { id: 'head_cap', slot: 'head', name: 'Шапка теоретика', tier: 2, icon: '📐', visualId: 'head_cap', minLevel: 2, goldCost: 0, bonuses: { xpPct: 5, spellDamagePct: 2 }, desc: '+5% XP, +2% магия' },
+  { id: 'head_crown', slot: 'head', name: 'Диадема архимага', tier: 3, icon: '👑', visualId: 'head_crown', minLevel: 3, goldCost: 0, bonuses: { damagePct: 4, xpPct: 3 }, desc: '+4% урон, +3% XP' },
   { id: 'body_cloth', slot: 'body', name: 'Тканевая мантия', tier: 1, icon: '🥋', visualId: 'body_cloth', minLevel: 1, goldCost: 0, bonuses: { defensePct: 3 }, desc: '+3% защита' },
-  { id: 'body_runed', slot: 'body', name: 'Рунная мантия', tier: 2, icon: '🔮', visualId: 'body_runed', minLevel: 2, goldCost: 150, bonuses: { defensePct: 5, spellDamagePct: 3 }, desc: '+5% защита, +3% магия' },
-  { id: 'body_mantle', slot: 'body', name: 'Боевой накид', tier: 3, icon: '⚔️', visualId: 'body_mantle', minLevel: 3, goldCost: 320, bonuses: { defensePct: 4, damagePct: 4 }, desc: '+4% защита и урон' },
-
-  // Оружие
+  { id: 'body_runed', slot: 'body', name: 'Рунная мантия', tier: 2, icon: '🔮', visualId: 'body_runed', minLevel: 2, goldCost: 0, bonuses: { defensePct: 5, spellDamagePct: 3 }, desc: '+5% защита, +3% магия' },
+  { id: 'body_mantle', slot: 'body', name: 'Боевой накид', tier: 3, icon: '⚔️', visualId: 'body_mantle', minLevel: 3, goldCost: 0, bonuses: { defensePct: 4, damagePct: 4 }, desc: '+4% защита и урон' },
   { id: 'weapon_birch', slot: 'weapon', name: 'Берёзовый посох', tier: 1, icon: '🪄', visualId: 'weapon_birch', minLevel: 1, goldCost: 0, bonuses: { spellDamagePct: 3 }, desc: '+3% магия' },
-  { id: 'weapon_iron', slot: 'weapon', name: 'Железный жезл', tier: 2, icon: '⚙️', visualId: 'weapon_iron', minLevel: 2, goldCost: 130, bonuses: { attackPct: 5, damagePct: 2 }, desc: '+5% атака, +2% урон' },
-  { id: 'weapon_crystal', slot: 'weapon', name: 'Кристальный стержень', tier: 3, icon: '💎', visualId: 'weapon_crystal', minLevel: 3, goldCost: 300, bonuses: { spellDamagePct: 6, damagePct: 3 }, desc: '+6% магия, +3% урон' },
-
-  // Руки
+  { id: 'weapon_iron', slot: 'weapon', name: 'Железный жезл', tier: 2, icon: '⚙️', visualId: 'weapon_iron', minLevel: 2, goldCost: 0, bonuses: { attackPct: 5, damagePct: 2 }, desc: '+5% атака, +2% урон' },
+  { id: 'weapon_crystal', slot: 'weapon', name: 'Кристальный стержень', tier: 3, icon: '💎', visualId: 'weapon_crystal', minLevel: 3, goldCost: 0, bonuses: { spellDamagePct: 6, damagePct: 3 }, desc: '+6% магия, +3% урон' },
   { id: 'hands_cloth', slot: 'hands', name: 'Тканевые перчатки', tier: 1, icon: '🧤', visualId: 'hands_cloth', minLevel: 1, goldCost: 0, bonuses: { defendTimerSec: 1 }, desc: '+1 сек защиты' },
-  { id: 'hands_leather', slot: 'hands', name: 'Кожаные перчатки', tier: 2, icon: '🥊', visualId: 'hands_leather', minLevel: 2, goldCost: 100, bonuses: { defendTimerSec: 2, defensePct: 2 }, desc: '+2 сек защиты, +2% броня' },
-  { id: 'hands_runes', slot: 'hands', name: 'Рунные перчатки', tier: 3, icon: '✦', visualId: 'hands_runes', minLevel: 3, goldCost: 250, bonuses: { defendTimerSec: 2, damagePct: 4 }, desc: '+2 сек защиты, +4% урон' },
-
-  // Ноги
+  { id: 'hands_leather', slot: 'hands', name: 'Кожаные перчатки', tier: 2, icon: '🥊', visualId: 'hands_leather', minLevel: 2, goldCost: 0, bonuses: { defendTimerSec: 2, defensePct: 2 }, desc: '+2 сек защиты, +2% броня' },
+  { id: 'hands_runes', slot: 'hands', name: 'Рунные перчатки', tier: 3, icon: '✦', visualId: 'hands_runes', minLevel: 3, goldCost: 0, bonuses: { defendTimerSec: 2, damagePct: 4 }, desc: '+2 сек защиты, +4% урон' },
   { id: 'feet_soft', slot: 'feet', name: 'Мягкие сапоги', tier: 1, icon: '👢', visualId: 'feet_soft', minLevel: 1, goldCost: 0, bonuses: { attackPct: 2 }, desc: '+2% скорость атаки' },
-  { id: 'feet_iron', slot: 'feet', name: 'Железные сапоги', tier: 2, icon: '🛡', visualId: 'feet_iron', minLevel: 2, goldCost: 110, bonuses: { defensePct: 4, attackPct: 2 }, desc: '+4% защита, +2% атака' },
-  { id: 'feet_swift', slot: 'feet', name: 'Стремные сапоги', tier: 3, icon: '⚡', visualId: 'feet_swift', minLevel: 3, goldCost: 240, bonuses: { attackPct: 5, damagePct: 2 }, desc: '+5% атака, +2% урон' },
+  { id: 'feet_iron', slot: 'feet', name: 'Железные сапоги', tier: 2, icon: '🛡', visualId: 'feet_iron', minLevel: 2, goldCost: 0, bonuses: { defensePct: 4, attackPct: 2 }, desc: '+4% защита, +2% атака' },
+  { id: 'feet_swift', slot: 'feet', name: 'Стремные сапоги', tier: 3, icon: '⚡', visualId: 'feet_swift', minLevel: 3, goldCost: 0, bonuses: { attackPct: 5, damagePct: 2 }, desc: '+5% атака, +2% урон' },
 ]
 
 export const DEFAULT_EQUIPMENT: Record<EquipSlot, string> = {
-  head: 'head_cowl',
-  body: 'body_cloth',
-  weapon: 'weapon_birch',
-  hands: 'hands_cloth',
-  feet: 'feet_soft',
+  head: '',
+  body: '',
+  weapon: '',
+  hands: '',
+  feet: '',
+}
+
+export function itemsForTier(tier: 1 | 2 | 3): EquipmentItem[] {
+  return EQUIPMENT_ITEMS.filter(i => i.tier === tier)
 }
 
 export function itemById(id: string): EquipmentItem | undefined {
@@ -74,9 +70,11 @@ export function itemsForSlot(slot: EquipSlot): EquipmentItem[] {
   return EQUIPMENT_ITEMS.filter(i => i.slot === slot)
 }
 
-export function ownedItemIds(level: number, purchased: string[]): string[] {
-  const free = EQUIPMENT_ITEMS.filter(i => i.goldCost === 0 || i.minLevel <= level).map(i => i.id)
-  return [...new Set([...free, ...purchased])]
+export function ownedItemIds(level: number, owned: string[]): string[] {
+  return owned.filter(id => {
+    const item = itemById(id)
+    return item && item.minLevel <= level
+  })
 }
 
 export type EquippedMap = Partial<Record<EquipSlot, string>>
@@ -91,9 +89,9 @@ export function normalizeEquipped(raw: EquippedMap | null | undefined): Equipped
   return out
 }
 
-/** Стартовый набор — в сумке, не на персонаже автоматически */
+/** Снаряжение только из данжей — стартовый набор пуст */
 export function starterItemIds(): string[] {
-  return Object.values(DEFAULT_EQUIPMENT)
+  return []
 }
 
 export function computeEquipBonuses(equipped: EquippedMap): StatBonuses {
