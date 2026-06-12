@@ -94,7 +94,7 @@ export const BATTLE_ATTACKS: BattleAttack[] = [
     dmg: 28, color: '#a99fff', difficulty: 'medium', dungeons: [], minLevel: 1, kind: 'basic',
   },
   {
-    id: 'heavy', label: 'Тёмная магия', icon: '💀', desc: 'Сложный пример · ошибка = -40 HP',
+    id: 'heavy', label: 'Тёмная магия', icon: '💀', desc: 'Сложный пример · ввод ответа · ошибка = -40 HP',
     dmg: 50, color: '#e05555', difficulty: 'hard', dungeons: [], minLevel: 1, cooldown: 3, kind: 'basic',
   },
   {

@@ -2,10 +2,11 @@ import type { AppNavItem } from '@/lib/app-nav'
 
 /** Поля users для навигации — используй в select() */
 export const USER_NAV_SELECT =
-  'xp, level, gold, glory, streak, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills, quest_first_dungeon'
+  'xp, level, gold, glory, glory_total, streak, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills, quest_first_dungeon'
 
 export type NavUnlockState = {
   onboarding_step: number
+  level?: number
   visited_college?: boolean
   visited_training?: boolean
   visited_guild?: boolean
@@ -13,6 +14,15 @@ export type NavUnlockState = {
   visited_shop?: boolean
   visited_skills?: boolean
   quest_first_dungeon?: boolean
+}
+
+/** Минимальный игровой уровень — fallback если onboarding_step не прогнан */
+const MIN_LEVEL_BY_HREF: Record<string, number> = {
+  '/training': 1,
+  '/grimoire': 1,
+  '/shop': 1,
+  '/skills': 1,
+  '/guild': 2,
 }
 
 const VISITED_KEY: Partial<Record<string, keyof NavUnlockState>> = {
@@ -37,12 +47,16 @@ export function isNavItemUnlocked(
 
   if (item.href === '/guild' && state.quest_first_dungeon) return true
 
+  const minLevel = MIN_LEVEL_BY_HREF[item.href]
+  if (minLevel != null && (state.level ?? 1) >= minLevel) return true
+
   return false
 }
 
 export function navUnlockFromUser(ud: Record<string, unknown> | null | undefined): NavUnlockState {
   return {
     onboarding_step: (ud?.onboarding_step as number) || 0,
+    level: (ud?.level as number) || 1,
     visited_college: ud?.visited_college as boolean | undefined,
     visited_training: ud?.visited_training as boolean | undefined,
     visited_guild: ud?.visited_guild as boolean | undefined,

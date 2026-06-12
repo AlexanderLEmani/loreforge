@@ -7,6 +7,7 @@ import { loadTrainingStats, loadTopicProgress, recordTrainingAttempt, type Train
 import { shuffleQuestions } from '@/lib/shuffle-question'
 import Sidebar from '@/components/Sidebar'
 import { navUnlockFromUser } from '@/lib/nav-unlock'
+import { trainingGoldPerCorrect, trainingXpPerCorrect } from '@/lib/economy'
 
 const TOPICS = [
   { id: 'add', icon: '➕', name: 'Сложение',   level: 1, dungeon: 'Пещера сложения' },
@@ -27,9 +28,9 @@ const TOPIC_COLORS: Record<string, string> = {
 }
 
 const MODES = [
-  { id: 'guided', icon: '📖', name: 'С подсказками',  desc: 'После каждой ошибки — объяснение. Для изучения новой темы.', color: '#3db87a', xpMod: '+3 XP за ответ' },
-  { id: 'clean',  icon: '⚡', name: 'Без подсказок',  desc: 'Как настоящий бой, но без потери HP и ресурсов.', color: '#a99fff', xpMod: '+5 XP за ответ' },
-  { id: 'speed',  icon: '⏱️', name: 'Спидран',        desc: 'Максимум задач за 3 минуты. Только скорость.', color: '#e0bc6a', xpMod: 'Без XP' },
+  { id: 'guided', icon: '📖', name: 'С подсказками',  desc: 'После каждой ошибки — объяснение. Для изучения новой темы.', color: '#3db87a', xpMod: '+3 XP · +1 💰' },
+  { id: 'clean',  icon: '⚡', name: 'Без подсказок',  desc: 'Как настоящий бой, но без потери HP и ресурсов.', color: '#a99fff', xpMod: '+5 XP · +2 💰' },
+  { id: 'speed',  icon: '⏱️', name: 'Спидран',        desc: 'Максимум задач за 3 минуты. Только скорость.', color: '#e0bc6a', xpMod: '+1 💰 за ответ' },
 ]
 
 export default function TrainingPage() {
@@ -50,6 +51,7 @@ export default function TrainingPage() {
   const [timerActive, setTimerActive] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
   const [xpEarned, setXpEarned] = useState(0)
+  const [goldEarned, setGoldEarned] = useState(0)
   const [showXpFloat, setShowXpFloat] = useState(false)
   const [trainingStats, setTrainingStats] = useState<TrainingStats | null>(null)
   const [topicProgress, setTopicProgress] = useState<TopicProgressMap>({})
@@ -118,6 +120,8 @@ export default function TrainingPage() {
     setCurrent(0)
     setCorrect(0)
     setTotal(0)
+    setXpEarned(0)
+    setGoldEarned(0)
     setSelected(null)
     setShowHint(false)
     setPhase('battle')
@@ -132,11 +136,20 @@ export default function TrainingPage() {
     setTotal(t => t + 1)
     if (isCorrect) {
       setCorrect(c => c + 1)
-      const xpPerAnswer = selectedMode === 'guided' ? 3 : selectedMode === 'clean' ? 5 : 0
-      if (xpPerAnswer > 0 && userData?.id) {
-        const { data: ud } = await supabase.from('users').select('xp').eq('id', userData.id).single()
-        if (ud) await supabase.from('users').update({ xp: ud.xp + xpPerAnswer }).eq('id', userData.id)
-        setXpEarned(x => x + xpPerAnswer)
+      const mode = selectedMode as 'guided' | 'clean' | 'speed'
+      const xpPerAnswer = trainingXpPerCorrect(mode)
+      const goldPerAnswer = trainingGoldPerCorrect(mode)
+      if (userData?.id && (xpPerAnswer > 0 || goldPerAnswer > 0)) {
+        const { data: ud } = await supabase.from('users').select('xp, gold').eq('id', userData.id).single()
+        if (ud) {
+          await supabase.from('users').update({
+            xp: (ud.xp ?? 0) + xpPerAnswer,
+            gold: (ud.gold ?? 0) + goldPerAnswer,
+          }).eq('id', userData.id)
+          setUserData({ ...userData, xp: (ud.xp ?? 0) + xpPerAnswer, gold: (ud.gold ?? 0) + goldPerAnswer })
+        }
+        if (xpPerAnswer > 0) setXpEarned(x => x + xpPerAnswer)
+        if (goldPerAnswer > 0) setGoldEarned(g => g + goldPerAnswer)
         setShowXpFloat(true)
         setTimeout(() => setShowXpFloat(false), 800)
       }
@@ -277,7 +290,7 @@ export default function TrainingPage() {
               🏋️ Начать тренировку →
             </div>
             <div style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '11px', color: '#5a5670', fontStyle: 'italic' }}>
-              Ошибки не влияют на HP, золото и очки славы
+              Ошибки не отнимают HP и славу — стипендия Коллегии капает на золото
             </div>
           </>}
 
@@ -291,12 +304,13 @@ export default function TrainingPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontFamily: 'monospace', fontSize: '11px' }}>
                     <span style={{ color: '#3db87a' }}>✓ {correct}</span>
                     <span style={{ color: '#5a5670' }}>/{total}</span>
-                    {selectedMode !== 'speed' && (
-                      <span style={{ color: '#a99fff', position: 'relative' }}>
-                        ✨ +{xpEarned} XP
-                        {showXpFloat && (
-                          <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: '-20px', color: '#3db87a', fontSize: '12px', animation: 'fadeUp 0.8s ease-out forwards', whiteSpace: 'nowrap' }}>
-                            +{selectedMode === 'guided' ? 3 : 5}
+                    {xpEarned > 0 && <span style={{ color: '#a99fff' }}>✨ +{xpEarned} XP</span>}
+                    {goldEarned > 0 && (
+                      <span style={{ color: '#e0bc6a', position: 'relative' }}>
+                        💰 +{goldEarned}
+                        {showXpFloat && trainingGoldPerCorrect(selectedMode as 'guided' | 'clean' | 'speed') > 0 && (
+                          <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: '-20px', color: '#e0bc6a', fontSize: '12px', animation: 'fadeUp 0.8s ease-out forwards', whiteSpace: 'nowrap' }}>
+                            +{trainingGoldPerCorrect(selectedMode as 'guided' | 'clean' | 'speed')}
                           </span>
                         )}
                       </span>

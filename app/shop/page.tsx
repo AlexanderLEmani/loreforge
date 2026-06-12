@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
+import ScrollPreviewModal from '@/components/ScrollPreviewModal'
 import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
+import { scrollEffectMeta } from '@/lib/scroll-display'
 
 const levelColors: Record<number, { border: string; accent: string; bg: string; tag: string }> = {
   1: { border: '#5a3e2b', accent: '#c9a45a', bg: '#1a1008', tag: '#3d2a14' },
@@ -24,7 +26,7 @@ export default function ShopPage() {
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
   const [showHelp, setShowHelp] = useState(false)
-
+  const [previewScroll, setPreviewScroll] = useState<any | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -64,6 +66,7 @@ export default function ShopPage() {
     setUserData({ ...userData, gold: newGold })
     setOwned(prev => [...prev, scroll.id])
     setBuying(null)
+    setPreviewScroll(null)
     setToast(`Свиток «${scroll.title}» добавлен в Гримуар`)
     setTimeout(() => setToast(null), 2500)
   }
@@ -110,10 +113,11 @@ export default function ShopPage() {
           <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Лавка магических знаний</div>
             <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '4px' }}>Свитки техник</div>
-            <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic' }}>За золото — лайфхаки и методы быстрого счёта. Знание остаётся с тобой навсегда.</div>
+            <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic' }}>
+              За золото — методы быстрого счёта. Превью перед покупкой; полный свиток и бой — в Гримуаре.
+            </div>
           </div>
 
-          {/* Фильтр по уровням */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem' }}>
             {availableLevels.map(lv => {
               const locked = lv > level
@@ -132,21 +136,36 @@ export default function ShopPage() {
               const c = levelColors[s.level] || levelColors[1]
               const isOwned = owned.includes(s.id)
               const canAfford = (userData?.gold || 0) >= s.cost
+              const effect = scrollEffectMeta(s)
               return (
                 <div key={s.id} style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: '8px', padding: '16px 18px' }}>
-                  <div style={{ fontSize: '9px', color: c.accent, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px', opacity: 0.7 }}>Ур.{s.level}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
+                    <div style={{ fontSize: '9px', color: c.accent, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.7 }}>Ур.{s.level}</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#a99fff', whiteSpace: 'nowrap' }}>
+                      {effect.icon} {effect.label}
+                    </div>
+                  </div>
                   <div style={{ color: c.accent, fontSize: '15px', fontWeight: 'bold', marginBottom: '3px' }}>{s.title}</div>
-                  <div style={{ color: '#6b5a45', fontSize: '11px', fontStyle: 'italic', marginBottom: '12px' }}>{s.subtitle}</div>
-                  <div style={{ fontSize: '12px', color: '#8a7a6a', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '12px', minHeight: '36px' }}>«{s.gorus}»</div>
+                  <div style={{ color: '#6b5a45', fontSize: '11px', fontStyle: 'italic', marginBottom: '10px' }}>{s.subtitle}</div>
 
                   {isOwned ? (
-                    <div style={{ width: '100%', padding: '8px', background: 'rgba(61,184,122,0.08)', border: '1px solid rgba(61,184,122,0.3)', borderRadius: '6px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px', color: '#3db87a' }}>
-                      ✓ Изучено
+                    <div style={{ width: '100%', padding: '8px', background: 'rgba(61,184,122,0.08)', border: '1px solid rgba(61,184,122,0.3)', borderRadius: '6px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px', color: '#3db87a', marginBottom: '6px' }}>
+                      ✓ В Гримуаре
                     </div>
                   ) : (
-                    <div onClick={() => buyScroll(s)}
-                      style={{ width: '100%', padding: '8px', background: canAfford ? `${c.accent}18` : 'rgba(255,255,255,0.03)', border: `1px solid ${canAfford ? c.accent + '60' : 'rgba(255,255,255,0.06)'}`, borderRadius: '6px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px', color: canAfford ? c.accent : '#3a3650', cursor: canAfford ? 'pointer' : 'default', opacity: buying === s.id ? 0.5 : 1 }}>
-                      {buying === s.id ? '...' : `💰 Купить за ${s.cost}`}
+                    <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                      <div
+                        onClick={() => setPreviewScroll(s)}
+                        style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.04)', border: `1px solid ${c.border}`, borderRadius: '6px', textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', color: '#9590a8', cursor: 'pointer' }}
+                      >
+                        Просмотр
+                      </div>
+                      <div
+                        onClick={() => buyScroll(s)}
+                        style={{ flex: 1, padding: '8px', background: canAfford ? `${c.accent}18` : 'rgba(255,255,255,0.03)', border: `1px solid ${canAfford ? c.accent + '60' : 'rgba(255,255,255,0.06)'}`, borderRadius: '6px', textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', color: canAfford ? c.accent : '#3a3650', cursor: canAfford ? 'pointer' : 'default', opacity: buying === s.id ? 0.5 : 1 }}
+                      >
+                        {buying === s.id ? '...' : `💰 ${s.cost}`}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -162,10 +181,38 @@ export default function ShopPage() {
         </div>
       </div>
 
-      {/* TOAST */}
+      {previewScroll && (
+        <ScrollPreviewModal
+          scroll={previewScroll}
+          colors={levelColors[previewScroll.level] || levelColors[1]}
+          owned={owned.includes(previewScroll.id)}
+          canAfford={(userData?.gold || 0) >= previewScroll.cost}
+          buying={buying === previewScroll.id}
+          onClose={() => setPreviewScroll(null)}
+          onBuy={() => buyScroll(previewScroll)}
+          onOpenGrimoire={() => router.push('/grimoire')}
+        />
+      )}
+
       {toast && (
         <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: '#1c1f2a', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', padding: '12px 24px', fontFamily: 'monospace', fontSize: '12px', color: '#e0bc6a', zIndex: 300, boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
           {toast}
+        </div>
+      )}
+
+      {showHelp && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '2rem' }}>
+          <div style={{ background: '#1c1f2a', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '16px', padding: '2rem', maxWidth: '460px', width: '100%' }}>
+            <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#e0bc6a', marginBottom: '12px' }}>Лавка свитков</div>
+            <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
+              «Просмотр» показывает тизер: о чём техника и что даёт в бою.
+              После покупки полный свиток — в Гримуаре, там же берёшь его в данж.
+            </div>
+            <div onClick={() => setShowHelp(false)}
+              style={{ width: '100%', padding: '14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#e0bc6a', cursor: 'pointer' }}>
+              Понял →
+            </div>
+          </div>
         </div>
       )}
     </div>

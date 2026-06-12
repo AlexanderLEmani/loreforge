@@ -1,6 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { HUB_QUEST_REWARDS } from '@/lib/economy'
 import { buildHubDailyQuests, type DailyQuest } from '@/lib/daily-quests'
 import { buildGuildQuests, todayIso, type GuildQuest } from '@/lib/guild-quests'
+import { grantGlory } from '@/lib/glory-wallet'
+import { fetchSpellKills, fetchUserRow } from '@/lib/user-profile'
 
 /** Ключи: `guild:wins`, `hub:login`. Дневные — под датой, lifetime — в `lifetime`. */
 export type QuestClaims = {
@@ -8,12 +11,6 @@ export type QuestClaims = {
 } & Record<string, Record<string, boolean> | undefined>
 
 const LIFETIME_GUILD_IDS = new Set(['spells'])
-
-const HUB_XP: Record<string, number> = {
-  login: 10,
-  answers: 30,
-  dungeon: 50,
-}
 
 function emptyClaims(): QuestClaims {
   return { lifetime: {} }
@@ -46,6 +43,7 @@ function markClaimed(claims: QuestClaims, scope: 'guild' | 'hub', id: string, to
 export type QuestRewardResult = {
   gloryDelta: number
   xpDelta: number
+  goldDelta: number
   claims: QuestClaims
   claimedGuild: string[]
   claimedHub: string[]
@@ -59,42 +57,18 @@ export async function syncQuestRewards(
   const result: QuestRewardResult = {
     gloryDelta: 0,
     xpDelta: 0,
+    goldDelta: 0,
     claims: emptyClaims(),
     claimedGuild: [],
     claimedHub: [],
   }
 
-  let user: {
-    glory?: number
-    xp?: number
-    spell_kills?: number
-    quest_claims?: unknown
-    last_visit?: string
-  } | null = null
+  const row = await fetchUserRow(supabase, userId, ['quest_claims', 'last_visit'])
+  if (!row) return result
 
-  const { data: userFull, error: userError } = await supabase
-    .from('users')
-    .select('glory, xp, spell_kills, quest_claims, last_visit')
-    .eq('id', userId)
-    .single()
-
-  if (userError?.message?.includes('quest_claims')) {
-    const { data: userBasic } = await supabase
-      .from('users')
-      .select('glory, xp, spell_kills, last_visit')
-      .eq('id', userId)
-      .single()
-    user = userBasic
-  } else if (!userError && userFull) {
-    user = userFull
-  }
-
-  if (!user) return result
-  const canPersistClaims = userFull != null && !userError
-
-  let claims = parseQuestClaims(user.quest_claims)
-  let glory = user.glory ?? 0
-  let xp = user.xp ?? 0
+  const hasQuestClaims = row.quest_claims !== undefined
+  let claims = parseQuestClaims(row.quest_claims)
+  const spellKills = row.spell_kills != null ? Number(row.spell_kills) : await fetchSpellKills(supabase, userId)
 
   const { data: runs } = await supabase
     .from('dungeon_runs')
@@ -111,40 +85,67 @@ export async function syncQuestRewards(
 
   const runsToday = (runs || []).filter(r => r.created_at?.startsWith(today))
 
-  const guildQuests = buildGuildQuests(runs || [], answersToday ?? 0, user.spell_kills ?? 0)
-  const hubQuests = buildHubDailyQuests(answersToday ?? 0, runsToday, user.last_visit)
+  const guildQuests = buildGuildQuests(runs || [], answersToday ?? 0, spellKills)
+  const hubQuests = buildHubDailyQuests(
+    answersToday ?? 0,
+    runsToday,
+    row.last_visit as string | undefined,
+  )
 
   for (const q of guildQuests) {
     if (!q.done || isClaimed(claims, 'guild', q.id, today)) continue
-    glory += q.glory
     result.gloryDelta += q.glory
+    result.goldDelta += q.gold
     result.claimedGuild.push(q.id)
     claims = markClaimed(claims, 'guild', q.id, today)
   }
 
   for (const q of hubQuests) {
     if (!q.done || isClaimed(claims, 'hub', q.id, today)) continue
-    const xpReward = HUB_XP[q.id] ?? 0
-    if (xpReward <= 0) continue
-    xp += xpReward
-    result.xpDelta += xpReward
+    const rewards = HUB_QUEST_REWARDS[q.id]
+    if (!rewards) continue
+    result.xpDelta += rewards.xp
+    result.goldDelta += rewards.gold
     result.claimedHub.push(q.id)
     claims = markClaimed(claims, 'hub', q.id, today)
   }
 
   result.claims = claims
 
-  if (result.gloryDelta === 0 && result.xpDelta === 0) return result
+  if (result.gloryDelta === 0 && result.xpDelta === 0 && result.goldDelta === 0) return result
 
-  const updates: Record<string, number | QuestClaims> = {}
-  if (canPersistClaims) updates.quest_claims = claims
-  if (result.gloryDelta > 0) updates.glory = glory
-  if (result.xpDelta > 0) updates.xp = xp
+  if (hasQuestClaims) {
+    const { error: claimsError } = await supabase
+      .from('users')
+      .update({ quest_claims: claims })
+      .eq('id', userId)
+    if (claimsError) {
+      console.warn('quest_claims update failed:', claimsError.message)
+    }
+  }
 
-  const { error: updateError } = await supabase.from('users').update(updates).eq('id', userId)
-  if (updateError?.message?.includes('quest_claims') && canPersistClaims) {
-    const { quest_claims: _, ...withoutClaims } = updates
-    await supabase.from('users').update(withoutClaims).eq('id', userId)
+  if (result.gloryDelta > 0) {
+    await grantGlory(supabase, userId, result.gloryDelta)
+  }
+
+  if (result.xpDelta > 0) {
+    const { data: fresh } = await supabase.from('users').select('xp').eq('id', userId).single()
+    const base = Number(fresh?.xp ?? row.xp ?? 0)
+    const { error } = await supabase
+      .from('users')
+      .update({ xp: base + result.xpDelta })
+      .eq('id', userId)
+    if (error) console.warn('xp quest reward failed:', error.message)
+  }
+
+  if (result.goldDelta > 0) {
+    const { data: fresh } = await supabase.from('users').select('gold').eq('id', userId).single()
+    const base = Number(fresh?.gold ?? row.gold ?? 0)
+    const { error } = await supabase
+      .from('users')
+      .update({ gold: base + result.goldDelta })
+      .eq('id', userId)
+    if (error) console.warn('gold quest reward failed:', error.message)
   }
 
   return result

@@ -1,3 +1,5 @@
+import { GUILD_QUEST_GOLD } from '@/lib/economy'
+
 export type GuildQuest = {
   id: string
   title: string
@@ -5,6 +7,7 @@ export type GuildQuest = {
   prog: number
   total: number
   glory: number
+  gold: number
   color: string
   done: boolean
   claimed?: boolean
@@ -41,6 +44,7 @@ export function buildGuildQuests(
       prog: Math.min(winsToday, 3),
       total: 3,
       glory: 80,
+      gold: GUILD_QUEST_GOLD.wins,
       color: '#a99fff',
       done: winsToday >= 3,
     },
@@ -51,6 +55,7 @@ export function buildGuildQuests(
       prog: perfectToday ? 1 : 0,
       total: 1,
       glory: 150,
+      gold: GUILD_QUEST_GOLD.perfect,
       color: '#e0bc6a',
       done: perfectToday,
     },
@@ -61,6 +66,7 @@ export function buildGuildQuests(
       prog: Math.min(answersToday, 20),
       total: 20,
       glory: 50,
+      gold: GUILD_QUEST_GOLD.daily,
       color: '#3db87a',
       done: answersToday >= 20,
     },
@@ -71,6 +77,7 @@ export function buildGuildQuests(
       prog: Math.min(spellKills, 5),
       total: 5,
       glory: 60,
+      gold: GUILD_QUEST_GOLD.spells,
       color: '#7b6cff',
       done: spellKills >= 5,
     },

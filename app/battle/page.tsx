@@ -33,6 +33,7 @@ import { mergeWithFallback } from '@/lib/fallback-questions'
 import { loadDemoSkillState } from '@/lib/skill-tree'
 import { computeEquipBonuses } from '@/lib/equipment'
 import { loadEquipped } from '@/lib/equipment-storage'
+import { answersMatch } from '@/lib/scroll-display'
 import { shuffleQuestions } from '@/lib/shuffle-question'
 
 type Phase = 'choose_attack' | 'player_attack' | 'monster_attack' | 'result_flash'
@@ -391,7 +392,7 @@ function BattleContent() {
 
   async function handleAttackHard() {
     if (selected !== null || !inputAnswer || !currentQ || !chosenAttack) return
-    const correct = inputAnswer.trim() === currentQ.answers[currentQ.correct_index].trim()
+    const correct = answersMatch(inputAnswer, currentQ.answers[currentQ.correct_index])
     await recordAnswer(currentQ, correct)
     setSelected(correct ? currentQ.correct_index : -1)
     setInputAnswer('')
@@ -696,12 +697,78 @@ function BattleContent() {
               )}
               <div style={{ fontFamily: 'serif', fontSize: '42px', color: '#e6e2f0', lineHeight: 1.1 }}>{currentQ.question}</div>
             </div>
-            {hardMode ? (
+            {chosenAttack.id === 'heavy' ? (
               <div style={{ display: 'flex', gap: '10px' }}>
-                <input type="number" value={inputAnswer} onChange={e => setInputAnswer(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAttackHard()}
-                  placeholder="Ответ..." disabled={selected !== null}
-                  style={{ flex: 1, background: '#1c1f2a', border: '1px solid rgba(123,108,255,0.35)', borderRadius: '9px', padding: '14px', fontSize: '22px', color: '#e6e2f0', fontFamily: 'serif', outline: 'none' }} />
-                <div onClick={handleAttackHard} style={{ padding: '14px 24px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: '9px', fontSize: '18px', cursor: 'pointer', color: '#e0bc6a' }}>✓</div>
+                <input
+                  type="text"
+                  value={inputAnswer}
+                  onChange={e => setInputAnswer(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAttackHard()}
+                  placeholder="Введи ответ вручную…"
+                  disabled={selected !== null}
+                  autoComplete="off"
+                  style={{
+                    flex: 1,
+                    background: '#1c1f2a',
+                    border: '1px solid rgba(224,85,85,0.45)',
+                    borderRadius: '9px',
+                    padding: '14px',
+                    fontSize: '22px',
+                    color: '#e6e2f0',
+                    fontFamily: 'serif',
+                    outline: 'none',
+                  }}
+                />
+                <div
+                  onClick={handleAttackHard}
+                  style={{
+                    padding: '14px 24px',
+                    background: 'rgba(224,85,85,0.12)',
+                    border: '1px solid rgba(224,85,85,0.4)',
+                    borderRadius: '9px',
+                    fontSize: '18px',
+                    cursor: selected !== null ? 'default' : 'pointer',
+                    color: '#e05555',
+                  }}
+                >
+                  ✓
+                </div>
+              </div>
+            ) : hardMode ? (
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input
+                  type="text"
+                  value={inputAnswer}
+                  onChange={e => setInputAnswer(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAttackHard()}
+                  placeholder="Ответ..."
+                  disabled={selected !== null}
+                  style={{
+                    flex: 1,
+                    background: '#1c1f2a',
+                    border: '1px solid rgba(123,108,255,0.35)',
+                    borderRadius: '9px',
+                    padding: '14px',
+                    fontSize: '22px',
+                    color: '#e6e2f0',
+                    fontFamily: 'serif',
+                    outline: 'none',
+                  }}
+                />
+                <div
+                  onClick={handleAttackHard}
+                  style={{
+                    padding: '14px 24px',
+                    background: 'rgba(201,168,76,0.12)',
+                    border: '1px solid rgba(201,168,76,0.35)',
+                    borderRadius: '9px',
+                    fontSize: '18px',
+                    cursor: 'pointer',
+                    color: '#e0bc6a',
+                  }}
+                >
+                  ✓
+                </div>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>

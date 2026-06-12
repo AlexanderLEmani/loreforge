@@ -1,6 +1,8 @@
 'use client'
 
 import { createClient } from '@/lib/supabase'
+import { battleDebriefRewards } from '@/lib/economy'
+import { grantGlory } from '@/lib/glory-wallet'
 import { syncQuestRewards } from '@/lib/quest-rewards'
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -21,6 +23,9 @@ function DebriefContent() {
   const spellKill = params.get('spell') === '1'
   const mistakes = mistakesRaw ? decodeURIComponent(mistakesRaw).split('|') : []
   const pct = Math.round((parseInt(score) / parseInt(total)) * 100)
+  const scoreNum = parseInt(score)
+  const won = result === 'win'
+  const rewards = battleDebriefRewards(scoreNum, won, isHard, dungeonName)
   useEffect(() => {
     async function saveRun() {
   if (saved) return
@@ -40,40 +45,51 @@ function DebriefContent() {
     mistakes: mistakes,
   })
 
-  // Начисляем XP и золото и славу
-const xpGained = parseInt(score) * 10 * (isHard ? 2 : 1)
-  const goldGained = parseInt(score) * 5 * (isHard ? 2 : 1)
-  const gloryGained = result === 'win' ? Math.max(10, parseInt(score) * 8) : 0
-  
+  const { xpGained, goldGained, gloryGained } = rewards
 
-  const { data: userData } = await supabase
+  const { data: userData, error: userError } = await supabase
     .from('users')
-    .select('xp, level, gold, glory, quest_first_dungeon, spell_kills')
+    .select('xp, level, gold, glory, quest_first_dungeon')
     .eq('id', user.id)
     .single()
 
+  if (userError) {
+    console.warn('debrief user load failed:', userError.message)
+  }
+
   if (userData) {
     const thresholds = [0, 100, 250, 500, 900, 1400, 2000, 2700, 3500, 4400, 5400, 6500]
-    const currentThreshold = thresholds[(userData.level || 1) - 1] || 0
-    const nextThreshold = thresholds[userData.level || 1] || 6500
-    const xpInLevel = userData.xp - currentThreshold
-    const newXPInLevel = xpInLevel + xpGained
-    const newXP = currentThreshold + newXPInLevel
-    const newGold = userData.gold + goldGained
+    const level = userData.level || 1
+    const currentThreshold = thresholds[level - 1] || 0
+    const xpInLevel = (userData.xp ?? 0) - currentThreshold
+    const newXP = currentThreshold + xpInLevel + xpGained
+    const newGold = (userData.gold ?? 0) + goldGained
 
+    const { error: rewardError } = await supabase
+      .from('users')
+      .update({ xp: newXP, gold: newGold })
+      .eq('id', user.id)
 
-    const updates: Record<string, number | boolean> = {
-      xp: newXP,
-      gold: newGold,
-      glory: (userData.glory || 0) + gloryGained,
+    if (rewardError) {
+      console.warn('debrief rewards failed:', rewardError.message)
     }
+
+    if (gloryGained > 0) {
+      await grantGlory(supabase, user.id, gloryGained)
+    }
+
     if (spellKill && result === 'win') {
-      updates.spell_kills = (userData.spell_kills ?? 0) + 1
+      const { data: sk } = await supabase.from('users').select('spell_kills').eq('id', user.id).single()
+      if (!sk) {
+        await supabase.from('users').update({ spell_kills: 1 }).eq('id', user.id)
+      } else if (sk.spell_kills != null) {
+        await supabase.from('users').update({ spell_kills: (sk.spell_kills ?? 0) + 1 }).eq('id', user.id)
+      }
     }
-    await supabase.from('users').update(updates).eq('id', user.id)
-  }
-  if (userData && !userData.quest_first_dungeon && result === 'win') {
-    await supabase.from('users').update({ quest_first_dungeon: true }).eq('id', user.id)
+
+    if (!userData.quest_first_dungeon && result === 'win') {
+      await supabase.from('users').update({ quest_first_dungeon: true }).eq('id', user.id)
+    }
   }
 
   await syncQuestRewards(supabase, user.id)
@@ -100,15 +116,15 @@ const xpGained = parseInt(score) * 10 * (isHard ? 2 : 1)
   {result === 'win' ? (
     <>
       <div style={{ background: 'rgba(61,184,122,0.08)', border: '1px solid rgba(61,184,122,0.3)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
-        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#3db87a' }}>+{parseInt(score) * 10 * (isHard ? 2 : 1)}</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#3db87a' }}>+{rewards.xpGained}</div>
         <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>XP</div>
       </div>
       <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
-        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#e0bc6a' }}>+{parseInt(score) * 5 * (isHard ? 2 : 1)}</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#e0bc6a' }}>+{rewards.goldGained}</div>
         <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>💰 Золото</div>
       </div>
       <div style={{ background: 'rgba(123,108,255,0.08)', border: '1px solid rgba(123,108,255,0.3)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
-        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#a99fff' }}>+{Math.max(10, parseInt(score) * 8)}</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#a99fff' }}>+{rewards.gloryGained}</div>
         <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>⭐ Слава</div>
       </div>
       {isHard && (
@@ -121,7 +137,7 @@ const xpGained = parseInt(score) * 10 * (isHard ? 2 : 1)
   ) : (
     <>
       <div style={{ background: 'rgba(224,85,85,0.06)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
-        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#e05555' }}>+{parseInt(score) * 10 * (isHard ? 2 : 1)}</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#e05555' }}>+{rewards.xpGained}</div>
         <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>XP (урезано)</div>
       </div>
       <div style={{ background: 'rgba(224,85,85,0.06)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>

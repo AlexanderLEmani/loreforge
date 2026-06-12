@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { buildGuildQuests, todayIso } from '@/lib/guild-quests'
-import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
+import { navUnlockFromUser } from '@/lib/nav-unlock'
 import { syncQuestRewards, withGuildClaimed } from '@/lib/quest-rewards'
+import { spendGlory } from '@/lib/glory-wallet'
+import { GUILD_RANKS, guildRankProgress } from '@/lib/guild-ranks'
+import { fetchSpellKills, fetchUserRow } from '@/lib/user-profile'
 
 const DUNGEONS = [
   { id: 'add',   icon: '➕', name: 'Пещера сложения',   tag: 'Ур.1', desc: 'Сложение до 1000. Базовый данж. Бесплатно.', cost: 0,   color: '#c9a84c', rarity: null,    level: 1, route: 'Пещера сложения' },
@@ -18,18 +21,6 @@ const DUNGEONS = [
   { id: 'market',icon: '💰', name: 'Рынок процентов',   tag: 'Ур.4', desc: 'Проценты и пропорции. Требует Ур.4.', cost: 300, color: '#3a3d4a', rarity: null, level: 4, route: 'Башня умножения' },
 ]
 
-
-const RANKS = [
-  { name: '🗡️ Новичок',  min: 0,    max: 500,  color: '#9590a8' },
-  { name: '⚔️ Боец',     min: 500,  max: 1500, color: '#3db87a' },
-  { name: '🔮 Чародей',  min: 1500, max: 3500, color: '#a99fff' },
-  { name: '🌟 Мастер',   min: 3500, max: 8000, color: '#e0bc6a' },
-  { name: '💀 Архимаг',  min: 8000, max: 99999,color: '#e05555' },
-]
-
-function getRank(glory: number) {
-  return RANKS.findIndex(r => glory >= r.min && glory < r.max)
-}
 
 export default function GuildPage() {
   const router = useRouter()
@@ -46,14 +37,9 @@ export default function GuildPage() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
-      const { data } = await supabase
-        .from('users')
-        .select(`${USER_NAV_SELECT}, spell_kills`)
-        .eq('id', user.id)
-        .single()
-
-      let ud = data ? { ...data, id: user.id } : null
-      if (ud && (ud.onboarding_step || 0) < 2) {
+      const data = await fetchUserRow(supabase, user.id)
+      let ud: Record<string, unknown> | null = data ? { ...data, id: user.id } : null
+      if (ud && (Number(ud.onboarding_step) || 0) < 2) {
         await supabase.from('users').update({ onboarding_step: 2 }).eq('id', user.id)
         ud = { ...ud, onboarding_step: 2 }
       }
@@ -78,19 +64,31 @@ export default function GuildPage() {
         .eq('user_id', user.id)
         .gte('created_at', `${today}T00:00:00`)
 
-      const built = buildGuildQuests(
-        runs || [],
-        answersToday ?? 0,
-        data?.spell_kills ?? 0,
-      )
+      const spellKills = ud?.spell_kills != null
+        ? Number(ud.spell_kills)
+        : await fetchSpellKills(supabase, user.id)
+
+      const built = buildGuildQuests(runs || [], answersToday ?? 0, spellKills)
 
       const rewards = await syncQuestRewards(supabase, user.id)
-      if (rewards.gloryDelta > 0) {
-        ud = ud ? { ...ud, glory: (ud.glory ?? 0) + rewards.gloryDelta } : ud
-        setRewardToast(`+${rewards.gloryDelta} славы с квестов`)
+      if (rewards.gloryDelta > 0 || rewards.goldDelta > 0) {
+        if (ud) {
+          if (rewards.gloryDelta > 0) {
+            ud = {
+              ...ud,
+              glory: Number(ud.glory ?? 0) + rewards.gloryDelta,
+              glory_total: Number(ud.glory_total ?? ud.glory ?? 0) + rewards.gloryDelta,
+            }
+          }
+          if (rewards.goldDelta > 0) ud = { ...ud, gold: Number(ud.gold ?? 0) + rewards.goldDelta }
+        }
+        const parts: string[] = []
+        if (rewards.gloryDelta > 0) parts.push(`+${rewards.gloryDelta} славы`)
+        if (rewards.goldDelta > 0) parts.push(`+${rewards.goldDelta} золота`)
+        setRewardToast(`${parts.join(' · ')} с квестов`)
         setTimeout(() => setRewardToast(null), 4000)
       }
-      if (ud && rewards.gloryDelta > 0) setUserData(ud)
+      if (ud && (rewards.gloryDelta > 0 || rewards.goldDelta > 0)) setUserData(ud)
 
       setQuests(withGuildClaimed(built, rewards.claims))
       setRunHistory((runs || []).slice(0, 5))
@@ -103,8 +101,12 @@ export default function GuildPage() {
     if (!userData || dungeon.cost > (userData.glory || 0)) return
     if (dungeon.level > (userData.level || 1)) return
     setBuying(dungeon.id)
-    await supabase.from('users').update({ glory: (userData.glory || 0) - dungeon.cost }).eq('id', userData.id)
-    setUserData((prev: any) => ({ ...prev, glory: prev.glory - dungeon.cost }))
+    const ok = await spendGlory(supabase, userData.id, dungeon.cost)
+    if (!ok) {
+      setBuying(null)
+      return
+    }
+    setUserData((prev: any) => ({ ...prev, glory: (prev.glory || 0) - dungeon.cost }))
     setBuying(null)
     router.push(`/battle?dungeon=${encodeURIComponent(dungeon.route)}`)
   }
@@ -116,17 +118,15 @@ export default function GuildPage() {
   )
 
   const level = userData?.level || 1
-  const glory = userData?.glory || 0
+  const gloryWallet = userData?.glory || 0
+  const reputation = userData?.glory_total ?? gloryWallet
   const xpThresholds = [0, 100, 250, 500, 900, 1400]
   const xpToNext = [100, 150, 250, 400, 500, 600]
   const xpBase = xpThresholds[level - 1] || 0
   const xpNext = xpToNext[level - 1] || 100
   const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
 
-  const rankIdx = getRank(glory)
-  const rank = RANKS[rankIdx] || RANKS[0]
-  const nextRank = RANKS[rankIdx + 1]
-  const rankPct = nextRank ? Math.min(((glory - rank.min) / (nextRank.min - rank.min)) * 100, 100) : 100
+  const { rank, next: nextRank, pct: rankPct, idx: rankIdx } = guildRankProgress(reputation)
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
@@ -164,7 +164,9 @@ export default function GuildPage() {
           <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Гильдия Авантюристов</div>
             <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '4px' }}>Доска заданий</div>
-            <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic' }}>Покупай данжи за очки славы. Побеждай — получай награды и повышай ранг.</div>
+            <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic' }}>
+              Ранг растёт от суммарной репутации. На вход в данж тратится слава из кошелька — репутация не падает.
+            </div>
           </div>
 
           {/* РАНГ */}
@@ -173,13 +175,13 @@ export default function GuildPage() {
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: 'monospace', fontSize: '14px', color: '#a99fff', marginBottom: '3px' }}>{rank.name.toUpperCase()}</div>
               <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic', marginBottom: '6px' }}>
-                {nextRank ? `До ${nextRank.name}: ${nextRank.min - glory} славы` : 'Максимальный ранг'}
+                {nextRank ? `До ${nextRank.name}: ${nextRank.min - reputation} репутации` : 'Максимальный ранг'}
               </div>
               <div style={{ height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden' }}>
                 <div style={{ height: '100%', background: '#a99fff', width: `${rankPct}%`, transition: 'width 0.4s' }}></div>
               </div>
               <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>
-                {glory} / {nextRank?.min || glory} славы
+                Репутация {reputation}{nextRank ? ` / ${nextRank.min}` : ''} · Кошелёк {gloryWallet} ⭐
               </div>
             </div>
           </div>
@@ -217,7 +219,7 @@ export default function GuildPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               {DUNGEONS.filter(d => d.cost > 0).map(d => {
                 const locked = d.level > level
-                const canAfford = glory >= d.cost
+                const canAfford = gloryWallet >= d.cost
                 return (
                   <div key={d.id}
                     onClick={() => !locked && canAfford && buyDungeon(d)}
@@ -260,8 +262,13 @@ export default function GuildPage() {
                 <div style={{ fontSize: '13px', color: q.claimed ? '#e0bc6a' : q.done ? '#3db87a' : '#e6e2f0' }}>
                   {q.claimed ? '⭐ ' : q.done ? '✓ ' : ''}{q.title}
                 </div>
-                <div style={{ fontFamily: 'monospace', fontSize: '10px', color: q.claimed ? '#e0bc6a' : '#a99fff', whiteSpace: 'nowrap', marginLeft: '8px' }}>
-                  {q.claimed ? 'получено' : `+${q.glory} ⭐`}
+                <div style={{ fontFamily: 'monospace', fontSize: '10px', color: q.claimed ? '#e0bc6a' : '#a99fff', whiteSpace: 'nowrap', marginLeft: '8px', textAlign: 'right' }}>
+                  {q.claimed ? 'получено' : (
+                    <>
+                      +{q.glory} ⭐
+                      {q.gold > 0 && <span style={{ color: '#e0bc6a' }}> · +{q.gold} 💰</span>}
+                    </>
+                  )}
                 </div>
               </div>
               <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic', marginBottom: '6px' }}>{q.desc}</div>
@@ -280,18 +287,19 @@ export default function GuildPage() {
         {/* ПРАВЫЙ САЙДБАР */}
         <div style={{ background: '#111318', borderLeft: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}>
 
-          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>Очки славы</div>
-          <div style={{ background: 'rgba(123,108,255,0.1)', border: '1px solid rgba(123,108,255,0.25)', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
-            <div style={{ fontSize: '28px' }}>⭐</div>
-            <div>
-              <div style={{ fontFamily: 'serif', fontSize: '36px', color: '#a99fff', lineHeight: 1 }}>{glory}</div>
-              <div style={{ fontSize: '12px', color: '#5a5670', fontFamily: 'monospace' }}>ОЧКОВ СЛАВЫ</div>
-            </div>
+          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>Слава</div>
+          <div style={{ background: 'rgba(123,108,255,0.1)', border: '1px solid rgba(123,108,255,0.25)', borderRadius: '10px', padding: '14px 16px', marginBottom: '10px' }}>
+            <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginBottom: '4px' }}>Кошелёк (данжи)</div>
+            <div style={{ fontFamily: 'serif', fontSize: '32px', color: '#a99fff', lineHeight: 1 }}>{gloryWallet} ⭐</div>
+          </div>
+          <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px' }}>
+            <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginBottom: '4px' }}>Репутация (ранг)</div>
+            <div style={{ fontFamily: 'serif', fontSize: '24px', color: '#e0bc6a', lineHeight: 1 }}>{reputation}</div>
           </div>
 
           <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>Ранги гильдии</div>
 
-          {RANKS.map((r, i) => (
+          {GUILD_RANKS.map((r, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '7px', marginBottom: '3px', background: i === rankIdx ? 'rgba(123,108,255,0.08)' : 'transparent', border: `1px solid ${i === rankIdx ? 'rgba(123,108,255,0.2)' : 'transparent'}` }}>
               <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: r.color, flexShrink: 0 }}></div>
               <div style={{ flex: 1, fontSize: '13px', color: i === rankIdx ? '#e6e2f0' : '#5a5670' }}>{r.name}</div>

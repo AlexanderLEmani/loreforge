@@ -14,6 +14,7 @@ export async function resetUserProgress(supabase: SupabaseClient, userId: string
     level: 1,
     gold: 0,
     glory: 0,
+    glory_total: 0,
     streak: 0,
     last_visit: null,
     total_answers: 0,

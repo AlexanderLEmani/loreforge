@@ -80,10 +80,14 @@ export default function Hub() {
         const rewards = await syncQuestRewards(supabase, user.id)
         if (rewards.xpDelta > 0) {
           freshUd = { ...freshUd, xp: (freshUd.xp ?? 0) + rewards.xpDelta }
-          setUserData(freshUd)
         }
         if (rewards.gloryDelta > 0) {
           freshUd = { ...freshUd, glory: (freshUd.glory ?? 0) + rewards.gloryDelta }
+        }
+        if (rewards.goldDelta > 0) {
+          freshUd = { ...freshUd, gold: (freshUd.gold ?? 0) + rewards.goldDelta }
+        }
+        if (rewards.xpDelta > 0 || rewards.gloryDelta > 0 || rewards.goldDelta > 0) {
           setUserData(freshUd)
         }
         setDailyQuests(withHubClaimed(built, rewards.claims))
@@ -152,6 +156,9 @@ export default function Hub() {
 
         <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>
           Ресурсы
+        </div>
+        <div style={{ fontSize: '10px', color: '#5a5670', fontStyle: 'italic', marginBottom: '10px', lineHeight: 1.5 }}>
+          ⭐ слава — данжи (кошелёк) · репутация — ранг · 💰 золото — лавка
         </div>
         {[['💰', 'Золото', userData?.gold || '0'], ['📜', 'Свитки', '0'], ['🧪', 'Зелья', '0'], ['⭐', 'Слава', userData?.glory || '0']].map(([icon, name, val]) => (
           <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '13px' }}>

@@ -1,3 +1,4 @@
+import { HUB_QUEST_REWARDS, formatQuestReward } from '@/lib/economy'
 import { todayIso } from '@/lib/guild-quests'
 
 export type DailyQuest = {
@@ -28,7 +29,7 @@ export function buildHubDailyQuests(
       title: 'Войти в игру',
       prog: loginDone ? 1 : 0,
       total: 1,
-      reward: '+10 XP',
+      reward: formatQuestReward(HUB_QUEST_REWARDS.login.xp, HUB_QUEST_REWARDS.login.gold),
       done: loginDone,
     },
     {
@@ -36,7 +37,7 @@ export function buildHubDailyQuests(
       title: 'Ответить на 10 вопросов сегодня',
       prog: Math.min(answersToday, 10),
       total: 10,
-      reward: '+30 XP',
+      reward: formatQuestReward(HUB_QUEST_REWARDS.answers.xp, HUB_QUEST_REWARDS.answers.gold),
       done: answersToday >= 10,
     },
     {
@@ -44,7 +45,7 @@ export function buildHubDailyQuests(
       title: 'Победить в данже сегодня',
       prog: Math.min(winsToday, 1),
       total: 1,
-      reward: '+50 XP',
+      reward: formatQuestReward(HUB_QUEST_REWARDS.dungeon.xp, HUB_QUEST_REWARDS.dungeon.gold),
       done: winsToday >= 1,
     },
   ]
