@@ -28,6 +28,7 @@ export async function resetUserProgress(supabase: SupabaseClient, userId: string
     visited_shop: false,
     visited_skills: false,
     skill_points: 0,
+    quest_claims: {},
   }).eq('id', userId)
 
   if (userError) errors.push(`users: ${userError.message}`)

@@ -7,6 +7,7 @@ export type GuildQuest = {
   glory: number
   color: string
   done: boolean
+  claimed?: boolean
 }
 
 type RunRow = {

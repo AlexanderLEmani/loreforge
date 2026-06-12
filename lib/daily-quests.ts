@@ -7,6 +7,7 @@ export type DailyQuest = {
   total: number
   reward: string
   done: boolean
+  claimed?: boolean
 }
 
 type RunRow = { result: string; created_at?: string }

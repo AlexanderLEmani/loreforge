@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { buildGuildQuests, todayIso } from '@/lib/guild-quests'
 import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
+import { syncQuestRewards, withGuildClaimed } from '@/lib/quest-rewards'
 
 const DUNGEONS = [
   { id: 'add',   icon: '➕', name: 'Пещера сложения',   tag: 'Ур.1', desc: 'Сложение до 1000. Базовый данж. Бесплатно.', cost: 0,   color: '#c9a84c', rarity: null,    level: 1, route: 'Пещера сложения' },
@@ -39,6 +40,7 @@ export default function GuildPage() {
   const [showWelcome, setShowWelcome] = useState(false)
   const [quests, setQuests] = useState<ReturnType<typeof buildGuildQuests>>([])
   const [runHistory, setRunHistory] = useState<any[]>([])
+  const [rewardToast, setRewardToast] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -76,11 +78,21 @@ export default function GuildPage() {
         .eq('user_id', user.id)
         .gte('created_at', `${today}T00:00:00`)
 
-      setQuests(buildGuildQuests(
+      const built = buildGuildQuests(
         runs || [],
         answersToday ?? 0,
         data?.spell_kills ?? 0,
-      ))
+      )
+
+      const rewards = await syncQuestRewards(supabase, user.id)
+      if (rewards.gloryDelta > 0) {
+        ud = ud ? { ...ud, glory: (ud.glory ?? 0) + rewards.gloryDelta } : ud
+        setRewardToast(`+${rewards.gloryDelta} славы с квестов`)
+        setTimeout(() => setRewardToast(null), 4000)
+      }
+      if (ud && rewards.gloryDelta > 0) setUserData(ud)
+
+      setQuests(withGuildClaimed(built, rewards.claims))
       setRunHistory((runs || []).slice(0, 5))
       setLoading(false)
     }
@@ -118,6 +130,12 @@ export default function GuildPage() {
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
+
+      {rewardToast && (
+        <div style={{ position: 'fixed', top: '64px', left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: 'rgba(123,108,255,0.95)', border: '1px solid rgba(201,168,76,0.5)', borderRadius: '10px', padding: '12px 24px', fontFamily: 'serif', fontSize: '15px', color: '#e0bc6a' }}>
+          {rewardToast}
+        </div>
+      )}
 
       <nav style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ fontFamily: 'monospace', fontSize: '16px', color: '#e0bc6a', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -237,16 +255,24 @@ export default function GuildPage() {
             <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
           </div>
           {quests.map(q => (
-            <div key={q.id} style={{ background: '#1c1f2a', border: `1px solid ${q.done ? 'rgba(61,184,122,0.25)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '9px', padding: '10px 14px', marginBottom: '6px' }}>
+            <div key={q.id} style={{ background: '#1c1f2a', border: `1px solid ${q.claimed ? 'rgba(201,168,76,0.3)' : q.done ? 'rgba(61,184,122,0.25)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '9px', padding: '10px 14px', marginBottom: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                <div style={{ fontSize: '13px', color: q.done ? '#3db87a' : '#e6e2f0' }}>{q.done ? '✓ ' : ''}{q.title}</div>
-                <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#a99fff', whiteSpace: 'nowrap', marginLeft: '8px' }}>+{q.glory} ⭐</div>
+                <div style={{ fontSize: '13px', color: q.claimed ? '#e0bc6a' : q.done ? '#3db87a' : '#e6e2f0' }}>
+                  {q.claimed ? '⭐ ' : q.done ? '✓ ' : ''}{q.title}
+                </div>
+                <div style={{ fontFamily: 'monospace', fontSize: '10px', color: q.claimed ? '#e0bc6a' : '#a99fff', whiteSpace: 'nowrap', marginLeft: '8px' }}>
+                  {q.claimed ? 'получено' : `+${q.glory} ⭐`}
+                </div>
               </div>
               <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic', marginBottom: '6px' }}>{q.desc}</div>
-              <div style={{ height: '2px', background: '#171920', borderRadius: '2px', overflow: 'hidden', marginBottom: '3px' }}>
-                <div style={{ height: '100%', background: q.color, width: `${(q.prog / q.total) * 100}%` }}></div>
-              </div>
-              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>{q.prog} / {q.total}</div>
+              {!q.claimed && (
+                <>
+                  <div style={{ height: '2px', background: '#171920', borderRadius: '2px', overflow: 'hidden', marginBottom: '3px' }}>
+                    <div style={{ height: '100%', background: q.color, width: `${(q.prog / q.total) * 100}%` }}></div>
+                  </div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>{q.prog} / {q.total}</div>
+                </>
+              )}
             </div>
           ))}
         </div>

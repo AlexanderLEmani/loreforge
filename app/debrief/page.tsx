@@ -1,6 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase'
+import { syncQuestRewards } from '@/lib/quest-rewards'
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
@@ -74,6 +75,8 @@ const xpGained = parseInt(score) * 10 * (isHard ? 2 : 1)
   if (userData && !userData.quest_first_dungeon && result === 'win') {
     await supabase.from('users').update({ quest_first_dungeon: true }).eq('id', user.id)
   }
+
+  await syncQuestRewards(supabase, user.id)
   setSaved(true)
 }
     saveRun()
