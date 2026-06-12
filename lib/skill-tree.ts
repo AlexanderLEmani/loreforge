@@ -90,3 +90,27 @@ export function getNodeState(
   if (skillPoints < node.cost) return 'locked'
   return 'available'
 }
+
+export function getLockReason(
+  node: SkillTreeNode,
+  allNodes: SkillTreeNode[],
+  unlockedIds: Set<number>,
+  userLevel: number,
+  skillPoints: number,
+): string {
+  if (getNodeState(node, unlockedIds, userLevel, skillPoints) !== 'locked') return ''
+  const meta = BRANCHES.find(b => b.id === node.branch)
+  if (!branchUnlocked(node.branch, userLevel)) {
+    return `Тема «${meta?.name ?? node.branch}» открывается на ур. ${meta?.minLevel ?? '?'}`
+  }
+  if (node.requires !== null && !unlockedIds.has(node.requires)) {
+    const parent = allNodes.find(n => n.id === node.requires)
+    return parent ? `Сначала: ${parent.name}` : 'Сначала открой предыдущий узел'
+  }
+  if (skillPoints < node.cost) return 'Недостаточно очков способностей'
+  return 'Заблокировано'
+}
+
+export function branchMeta(branch: SkillBranch) {
+  return BRANCHES.find(b => b.id === branch)
+}

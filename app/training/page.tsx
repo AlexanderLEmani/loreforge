@@ -8,6 +8,7 @@ import { shuffleQuestions } from '@/lib/shuffle-question'
 import Sidebar from '@/components/Sidebar'
 import { navUnlockFromUser } from '@/lib/nav-unlock'
 import { trainingGoldPerCorrect, trainingXpPerCorrect } from '@/lib/economy'
+import { mergeWithFallback } from '@/lib/fallback-questions'
 
 const TOPICS = [
   { id: 'add', icon: '➕', name: 'Сложение',   level: 1, dungeon: 'Пещера сложения' },
@@ -103,7 +104,8 @@ export default function TrainingPage() {
     let allQ: any[] = []
     for (const d of [...new Set(dungeons)]) {
       const { data } = await supabase.from('questions').select('*').eq('dungeon_name', d).limit(120)
-      if (data) allQ = [...allQ, ...data]
+      const merged = mergeWithFallback(d, data || [])
+      if (merged.length) allQ = [...allQ, ...merged]
     }
 
     const { data: { user } } = await supabase.auth.getUser()

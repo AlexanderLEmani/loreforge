@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  BRANCHES,
   TYPE_COLORS,
   type SkillTreeNode,
   getNodeState,
@@ -97,7 +98,7 @@ export default function SkillTreeCanvas({
     ctx.scale(scale, scale)
     ctx.strokeStyle = 'rgba(255,255,255,0.07)'
     ctx.lineWidth = 1 / scale
-    for (let x = -200; x < 1200; x += 40) {
+    for (let x = -200; x < 1600; x += 40) {
       ctx.beginPath()
       ctx.moveTo(x, -200)
       ctx.lineTo(x, 800)
@@ -106,7 +107,7 @@ export default function SkillTreeCanvas({
     for (let y = -200; y < 800; y += 40) {
       ctx.beginPath()
       ctx.moveTo(-200, y)
-      ctx.lineTo(1200, y)
+      ctx.lineTo(1600, y)
       ctx.stroke()
     }
 
@@ -141,7 +142,8 @@ export default function SkillTreeCanvas({
     for (const node of nodes) {
       const state = getNodeState(node, unlockedIds, userLevel, skillPoints)
       const r = nodeRadius(node.type)
-      const color = TYPE_COLORS[node.type]
+      const branchColor = BRANCHES.find(b => b.id === node.branch)?.color ?? TYPE_COLORS[node.type]
+      const color = state === 'locked' ? TYPE_COLORS[node.type] : branchColor
       const isSelected = selectedId === node.id
 
       ctx.beginPath()

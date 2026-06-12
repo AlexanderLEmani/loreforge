@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
@@ -10,10 +10,11 @@ import {
   PROTOTYPE_NODES,
   TYPE_COLORS,
   TYPE_LABELS,
+  branchMeta,
+  getLockReason,
   getNodeState,
   loadDemoSkillState,
   saveDemoSkillState,
-  type SkillBranch,
   type SkillTreeNode,
 } from '@/lib/skill-tree'
 import { SKILL_POINTS_PER_LEVEL } from '@/lib/skill-points'
@@ -25,7 +26,6 @@ export default function SkillsPage() {
   const [userData, setUserData] = useState<any>(null)
   const [nodes, setNodes] = useState<SkillTreeNode[]>([])
   const [unlockedIds, setUnlockedIds] = useState<Set<number>>(new Set())
-  const [selectedBranch, setSelectedBranch] = useState<SkillBranch>('add')
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [unlocking, setUnlocking] = useState(false)
@@ -110,16 +110,11 @@ export default function SkillsPage() {
   const xpNext = xpToNext[level - 1] || 100
   const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
 
-  const branchNodes = useMemo(
-    () => nodes.filter(n => n.branch === selectedBranch),
-    [nodes, selectedBranch],
-  )
-
   const selectedNode = selectedId
     ? nodes.find(n => n.id === selectedId)
     : null
 
-  const branchMeta = BRANCHES.find(b => b.id === selectedBranch)
+  const selectedBranchMeta = selectedNode ? branchMeta(selectedNode.branch) : null
 
   async function unlockNode(node: SkillTreeNode) {
     if (!userData || unlocking) return
@@ -197,7 +192,10 @@ export default function SkillsPage() {
           <div style={{ paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '4px' }}>Древо знаний</div>
             <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '4px' }}>Способности</div>
-            <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.5 }}>Открывай узлы за очки способностей. +{SKILL_POINTS_PER_LEVEL} очка при каждом новом уровне через экзамен.</div>
+            <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.5 }}>
+              Одно древо: сложение → вычитание → умножение → деление → дроби → проценты.
+              Следующая тема открывается только после пассивки «Мастер…» предыдущей. +{SKILL_POINTS_PER_LEVEL} очка за уровень.
+            </div>
           </div>
 
           {dbError && (
@@ -206,45 +204,36 @@ export default function SkillsPage() {
             </div>
           )}
 
-          {/* Ветки */}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Легенда тем */}
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
             {BRANCHES.map(b => {
               const locked = level < b.minLevel
-              const active = selectedBranch === b.id
-              const count = nodes.filter(n => n.branch === b.id).length
+              const unlockedInBranch = nodes.filter(n => n.branch === b.id && unlockedIds.has(n.id)).length
               return (
                 <div
                   key={b.id}
-                  onClick={() => !locked && count > 0 && setSelectedBranch(b.id)}
                   style={{
-                    background: active ? 'rgba(123,108,255,0.13)' : 'transparent',
-                    border: `1px solid ${active ? 'rgba(169,159,255,0.5)' : locked ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.08)'}`,
-                    color: locked ? '#5a5670' : active ? '#b8aeff' : '#9590a8',
-                    padding: '6px 14px',
-                    fontSize: '11px',
-                    fontFamily: 'monospace',
-                    letterSpacing: '0.08em',
-                    borderRadius: '6px',
-                    cursor: locked || count === 0 ? 'default' : 'pointer',
-                    opacity: count === 0 ? 0.4 : 1,
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    fontFamily: 'monospace', fontSize: '10px', color: locked ? '#5a5670' : '#9590a8',
+                    opacity: locked ? 0.5 : 1,
                   }}
                 >
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.color, flexShrink: 0 }} />
                   {b.icon} {b.name}
-                  {locked && ' 🔒'}
-                  {count === 0 && !locked && ' (скоро)'}
+                  {locked ? ` · ур.${b.minLevel}` : unlockedInBranch > 0 ? ` · ${unlockedInBranch}` : ''}
                 </div>
               )
             })}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '1rem', flex: 1, minHeight: 0 }}>
-            <div style={{ minHeight: '480px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ minHeight: '520px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#8a849c', marginBottom: '8px' }}>
-                {branchMeta?.icon} {branchMeta?.name} · перетаскивание — пан, колёсико — зум
+                Перетаскивание — пан, колёсико — зум · связи между темами — через «Мастер…»
               </div>
-              {branchNodes.length > 0 ? (
+              {nodes.length > 0 ? (
                 <SkillTreeCanvas
-                  nodes={branchNodes}
+                  nodes={nodes}
                   unlockedIds={unlockedIds}
                   userLevel={level}
                   skillPoints={skillPoints}
@@ -253,7 +242,7 @@ export default function SkillsPage() {
                 />
               ) : (
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', color: '#5a5670', fontSize: '14px' }}>
-                  Узлы для этой ветки ещё не добавлены
+                  Узлы не загружены
                 </div>
               )}
             </div>
@@ -271,8 +260,8 @@ export default function SkillsPage() {
               ) : (
                 <>
                   <div>
-                    <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.2em', color: TYPE_COLORS[selectedNode.type], textTransform: 'uppercase', marginBottom: '6px' }}>
-                      {TYPE_LABELS[selectedNode.type]}
+                    <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.2em', color: selectedBranchMeta?.color ?? TYPE_COLORS[selectedNode.type], textTransform: 'uppercase', marginBottom: '6px' }}>
+                      {selectedBranchMeta ? `${selectedBranchMeta.icon} ${selectedBranchMeta.name}` : ''} · {TYPE_LABELS[selectedNode.type]}
                     </div>
                     <div style={{ fontSize: '20px', color: '#e0bc6a', marginBottom: '6px' }}>{selectedNode.name}</div>
                     <div style={{ fontSize: '14px', color: '#c8c0d8', lineHeight: 1.65 }}>{selectedNode.description}</div>
@@ -318,14 +307,7 @@ export default function SkillsPage() {
                         </div>
                       )
                     }
-                    const reason =
-                      level < (branchMeta?.minLevel ?? 1)
-                        ? `Ветка открывается на ур. ${branchMeta?.minLevel}`
-                        : selectedNode.requires !== null && !unlockedIds.has(selectedNode.requires)
-                          ? 'Сначала открой предыдущий узел'
-                          : skillPoints < selectedNode.cost
-                            ? 'Недостаточно очков способностей'
-                            : 'Заблокировано'
+                    const reason = getLockReason(selectedNode, nodes, unlockedIds, level, skillPoints)
                     return (
                       <div style={{ textAlign: 'center', padding: '12px', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', color: '#5a5670', fontSize: '13px' }}>
                         🔒 {reason}
@@ -354,11 +336,11 @@ export default function SkillsPage() {
               <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', letterSpacing: '0.2em' }}>PATH OF EXPEDITION</div>
             </div>
             <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
-              Открывай узлы за <span style={{ color: '#a99fff' }}>очки способностей</span> — их дают при повышении уровня и прохождении экзамена.
+              Одно большое древо: темы связаны в цепочку. Чтобы открыть умножение, нужна пассивка «Мастер вычитания» и т.д.
               <br /><br />
-              <span style={{ color: '#e0bc6a' }}>Атаки</span> усиливают урон, <span style={{ color: '#a99fff' }}>защиты</span> дают щит, <span style={{ color: '#3db87a' }}>пассивки</span> — постоянные бонусы.
+              <span style={{ color: '#e0bc6a' }}>Атаки</span> — урон, <span style={{ color: '#a99fff' }}>защиты</span> — щит, <span style={{ color: '#3db87a' }}>пассивки «Мастер…»</span> — открывают следующую тему.
               <br /><br />
-              Перетаскивай canvas для навигации, колёсико мыши — зум.
+              Перетаскивай поле, колёсико — зум.
             </div>
             <div onClick={() => setShowHelp(false)}
               style={{ width: '100%', padding: '14px', background: 'rgba(169,159,255,0.12)', border: '1px solid rgba(169,159,255,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#a99fff', cursor: 'pointer' }}>
