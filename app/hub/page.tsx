@@ -9,6 +9,9 @@ import { currentOnboardingStep, onboardingProgress, ONBOARDING_STEPS } from '@/l
 import { currentLevelPlan, nextLevelPlan } from '@/lib/curriculum'
 import { HUB_GUIDE_SECTIONS } from '@/lib/hub-guide'
 import GuideModal from '@/components/GuideModal'
+import { navUnlockFromUser } from '@/lib/nav-unlock'
+import { buildHubDailyQuests, type DailyQuest } from '@/lib/daily-quests'
+import { todayIso } from '@/lib/guild-quests'
 
 export default function Hub() {
   const supabase = createClient()
@@ -18,6 +21,7 @@ export default function Hub() {
   const [character, setCharacter] = useState<any>(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
+  const [dailyQuests, setDailyQuests] = useState<DailyQuest[]>([])
   const RACE_ICONS: Record<string, string> = {
     human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀'
   }
@@ -40,7 +44,7 @@ export default function Hub() {
 
       const { data: ud } = await supabase
         .from('users')
-        .select('xp, level, gold, glory, streak, last_visit, quest_first_dungeon, total_answers, onboarding_done, onboarding_step, visited_skills')
+        .select('xp, level, gold, glory, streak, last_visit, quest_first_dungeon, total_answers, onboarding_done, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills')
         .eq('id', user.id)
         .single()
       setUserData(ud)
@@ -48,14 +52,30 @@ export default function Hub() {
       if (ud && !ud.onboarding_done) setShowOnboarding(true)
 
       if (ud) {
-        const today = new Date().toISOString().split('T')[0]
+        const today = todayIso()
         const lastVisit = ud.last_visit
+        let freshUd = ud
         if (lastVisit !== today) {
           const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
           const newStreak = lastVisit === yesterday ? (ud.streak || 0) + 1 : 1
           await supabase.from('users').update({ last_visit: today, streak: newStreak }).eq('id', user.id)
-          setUserData({ ...ud, streak: newStreak, last_visit: today })
+          freshUd = { ...ud, streak: newStreak, last_visit: today }
+          setUserData(freshUd)
         }
+
+        const { data: runsToday } = await supabase
+          .from('dungeon_runs')
+          .select('result, created_at')
+          .eq('user_id', user.id)
+          .gte('created_at', `${today}T00:00:00`)
+
+        const { count: answersToday } = await supabase
+          .from('question_attempts')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .gte('created_at', `${today}T00:00:00`)
+
+        setDailyQuests(buildHubDailyQuests(answersToday || 0, runsToday || [], freshUd.last_visit))
       }
     }
     getUser()
@@ -129,7 +149,7 @@ export default function Hub() {
           </div>
         ))}
 
-        <AppNav step={userData?.onboarding_step || 0} />
+        <AppNav step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
 
         <div onClick={signOut} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', fontSize: '14px', color: '#5a5670', cursor: 'pointer', marginTop: '8px' }}>
           <span>🚪</span>Выйти
@@ -255,19 +275,15 @@ export default function Hub() {
         <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>
           Квесты дня
         </div>
-        {[
-          { title: 'Пройти первый данж', prog: userData?.quest_first_dungeon ? 1 : 0, total: 1, xp: '+50 XP', done: !!userData?.quest_first_dungeon },
-          { title: 'Ответить на 10 вопросов', prog: Math.min(userData?.total_answers || 0, 10), total: 10, xp: '+30 XP', done: (userData?.total_answers || 0) >= 10 },
-          { title: 'Войти в игру', prog: 1, total: 1, xp: '+10 XP', done: true },
-        ].map((q) => (
-          <div key={q.title} style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px', marginBottom: '6px' }}>
+        {dailyQuests.map((q) => (
+          <div key={q.id} style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px', marginBottom: '6px' }}>
             <div style={{ fontSize: '13px', color: '#e6e2f0', marginBottom: '5px' }}>{q.title}</div>
             <div style={{ height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden', marginBottom: '4px' }}>
               <div style={{ height: '100%', background: q.done ? '#c9a84c' : '#2dd9b8', borderRadius: '2px', width: `${(q.prog / q.total) * 100}%` }}></div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>
               <span>{q.done ? '✓ Выполнено' : `${q.prog} / ${q.total}`}</span>
-              <span style={{ color: '#e0bc6a' }}>{q.xp}</span>
+              <span style={{ color: '#e0bc6a' }}>{q.reward}</span>
             </div>
           </div>
         ))}

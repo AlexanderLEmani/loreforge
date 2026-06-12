@@ -1,6 +1,7 @@
 'use client'
 
 import AppNav from '@/components/AppNav'
+import type { NavUnlockState } from '@/lib/nav-unlock'
 
 type Props = {
   level?: number
@@ -8,9 +9,10 @@ type Props = {
   xpNext?: number
   gold?: number
   step?: number
+  navUnlock?: NavUnlockState
 }
 
-export default function Sidebar({ level = 1, xp = 0, xpNext = 100, gold = 0, step = 0 }: Props) {
+export default function Sidebar({ level = 1, xp = 0, xpNext = 100, gold = 0, step = 0, navUnlock }: Props) {
   const xpPct = Math.min((xp / xpNext) * 100, 100)
 
   return (
@@ -32,7 +34,7 @@ export default function Sidebar({ level = 1, xp = 0, xpNext = 100, gold = 0, ste
 
       <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }}></div>
 
-      <AppNav step={step} />
+      <AppNav step={step} navUnlock={navUnlock} />
     </div>
   )
 }

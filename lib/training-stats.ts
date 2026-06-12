@@ -165,6 +165,25 @@ export async function loadTopicProgress(
   return {}
 }
 
+export async function recordBattleAttempt(
+  supabase: SupabaseClient,
+  payload: {
+    userId: string
+    questionId: string | number
+    isCorrect: boolean
+    dungeonName?: string
+  },
+) {
+  await supabase.from('question_attempts').insert({
+    user_id: payload.userId,
+    question_id: String(payload.questionId),
+    is_correct: payload.isCorrect,
+    source: 'battle',
+    session_id: null,
+    dungeon_name: payload.dungeonName ?? null,
+  })
+}
+
 export async function recordTrainingAttempt(
   supabase: SupabaseClient,
   payload: {

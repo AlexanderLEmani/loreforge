@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
+import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
 
 const levelColors: Record<number, { border: string; accent: string; bg: string; tag: string }> = {
   1: { border: '#5a3e2b', accent: '#c9a45a', bg: '#1a1008', tag: '#3d2a14' },
@@ -30,7 +31,7 @@ export default function ShopPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
 
-      const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step, visited_shop').eq('id', user.id).single()
+      const { data } = await supabase.from('users').select(USER_NAV_SELECT).eq('id', user.id).single()
       setUserData({ ...data, id: user.id })
       if (data && !data.visited_shop) {
         setShowHelp(true)
@@ -103,7 +104,7 @@ export default function ShopPage() {
       </nav>
 
       <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr' }}>
-        <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
+        <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
 
         <div style={{ padding: '2rem', maxWidth: '900px' }}>
           <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>

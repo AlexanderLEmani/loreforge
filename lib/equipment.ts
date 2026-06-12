@@ -79,11 +79,24 @@ export function ownedItemIds(level: number, purchased: string[]): string[] {
   return [...new Set([...free, ...purchased])]
 }
 
-export function mergeEquipment(raw: Partial<Record<EquipSlot, string>> | null): Record<EquipSlot, string> {
-  return { ...DEFAULT_EQUIPMENT, ...raw }
+export type EquippedMap = Partial<Record<EquipSlot, string>>
+
+export function normalizeEquipped(raw: EquippedMap | null | undefined): EquippedMap {
+  if (!raw || typeof raw !== 'object') return {}
+  const out: EquippedMap = {}
+  for (const slot of EQUIP_SLOTS) {
+    const id = raw[slot.id]
+    if (id && itemById(id)) out[slot.id] = id
+  }
+  return out
 }
 
-export function computeEquipBonuses(equipped: Record<EquipSlot, string>): StatBonuses {
+/** Стартовый набор — в сумке, не на персонаже автоматически */
+export function starterItemIds(): string[] {
+  return Object.values(DEFAULT_EQUIPMENT)
+}
+
+export function computeEquipBonuses(equipped: EquippedMap): StatBonuses {
   const total: StatBonuses = {}
   for (const id of Object.values(equipped)) {
     const item = itemById(id)

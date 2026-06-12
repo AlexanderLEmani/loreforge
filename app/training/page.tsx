@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { loadTrainingStats, loadTopicProgress, recordTrainingAttempt, type TrainingStats, type TopicProgressMap } from '@/lib/training-stats'
 import { shuffleQuestions } from '@/lib/shuffle-question'
 import Sidebar from '@/components/Sidebar'
+import { navUnlockFromUser } from '@/lib/nav-unlock'
 
 const TOPICS = [
   { id: 'add', icon: '➕', name: 'Сложение',   level: 1, dungeon: 'Пещера сложения' },
@@ -67,7 +68,7 @@ export default function TrainingPage() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
-      const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step, visited_training').eq('id', user.id).single()
+      const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills, quest_first_dungeon').eq('id', user.id).single()
       setUserData({ ...data, id: user.id })
       await refreshStats(user.id)
       if (data && !data.visited_training) {
@@ -207,7 +208,7 @@ export default function TrainingPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 280px' }}>
 
-       <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
+       <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
 
         {/* ЦЕНТР */}
         <div style={{ padding: '1.75rem 2rem', background: '#0b0c10' }}>

@@ -16,36 +16,42 @@ type RunRow = {
   created_at?: string
 }
 
+function isToday(ts?: string): boolean {
+  if (!ts) return false
+  return ts.startsWith(todayIso())
+}
+
 export function buildGuildQuests(
   runs: RunRow[],
   answersToday: number,
   spellKills: number,
 ): GuildQuest[] {
-  const wins = runs.filter(r => r.result === 'win').length
-  const perfect = runs.some(
+  const todayRuns = runs.filter(r => isToday(r.created_at))
+  const winsToday = todayRuns.filter(r => r.result === 'win').length
+  const perfectToday = todayRuns.some(
     r => r.result === 'win' && (!r.mistakes || r.mistakes.length === 0),
   )
 
   return [
     {
       id: 'wins',
-      title: 'Победить в 3 данжах',
-      desc: 'Любые данжи. Победа = засчитано.',
-      prog: Math.min(wins, 3),
+      title: '3 победы сегодня',
+      desc: 'Любые данжи. Считаются только победы за сегодня.',
+      prog: Math.min(winsToday, 3),
       total: 3,
       glory: 80,
       color: '#a99fff',
-      done: wins >= 3,
+      done: winsToday >= 3,
     },
     {
       id: 'perfect',
       title: 'Пройти данж без ошибок',
       desc: 'Ни одного неверного ответа в забеге.',
-      prog: perfect ? 1 : 0,
+      prog: perfectToday ? 1 : 0,
       total: 1,
       glory: 150,
       color: '#e0bc6a',
-      done: perfect,
+      done: perfectToday,
     },
     {
       id: 'daily',

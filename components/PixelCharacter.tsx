@@ -170,11 +170,11 @@ export default function PixelCharacter({
   const actualSkin = isOrc ? '#5a8a3a' : isUndead ? '#8aaa7a' : skinColor
   const cloakDark = '#1a1a2e'
 
-  const headV = equipment.head ?? 'head_cowl'
-  const bodyV = equipment.body ?? 'body_cloth'
-  const weaponV = equipment.weapon ?? 'weapon_birch'
-  const handsV = equipment.hands ?? 'hands_cloth'
-  const feetV = equipment.feet ?? 'feet_soft'
+  const headV = equipment.head
+  const bodyV = equipment.body
+  const weaponV = equipment.weapon
+  const handsV = equipment.hands
+  const feetV = equipment.feet
 
   return (
     <svg
@@ -199,13 +199,13 @@ export default function PixelCharacter({
         <rect x="19" y="43" width="3" height="2" fill={cloakColor}/>
         <rect x="23" y="42" width="2" height="2" fill={cloakColor}/>
 
-        <FeetGear visualId={feetV}/>
+        {feetV && <FeetGear visualId={feetV}/>}
 
         <rect x="2" y="24" width="4" height="10" fill={cloakColor}/>
         <rect x="22" y="24" width="4" height="10" fill={cloakColor}/>
         <rect x="2" y="33" width="4" height="3" fill={actualSkin}/>
         <rect x="22" y="33" width="4" height="3" fill={actualSkin}/>
-        <HandsGear visualId={handsV}/>
+        {handsV && <HandsGear visualId={handsV}/>}
 
         {race === 'dwarf' && <>
           <rect x="3" y="20" width="22" height="10" fill={cloakColor}/>
@@ -214,7 +214,7 @@ export default function PixelCharacter({
         </>}
         {race !== 'dwarf' && <rect x="6" y="20" width="16" height="10" fill={cloakColor}/>}
         {race === 'dwarf' && <rect x="4" y="20" width="20" height="10" fill={cloakColor}/>}
-        <BodyGear visualId={bodyV}/>
+        {bodyV && <BodyGear visualId={bodyV}/>}
         <rect x="9" y="20" width="10" height="2" fill="#1a0a2e"/>
         <rect x="11" y="19" width="6" height="2" fill="#1a0a2e"/>
 
@@ -234,9 +234,9 @@ export default function PixelCharacter({
         {!isOrc && <rect x="12" y="15" width="6" height="1" fill="#1a1a2e" opacity="0.5"/>}
 
         {HAIR_STYLES[hairStyle]?.(hairColor)}
-        <HeadGear visualId={headV}/>
+        {headV && <HeadGear visualId={headV}/>}
 
-        <WeaponGear visualId={weaponV}/>
+        {weaponV && <WeaponGear visualId={weaponV}/>}
 
         <rect x="7" y="21" width="2" height="6" fill="rgba(255,255,255,0.06)"/>
       </g>

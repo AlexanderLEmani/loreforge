@@ -8,17 +8,16 @@ import AppNav from '@/components/AppNav'
 import {
   EQUIP_SLOTS,
   EQUIPMENT_ITEMS,
-  DEFAULT_EQUIPMENT,
-  mergeEquipment,
   computeEquipBonuses,
   itemById,
-  itemsForSlot,
   ownedItemIds,
   bonusLabel,
   type EquipSlot,
+  type EquippedMap,
   type EquipmentItem,
 } from '@/lib/equipment'
 import { addOwnedItem, loadEquipped, loadOwnedIds, saveEquipped } from '@/lib/equipment-storage'
+import { navUnlockFromUser } from '@/lib/nav-unlock'
 
 const RACE_ICONS: Record<string, string> = {
   human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀'
@@ -39,9 +38,9 @@ export default function CharacterPage() {
   const [character, setCharacter] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [showWelcome, setShowWelcome] = useState(false)
-  const [equipped, setEquipped] = useState<Record<EquipSlot, string>>(DEFAULT_EQUIPMENT)
+  const [equipped, setEquipped] = useState<EquippedMap>({})
   const [ownedIds, setOwnedIds] = useState<string[]>([])
-  const [pickSlot, setPickSlot] = useState<EquipSlot | null>(null)
+  const [bagFilter, setBagFilter] = useState<'all' | EquipSlot>('all')
   const [buying, setBuying] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -53,7 +52,7 @@ export default function CharacterPage() {
 
       const { data: ud } = await supabase
         .from('users')
-        .select('xp, level, gold, streak, total_answers, visited_character, onboarding_step')
+        .select('xp, level, gold, streak, total_answers, visited_character, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills, quest_first_dungeon')
         .eq('id', user.id)
         .single()
       setUserData(ud)
@@ -83,9 +82,18 @@ export default function CharacterPage() {
     if (!user?.id) return
     const next = { ...equipped, [item.slot]: item.id }
     setEquipped(next)
-    setPickSlot(null)
     await saveEquipped(user.id, next)
     setToast(`Надето: ${item.name}`)
+    setTimeout(() => setToast(null), 2000)
+  }
+
+  async function unequipSlot(slot: EquipSlot) {
+    if (!user?.id) return
+    const next = { ...equipped }
+    delete next[slot]
+    setEquipped(next)
+    await saveEquipped(user.id, next)
+    setToast('Предмет снят — лежит в сумке')
     setTimeout(() => setToast(null), 2000)
   }
 
@@ -130,9 +138,18 @@ export default function CharacterPage() {
   }
   const visualEquip: Partial<Record<EquipSlot, string>> = {}
   for (const slot of EQUIP_SLOTS) {
-    const item = itemById(equipped[slot.id])
+    const id = equipped[slot.id]
+    if (!id) continue
+    const item = itemById(id)
     if (item) visualEquip[slot.id] = item.visualId
   }
+
+  const ownedItems = EQUIPMENT_ITEMS.filter(i => ownedIds.includes(i.id))
+  const bagItems = ownedItems.filter(i => {
+    if (bagFilter !== 'all' && i.slot !== bagFilter) return false
+    return equipped[i.slot] !== i.id
+  })
+  const equippedCount = EQUIP_SLOTS.filter(s => equipped[s.id]).length
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
@@ -182,7 +199,7 @@ export default function CharacterPage() {
           ))}
 
           <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '14px 0 12px' }}></div>
-          <AppNav step={userData?.onboarding_step || 0} />
+          <AppNav step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
         </div>
 
         {/* ЦЕНТР */}
@@ -215,25 +232,38 @@ export default function CharacterPage() {
               </div>
 
               <div style={{ fontSize: '11px', color: '#7b6cff', textAlign: 'center', marginBottom: '12px', fontFamily: 'monospace' }}>
-                {bonusLabel(equipBonuses)}
+                {equippedCount > 0 ? bonusLabel(equipBonuses) : 'Ничего не надето — выбери из сумки →'}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', width: '100%' }}>
+              <div style={{ width: '100%', marginBottom: '10px' }}>
+                <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', letterSpacing: '0.12em', marginBottom: '8px' }}>НА ПЕРСОНАЖЕ</div>
                 {EQUIP_SLOTS.map(slot => {
-                  const item = itemById(equipped[slot.id])
-                  const active = pickSlot === slot.id
+                  const id = equipped[slot.id]
+                  const item = id ? itemById(id) : null
                   return (
-                    <div
-                      key={slot.id}
-                      onClick={() => setPickSlot(active ? null : slot.id)}
-                      style={{
-                        aspectRatio: '1', background: active ? 'rgba(123,108,255,0.12)' : '#171920',
-                        border: `1px solid ${active ? 'rgba(123,108,255,0.45)' : 'rgba(255,255,255,0.11)'}`,
-                        borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', gap: '2px',
-                      }}
-                    >
-                      <span style={{ fontSize: '18px' }}>{item?.icon ?? slot.icon}</span>
-                      <span style={{ fontFamily: 'monospace', fontSize: '8px', color: '#5a5670' }}>{slot.label}</span>
+                    <div key={slot.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <span style={{ fontSize: '16px', width: '24px', textAlign: 'center' }}>{item?.icon ?? slot.icon}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '11px', color: '#9590a8' }}>{slot.label}</div>
+                        <div style={{ fontSize: '12px', color: item ? '#e6e2f0' : '#5a5670', fontStyle: item ? 'normal' : 'italic' }}>
+                          {item?.name ?? 'Пусто'}
+                        </div>
+                      </div>
+                      {item ? (
+                        <div
+                          onClick={() => unequipSlot(slot.id)}
+                          style={{ fontFamily: 'monospace', fontSize: '9px', color: '#e05555', cursor: 'pointer', padding: '4px 8px', border: '1px solid rgba(224,85,85,0.35)', borderRadius: '4px' }}
+                        >
+                          Снять
+                        </div>
+                      ) : (
+                        <div
+                          onClick={() => setBagFilter(slot.id)}
+                          style={{ fontFamily: 'monospace', fontSize: '9px', color: '#a99fff', cursor: 'pointer', padding: '4px 8px' }}
+                        >
+                          Надеть →
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -291,62 +321,85 @@ export default function CharacterPage() {
           </div>
         </div>
 
-        {/* ПРАВЫЙ САЙДБАР — Инвентарь */}
-        <div style={{ background: '#111318', borderLeft: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}>
-          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>
-            {pickSlot ? `Слот: ${EQUIP_SLOTS.find(s => s.id === pickSlot)?.label}` : 'Снаряжение'}
+        {/* ПРАВЫЙ САЙДБАР — Сумка */}
+        <div style={{ background: '#111318', borderLeft: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem', overflowY: 'auto' }}>
+          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '10px' }}>
+            Сумка · {ownedItems.length} предм.
+          </div>
+          <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '12px' }}>
+            Все твои вещи здесь. Надеть — на персонаже. Снять — возвращает в сумку.
           </div>
 
-          {(pickSlot ? itemsForSlot(pickSlot) : EQUIPMENT_ITEMS.filter(i => ownedIds.includes(i.id))).map(item => {
-            const owned = ownedIds.includes(item.id)
-            const isEquipped = equipped[item.slot] === item.id
-            const canBuy = !owned && item.goldCost > 0 && level >= item.minLevel
-            return (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '12px' }}>
+            <div
+              onClick={() => setBagFilter('all')}
+              style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '9px', fontFamily: 'monospace', cursor: 'pointer', border: `1px solid ${bagFilter === 'all' ? 'rgba(201,168,76,0.5)' : 'rgba(255,255,255,0.08)'}`, color: bagFilter === 'all' ? '#e0bc6a' : '#5a5670' }}
+            >
+              Все
+            </div>
+            {EQUIP_SLOTS.map(s => (
               <div
-                key={item.id}
-                style={{
-                  background: isEquipped ? 'rgba(61,184,122,0.08)' : '#1c1f2a',
-                  border: `1px solid ${isEquipped ? 'rgba(61,184,122,0.35)' : 'rgba(255,255,255,0.08)'}`,
-                  borderRadius: '9px', padding: '10px 12px', marginBottom: '6px',
-                }}
+                key={s.id}
+                onClick={() => setBagFilter(s.id)}
+                style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '9px', fontFamily: 'monospace', cursor: 'pointer', border: `1px solid ${bagFilter === s.id ? 'rgba(123,108,255,0.5)' : 'rgba(255,255,255,0.08)'}`, color: bagFilter === s.id ? '#a99fff' : '#5a5670' }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '22px' }}>{item.icon}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', color: '#e6e2f0' }}>{item.name}</div>
-                    <div style={{ fontSize: '10px', color: '#7b6cff', fontFamily: 'monospace' }}>{item.desc}</div>
-                  </div>
-                  <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670' }}>T{item.tier}</div>
+                {s.icon}
+              </div>
+            ))}
+          </div>
+
+          {bagItems.length === 0 && (
+            <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic', marginBottom: '12px' }}>
+              {bagFilter === 'all' ? 'Все предметы надеты или купи новые ниже.' : 'В этом слоте нет свободных предметов.'}
+            </div>
+          )}
+
+          {bagItems.map(item => (
+            <div key={item.id} style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '9px', padding: '10px 12px', marginBottom: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                <span style={{ fontSize: '22px' }}>{item.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '13px', color: '#e6e2f0' }}>{item.name}</div>
+                  <div style={{ fontSize: '10px', color: '#7b6cff', fontFamily: 'monospace' }}>{item.desc}</div>
                 </div>
-                {owned ? (
-                  <div
-                    onClick={() => !isEquipped && equipItem(item)}
-                    style={{
-                      padding: '6px', borderRadius: '6px', textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', cursor: isEquipped ? 'default' : 'pointer',
-                      background: isEquipped ? 'rgba(61,184,122,0.1)' : 'rgba(123,108,255,0.1)',
-                      border: `1px solid ${isEquipped ? 'rgba(61,184,122,0.3)' : 'rgba(123,108,255,0.3)'}`,
-                      color: isEquipped ? '#3db87a' : '#a99fff',
-                    }}
-                  >
-                    {isEquipped ? '✓ Надето' : 'Надеть'}
+              </div>
+              <div
+                onClick={() => equipItem(item)}
+                style={{ padding: '6px', borderRadius: '6px', textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', cursor: 'pointer', background: 'rgba(123,108,255,0.1)', border: '1px solid rgba(123,108,255,0.3)', color: '#a99fff' }}
+              >
+                Надеть
+              </div>
+            </div>
+          ))}
+
+          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', margin: '14px 0 12px' }}>Лавка снаряжения</div>
+
+          {EQUIPMENT_ITEMS.filter(i => !ownedIds.includes(i.id) && i.goldCost > 0).map(item => {
+            const canBuy = level >= item.minLevel && (userData?.gold || 0) >= item.goldCost
+            return (
+              <div key={item.id} style={{ background: '#1a1610', border: '1px solid rgba(201,168,76,0.15)', borderRadius: '9px', padding: '10px 12px', marginBottom: '6px', opacity: item.minLevel > level ? 0.5 : 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '20px' }}>{item.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '12px', color: '#e6e2f0' }}>{item.name}</div>
+                    <div style={{ fontSize: '10px', color: '#7b6cff' }}>{item.desc}</div>
                   </div>
-                ) : canBuy ? (
-                  <div
-                    onClick={() => buyAndOwn(item)}
-                    style={{ padding: '6px', borderRadius: '6px', textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', cursor: 'pointer', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.35)', color: '#e0bc6a' }}
-                  >
-                    {buying === item.id ? '...' : `💰 Купить ${item.goldCost}`}
-                  </div>
+                </div>
+                {item.minLevel > level ? (
+                  <div style={{ fontSize: '10px', color: '#5a5670' }}>Нужен ур. {item.minLevel}</div>
                 ) : (
-                  <div style={{ fontSize: '10px', color: '#5a5670', fontStyle: 'italic' }}>
-                    {item.minLevel > level ? `Нужен ур. ${item.minLevel}` : '—'}
+                  <div
+                    onClick={() => canBuy && buyAndOwn(item)}
+                    style={{ padding: '6px', borderRadius: '6px', textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', cursor: canBuy ? 'pointer' : 'default', background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.3)', color: canBuy ? '#e0bc6a' : '#e05555' }}
+                  >
+                    {buying === item.id ? '...' : `💰 ${item.goldCost} золота`}
                   </div>
                 )}
               </div>
             )
           })}
 
-          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>Расходники</div>
+          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', margin: '14px 0 12px' }}>Расходники</div>
 
           {[
             ['🧪', 'Зелья HP', '0'],

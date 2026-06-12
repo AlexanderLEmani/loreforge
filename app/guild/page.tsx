@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { buildGuildQuests, todayIso } from '@/lib/guild-quests'
+import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
 
 const DUNGEONS = [
   { id: 'add',   icon: '➕', name: 'Пещера сложения',   tag: 'Ур.1', desc: 'Сложение до 1000. Базовый данж. Бесплатно.', cost: 0,   color: '#c9a84c', rarity: null,    level: 1, route: 'Пещера сложения' },
@@ -45,14 +46,21 @@ export default function GuildPage() {
       if (!user) { router.push('/'); return }
       const { data } = await supabase
         .from('users')
-        .select('xp, level, gold, glory, streak, onboarding_step, visited_guild, spell_kills')
+        .select(`${USER_NAV_SELECT}, spell_kills`)
         .eq('id', user.id)
         .single()
-      setUserData({ ...data, id: user.id })
-      if (data && !data.visited_guild) {
+
+      let ud = data ? { ...data, id: user.id } : null
+      if (ud && (ud.onboarding_step || 0) < 2) {
+        await supabase.from('users').update({ onboarding_step: 2 }).eq('id', user.id)
+        ud = { ...ud, onboarding_step: 2 }
+      }
+      if (ud && !ud.visited_guild) {
         setShowWelcome(true)
         await supabase.from('users').update({ visited_guild: true }).eq('id', user.id)
+        ud = { ...ud, visited_guild: true }
       }
+      setUserData(ud)
 
       const { data: runs } = await supabase
         .from('dungeon_runs')
@@ -123,7 +131,14 @@ export default function GuildPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 280px' }}>
 
-        <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
+        <Sidebar
+          level={level}
+          xp={xpCurrent}
+          xpNext={xpNext}
+          gold={userData?.gold || 0}
+          step={userData?.onboarding_step || 0}
+          navUnlock={navUnlockFromUser(userData)}
+        />
 
         {/* ЦЕНТР */}
         <div style={{ padding: '1.75rem 2rem', background: '#0b0c10' }}>

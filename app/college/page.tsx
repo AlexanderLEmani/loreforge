@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
+import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
 import {
   FALLBACK_LECTURES,
   getLectureForLevel,
@@ -72,7 +73,7 @@ export default function CollegePage() {
 
         const { data, error: userError } = await supabase
           .from('users')
-          .select('xp, level, gold, glory, streak, onboarding_step, visited_college')
+          .select(USER_NAV_SELECT)
           .eq('id', user.id)
           .single()
 
@@ -158,7 +159,7 @@ export default function CollegePage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr' }}>
 
-        <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
+        <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', minHeight: 'calc(100vh - 56px)' }}>
 

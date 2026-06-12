@@ -17,6 +17,7 @@ import {
   type SkillTreeNode,
 } from '@/lib/skill-tree'
 import { SKILL_POINTS_PER_LEVEL } from '@/lib/skill-points'
+import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
 
 export default function SkillsPage() {
   const router = useRouter()
@@ -40,7 +41,7 @@ export default function SkillsPage() {
 
       const { data, error: userError } = await supabase
         .from('users')
-        .select('xp, level, gold, glory, streak, onboarding_step, skill_points, visited_skills')
+        .select(`${USER_NAV_SELECT}, skill_points`)
         .eq('id', user.id)
         .single()
 
@@ -190,7 +191,7 @@ export default function SkillsPage() {
       </nav>
 
       <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr' }}>
-        <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} />
+        <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
 
         <div style={{ padding: '1.5rem 2rem', display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: 'calc(100vh - 56px)' }}>
           <div style={{ paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>

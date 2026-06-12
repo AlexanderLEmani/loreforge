@@ -27,7 +27,8 @@ import {
   nodesByIds,
   type BattleSkillBonuses,
 } from '@/lib/battle-skills'
-import { getDifficultyPool, pickUnused, poolForAttack } from '@/lib/battle-questions'
+import { getDifficultyPool, normalizeQuestionDifficulty, pickUnused, poolForAttack } from '@/lib/battle-questions'
+import { recordBattleAttempt } from '@/lib/training-stats'
 import { mergeWithFallback } from '@/lib/fallback-questions'
 import { loadDemoSkillState } from '@/lib/skill-tree'
 import { computeEquipBonuses } from '@/lib/equipment'
@@ -67,7 +68,8 @@ function BattleContent() {
   const [inputAnswer, setInputAnswer] = useState('')
   const [hardMode, setHardMode] = useState(false)
   const [confirmEscape, setConfirmEscape] = useState(false)
-  const [usedIds, setUsedIds] = useState<Set<number>>(new Set())
+  const usedIdsRef = useRef<Set<number>>(new Set())
+  const usedTextsRef = useRef<Set<string>>(new Set())
   const [cooldowns, setCooldowns] = useState<Record<string, number>>({})
   const [damageFlash, setDamageFlash] = useState<{ target: 'player' | 'enemy'; amount: number } | null>(null)
   const [timer, setTimer] = useState(15)
@@ -139,10 +141,12 @@ function BattleContent() {
       const bank: Record<string, any[]> = {}
       for (const d of dungeonsToLoad) {
         const { data } = await supabase.from('questions').select('*').eq('dungeon_name', d).limit(30)
-        bank[d] = shuffleQuestions(mergeWithFallback(d, data || []))
+        const merged = mergeWithFallback(d, data || []).map(normalizeQuestionDifficulty)
+        bank[d] = shuffleQuestions(merged)
       }
       if (!bank[dungeonName]?.length) {
-        bank[dungeonName] = shuffleQuestions(mergeWithFallback(dungeonName, []))
+        const merged = mergeWithFallback(dungeonName, []).map(normalizeQuestionDifficulty)
+        bank[dungeonName] = shuffleQuestions(merged)
       }
       setQuestionBank(bank)
 
@@ -219,8 +223,10 @@ function BattleContent() {
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [phase, monsterQ, chosenAttack, monster])
 
-  function markUsed(id: number) {
-    setUsedIds(prev => new Set([...prev, id]))
+  function markUsed(q: { id?: number; question?: string }) {
+    if (q.id != null) usedIdsRef.current.add(Number(q.id))
+    const text = (q.question || '').trim()
+    if (text) usedTextsRef.current.add(text)
   }
 
   function dungeonQuestions() {
@@ -254,7 +260,12 @@ function BattleContent() {
     const source = pool.length > 0 ? pool : fallback
     if (source.length === 0) return
 
-    const q = pickUnused(getDifficultyPool(source, atk.difficulty), usedIds, markUsed)
+    const q = pickUnused(
+      getDifficultyPool(source, atk.difficulty),
+      usedIdsRef.current,
+      usedTextsRef.current,
+      markUsed,
+    )
     if (!q) return
 
     setChosenAttack(atk)
@@ -344,19 +355,35 @@ function BattleContent() {
         return
       }
       tryBossEnrage(newEnemyHP, enemyMaxHP)
-      const mq = pickUnused(dungeonQuestions(), usedIds, markUsed)
+      const mq = pickUnused(
+        getDifficultyPool(dungeonQuestions(), 'medium'),
+        usedIdsRef.current,
+        usedTextsRef.current,
+        markUsed,
+      )
       if (!mq) { endBattle('win', newMistakes, chosenAttack.kind === 'spell'); return }
       setMonsterQ(mq)
       setPhase('monster_attack')
     }, 800)
   }
 
+  async function recordAnswer(q: any, correct: boolean) {
+    if (!currentUser) return
+    await supabase.rpc('increment_answers', { user_id: currentUser.id })
+    await recordBattleAttempt(supabase, {
+      userId: currentUser.id,
+      questionId: q.id ?? q.question,
+      isCorrect: correct,
+      dungeonName,
+    })
+  }
+
   async function handleAttack(idx: number) {
     if (selected !== null || !currentQ || !chosenAttack) return
-    if (currentUser) await supabase.rpc('increment_answers', { user_id: currentUser.id })
     setHintActive(false)
     setSelected(idx)
     const correct = idx === currentQ.correct_index
+    await recordAnswer(currentQ, correct)
     const newMistakes = correct ? mistakes : [...mistakes, currentQ.question]
     if (!correct) setMistakes(newMistakes)
     await applyPlayerHit(correct, newMistakes)
@@ -364,8 +391,8 @@ function BattleContent() {
 
   async function handleAttackHard() {
     if (selected !== null || !inputAnswer || !currentQ || !chosenAttack) return
-    if (currentUser) await supabase.rpc('increment_answers', { user_id: currentUser.id })
     const correct = inputAnswer.trim() === currentQ.answers[currentQ.correct_index].trim()
+    await recordAnswer(currentQ, correct)
     setSelected(correct ? currentQ.correct_index : -1)
     setInputAnswer('')
     const newMistakes = correct ? mistakes : [...mistakes, currentQ.question]
@@ -389,7 +416,12 @@ function BattleContent() {
           return
         }
         tryBossEnrage(newEnemyHP, enemyMaxHP)
-        const mq = pickUnused(dungeonQuestions(), usedIds, markUsed)
+        const mq = pickUnused(
+        getDifficultyPool(dungeonQuestions(), 'medium'),
+        usedIdsRef.current,
+        usedTextsRef.current,
+        markUsed,
+      )
         setMonsterQ(mq)
         setPhase('monster_attack')
       }, 800)
@@ -398,11 +430,12 @@ function BattleContent() {
     }
   }
 
-  function handleDefend(idx: number, timeout = false) {
+  async function handleDefend(idx: number, timeout = false) {
     if (timerRef.current) clearInterval(timerRef.current)
     if (!monsterQ || !monster) return
 
     const correct = !timeout && idx === monsterQ.correct_index
+    await recordAnswer(monsterQ, correct)
     let newPlayerHP = playerHP
     let newMistakes = [...mistakes]
 
