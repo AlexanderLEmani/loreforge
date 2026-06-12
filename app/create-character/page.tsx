@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { ensureGuestUserRow } from '@/lib/quick-start-auth'
 import PixelCharacter from '@/components/PixelCharacter'
 
 const RACES = [
@@ -50,6 +51,8 @@ export default function CreateCharacter() {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/'); return }
+
+    await ensureGuestUserRow(supabase, user)
 
     const { error: err } = await supabase.from('characters').insert({
       user_id: user.id,

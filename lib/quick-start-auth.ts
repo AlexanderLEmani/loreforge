@@ -44,6 +44,24 @@ type GuestAuthResult = {
   errorMessage: string | null
 }
 
+function isAnonymousDisabled(message: string) {
+  return /anonymous sign-?ins? (are )?disabled/i.test(message)
+}
+
+/** Как в hub — без строки в users создание персонажа может упасть по FK. */
+export async function ensureGuestUserRow(supabase: SupabaseClient, user: User) {
+  await supabase.from('users').upsert({
+    id: user.id,
+    email: user.email ?? null,
+    full_name:
+      user.user_metadata?.full_name
+      ?? user.user_metadata?.display_name
+      ?? user.user_metadata?.name
+      ?? 'Гость',
+    avatar_url: user.user_metadata?.avatar_url ?? null,
+  }, { onConflict: 'id' })
+}
+
 async function signInWithCreds(
   supabase: SupabaseClient,
   email: string,
@@ -91,11 +109,18 @@ async function createGuestViaSignUp(supabase: SupabaseClient): Promise<GuestAuth
   return { user: null, errorMessage: 'Регистрация гостя не дала сессию. Отключи подтверждение email в Supabase Auth.' }
 }
 
-/** Гостевой вход: anonymous → API (без писем) → сохранённые креды → signUp */
+/** Гостевой вход: anonymous (если включён в Supabase) → API → креды → signUp */
 export async function signInAsGuest(supabase: SupabaseClient): Promise<GuestAuthResult> {
   const anon = await supabase.auth.signInAnonymously()
-  if (anon.data.user && !anon.error) {
-    return { user: anon.data.user, errorMessage: null }
+  const anonUser = anon.data.session?.user ?? anon.data.user
+  if (anonUser && !anon.error) {
+    clearGuestCreds()
+    return { user: anonUser, errorMessage: null }
+  }
+
+  const anonErr = anon.error?.message ?? ''
+  if (anonErr && !isAnonymousDisabled(anonErr)) {
+    return { user: null, errorMessage: anonErr }
   }
 
   const fromApi = await createGuestViaApi()

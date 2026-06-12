@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { guestLandingPath, signInAsGuest } from '@/lib/quick-start-auth'
+import { ensureGuestUserRow, guestLandingPath, signInAsGuest } from '@/lib/quick-start-auth'
 
 export default function Home() {
   const supabase = createClient()
@@ -41,8 +41,10 @@ export default function Home() {
       setLoading(null)
       return
     }
+    await ensureGuestUserRow(supabase, user)
     const path = await guestLandingPath(supabase, user.id)
     router.push(path)
+    setLoading(null)
   }
 
   const busy = loading !== null
