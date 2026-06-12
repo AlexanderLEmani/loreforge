@@ -91,23 +91,23 @@ async function createGuestViaSignUp(supabase: SupabaseClient): Promise<GuestAuth
   return { user: null, errorMessage: 'Регистрация гостя не дала сессию. Отключи подтверждение email в Supabase Auth.' }
 }
 
-/** Гостевой вход: anonymous → сохранённые креды → API → signUp */
+/** Гостевой вход: anonymous → API (без писем) → сохранённые креды → signUp */
 export async function signInAsGuest(supabase: SupabaseClient): Promise<GuestAuthResult> {
   const anon = await supabase.auth.signInAnonymously()
   if (anon.data.user && !anon.error) {
     return { user: anon.data.user, errorMessage: null }
   }
 
-  const stored = readGuestCreds()
-  if (stored) {
-    const fromStored = await signInWithCreds(supabase, stored.email, stored.password)
-    if (fromStored.user) return fromStored
-  }
-
   const fromApi = await createGuestViaApi()
   if (fromApi) {
     const fromApiSignIn = await signInWithCreds(supabase, fromApi.email, fromApi.password)
     if (fromApiSignIn.user) return fromApiSignIn
+  }
+
+  const stored = readGuestCreds()
+  if (stored) {
+    const fromStored = await signInWithCreds(supabase, stored.email, stored.password)
+    if (fromStored.user) return fromStored
   }
 
   const fromSignUp = await createGuestViaSignUp(supabase)

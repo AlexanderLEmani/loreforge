@@ -32,9 +32,11 @@ export default function Home() {
     const { user, errorMessage } = await signInAsGuest(supabase)
     if (!user) {
       setError(
-        errorMessage?.includes('Signups not allowed')
-          ? 'Регистрация отключена в Supabase. Включи Sign-ups в Authentication → Providers → Email.'
-          : errorMessage ?? 'Не удалось начать игру. Попробуй ещё раз или войди через Google.',
+        errorMessage?.toLowerCase().includes('rate limit')
+          ? 'Лимит писем Supabase (часто после многих попыток). Подожди ~1 час или добавь SUPABASE_SERVICE_ROLE_KEY в Vercel и передеплой — тогда письма не нужны.'
+          : errorMessage?.includes('Signups not allowed')
+            ? 'Регистрация отключена в Supabase. Включи Sign-ups в Authentication → Providers → Email.'
+            : errorMessage ?? 'Не удалось начать игру. Попробуй ещё раз или войди через Google.',
       )
       setLoading(null)
       return
