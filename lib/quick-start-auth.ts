@@ -1,20 +1,41 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
-import { createGuestCredentials } from '@/lib/guest-credentials'
+import {
+  createGuestCredentials,
+  GUEST_CREDS_VERSION,
+  isLegacyGuestEmail,
+} from '@/lib/guest-credentials'
 
 const GUEST_EMAIL_KEY = 'loreforge_guest_email'
 const GUEST_PASS_KEY = 'loreforge_guest_pass'
+const GUEST_VERSION_KEY = 'loreforge_guest_version'
+
+export function clearGuestCreds() {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(GUEST_EMAIL_KEY)
+  localStorage.removeItem(GUEST_PASS_KEY)
+  localStorage.removeItem(GUEST_VERSION_KEY)
+}
 
 function storeGuestCreds(email: string, password: string) {
   if (typeof window === 'undefined') return
   localStorage.setItem(GUEST_EMAIL_KEY, email)
   localStorage.setItem(GUEST_PASS_KEY, password)
+  localStorage.setItem(GUEST_VERSION_KEY, GUEST_CREDS_VERSION)
 }
 
 function readGuestCreds(): { email: string; password: string } | null {
   if (typeof window === 'undefined') return null
+  if (localStorage.getItem(GUEST_VERSION_KEY) !== GUEST_CREDS_VERSION) {
+    clearGuestCreds()
+    return null
+  }
   const email = localStorage.getItem(GUEST_EMAIL_KEY)
   const password = localStorage.getItem(GUEST_PASS_KEY)
   if (!email || !password) return null
+  if (isLegacyGuestEmail(email)) {
+    clearGuestCreds()
+    return null
+  }
   return { email, password }
 }
 
