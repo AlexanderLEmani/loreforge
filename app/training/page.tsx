@@ -102,7 +102,7 @@ export default function TrainingPage() {
     const dungeons = selectedTopics.map(id => TOPICS.find(t => t.id === id)?.dungeon).filter(Boolean) as string[]
     let allQ: any[] = []
     for (const d of [...new Set(dungeons)]) {
-      const { data } = await supabase.from('questions').select('*').eq('dungeon_name', d).limit(20)
+      const { data } = await supabase.from('questions').select('*').eq('dungeon_name', d).limit(120)
       if (data) allQ = [...allQ, ...data]
     }
 

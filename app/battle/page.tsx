@@ -16,11 +16,15 @@ import {
   getAttacksForBattle,
   getUnlockedTopics,
   pickMonster,
-  scrollBattleEffect,
   SCROLL_EFFECT_LABELS,
   STREAK_CRIT_MULT,
   STREAK_CRIT_THRESHOLD,
 } from '@/lib/battle-config'
+import {
+  BATTLE_CONSUMABLES,
+  parseConsumables,
+  type ConsumableInventory,
+} from '@/lib/battle-consumables'
 import {
   computeBattleBonuses,
   defaultSkillNodes,
@@ -37,12 +41,6 @@ import { answersMatch } from '@/lib/scroll-display'
 import { shuffleQuestions } from '@/lib/shuffle-question'
 
 type Phase = 'choose_attack' | 'player_attack' | 'monster_attack' | 'result_flash'
-
-type BattleScroll = {
-  userScrollId: number
-  title: string
-  effect: ScrollBattleEffect
-}
 
 function BattleContent() {
   const router = useRouter()
@@ -76,8 +74,8 @@ function BattleContent() {
   const [timer, setTimer] = useState(15)
   const [flashMsg, setFlashMsg] = useState('')
   const [flashColor, setFlashColor] = useState('')
-  const [battleScrolls, setBattleScrolls] = useState<BattleScroll[]>([])
-  const [scrollUsed, setScrollUsed] = useState(false)
+  const [consumables, setConsumables] = useState<ConsumableInventory>({ hint: 0, power: 0, shield: 0 })
+  const [consumableUsed, setConsumableUsed] = useState(false)
   const [hintActive, setHintActive] = useState(false)
   const [powerBuff, setPowerBuff] = useState(false)
   const [shieldActive, setShieldActive] = useState(false)
@@ -141,7 +139,7 @@ function BattleContent() {
       ]
       const bank: Record<string, any[]> = {}
       for (const d of dungeonsToLoad) {
-        const { data } = await supabase.from('questions').select('*').eq('dungeon_name', d).limit(30)
+        const { data } = await supabase.from('questions').select('*').eq('dungeon_name', d).limit(120)
         const merged = mergeWithFallback(d, data || []).map(normalizeQuestionDifficulty)
         bank[d] = shuffleQuestions(merged)
       }
@@ -155,24 +153,10 @@ function BattleContent() {
       setCurrentUser(user)
 
       if (user) {
-        const { data: ud } = await supabase.from('users').select('level').eq('id', user.id).single()
+        const { data: ud } = await supabase.from('users').select('level, consumables').eq('id', user.id).single()
         const lvl = ud?.level || 1
         setUserLevel(lvl)
-
-        const { data: us } = await supabase
-          .from('user_scrolls')
-          .select('id, scroll_id, scrolls(title, level)')
-          .eq('user_id', user.id)
-
-        const scrolls: BattleScroll[] = (us || [])
-          .filter((row: any) => row.scrolls && (row.scrolls.level || 1) <= lvl)
-          .slice(0, 6)
-          .map((row: any) => ({
-            userScrollId: row.id,
-            title: row.scrolls.title,
-            effect: scrollBattleEffect(row.scrolls),
-          }))
-        setBattleScrolls(scrolls)
+        setConsumables(parseConsumables(ud?.consumables))
 
         const allNodes = defaultSkillNodes()
         const { data: dbNodes } = await supabase.from('skill_tree_nodes').select('*')
@@ -276,16 +260,20 @@ function BattleContent() {
     setPhase('player_attack')
   }
 
-  async function useScroll(bs: BattleScroll) {
-    if (scrollUsed || phase !== 'choose_attack') return
-    setScrollUsed(true)
-    await supabase.from('user_scrolls').delete().eq('id', bs.userScrollId)
-    setBattleScrolls(prev => prev.filter(s => s.userScrollId !== bs.userScrollId))
+  async function useConsumable(effect: ScrollBattleEffect) {
+    if (consumableUsed || phase !== 'choose_attack') return
+    if (consumables[effect] <= 0) return
+    if (!currentUser) return
 
-    if (bs.effect === 'hint') setHintActive(true)
-    if (bs.effect === 'power') setPowerBuff(true)
-    if (bs.effect === 'shield') setShieldActive(true)
-    flash(`${SCROLL_EFFECT_LABELS[bs.effect].icon} ${SCROLL_EFFECT_LABELS[bs.effect].label}!`, '#a99fff', () => setPhase('choose_attack'))
+    const newInv = { ...consumables, [effect]: consumables[effect] - 1 }
+    setConsumableUsed(true)
+    setConsumables(newInv)
+    await supabase.from('users').update({ consumables: newInv }).eq('id', currentUser.id)
+
+    if (effect === 'hint') setHintActive(true)
+    if (effect === 'power') setPowerBuff(true)
+    if (effect === 'shield') setShieldActive(true)
+    flash(`${SCROLL_EFFECT_LABELS[effect].icon} ${SCROLL_EFFECT_LABELS[effect].label}!`, '#a99fff', () => setPhase('choose_attack'))
   }
 
   function calcDamage(base: number, isCrit: boolean, isSpell = false) {
@@ -540,7 +528,7 @@ function BattleContent() {
             </div>
             <div style={{ fontSize: '10px', color: '#8a849c' }}>{STREAK_CRIT_THRESHOLD} верных → ×{STREAK_CRIT_MULT} урон</div>
           </div>
-          {powerBuff && <div style={{ marginTop: '6px', fontSize: '11px', color: '#e0bc6a' }}>⚡ Свиток: ×2 урон</div>}
+          {powerBuff && <div style={{ marginTop: '6px', fontSize: '11px', color: '#e0bc6a' }}>⚡ Расходник: ×2 урон</div>}
           {shieldActive && <div style={{ marginTop: '4px', fontSize: '11px', color: '#a99fff' }}>🛡 Щит активен</div>}
           {skillBonuses.unlockedNames.length > 0 && (
             <div style={{ marginTop: '8px', fontSize: '10px', color: '#7b6cff', lineHeight: 1.5 }}>
@@ -551,25 +539,30 @@ function BattleContent() {
         </div>
 
         <div>
-          <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.2em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '8px' }}>Свитки</div>
-          {battleScrolls.length === 0 ? (
-            <div style={{ fontSize: '11px', color: '#5a5670', lineHeight: 1.5 }}>Купи в Лавке — один свиток за бой</div>
-          ) : (
-            battleScrolls.map(bs => (
+          <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.2em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '8px' }}>Расходники</div>
+          <div style={{ fontSize: '10px', color: '#5a5670', marginBottom: '6px', lineHeight: 1.4 }}>Один за бой · в Лавке</div>
+          {BATTLE_CONSUMABLES.map(c => {
+            const meta = SCROLL_EFFECT_LABELS[c.effect]
+            const qty = consumables[c.effect]
+            const canUse = qty > 0 && !consumableUsed && phase === 'choose_attack'
+            return (
               <div
-                key={bs.userScrollId}
-                onClick={() => !scrollUsed && phase === 'choose_attack' && useScroll(bs)}
+                key={c.effect}
+                onClick={() => canUse && useConsumable(c.effect)}
                 style={{
-                  padding: '8px 10px', marginBottom: '4px', background: scrollUsed ? '#161820' : '#1c1f2a',
-                  border: `1px solid ${scrollUsed ? 'rgba(255,255,255,0.04)' : 'rgba(169,159,255,0.25)'}`,
-                  borderRadius: '7px', cursor: scrollUsed ? 'default' : 'pointer', opacity: scrollUsed ? 0.4 : 1,
+                  padding: '8px 10px', marginBottom: '4px', background: canUse ? '#1c1f2a' : '#161820',
+                  border: `1px solid ${canUse ? 'rgba(169,159,255,0.25)' : 'rgba(255,255,255,0.04)'}`,
+                  borderRadius: '7px', cursor: canUse ? 'pointer' : 'default', opacity: qty === 0 ? 0.35 : consumableUsed ? 0.45 : 1,
                 }}
               >
-                <div style={{ fontSize: '12px', color: '#c8c0d8' }}>{SCROLL_EFFECT_LABELS[bs.effect].icon} {bs.title}</div>
-                <div style={{ fontSize: '10px', color: '#8a849c' }}>{SCROLL_EFFECT_LABELS[bs.effect].desc}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px' }}>
+                  <div style={{ fontSize: '12px', color: '#c8c0d8' }}>{meta.icon} {c.name}</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '10px', color: qty > 0 ? '#a99fff' : '#5a5670' }}>×{qty}</div>
+                </div>
+                <div style={{ fontSize: '10px', color: '#8a849c' }}>{c.shortDesc}</div>
               </div>
-            ))
-          )}
+            )
+          })}
         </div>
 
         <div onClick={() => setHardMode(!hardMode)} style={{ padding: '7px 10px', background: hardMode ? 'rgba(201,168,76,0.12)' : '#1c1f2a', border: `1px solid ${hardMode ? 'rgba(201,168,76,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '7px', fontFamily: 'monospace', fontSize: '11px', color: hardMode ? '#e0bc6a' : '#8a849c', cursor: 'pointer', textAlign: 'center' }}>

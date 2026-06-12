@@ -1,0 +1,32 @@
+[
+  {
+    "dungeon_name": "Пещера сложения",
+    "slug": "pechera-slozheniya",
+    "file": "pechera-slozheniya.json",
+    "count": 100
+  },
+  {
+    "dungeon_name": "Пещера вычитания",
+    "slug": "pechera-vychitaniya",
+    "file": "pechera-vychitaniya.json",
+    "count": 100
+  },
+  {
+    "dungeon_name": "Башня умножения",
+    "slug": "bashnya-umnozheniya",
+    "file": "bashnya-umnozheniya.json",
+    "count": 100
+  },
+  {
+    "dungeon_name": "Пещера деления",
+    "slug": "pechera-deleniya",
+    "file": "pechera-deleniya.json",
+    "count": 100
+  },
+  {
+    "dungeon_name": "Храм дробей",
+    "slug": "hram-drobei",
+    "file": "hram-drobei.json",
+    "count": 100
+  }
+]

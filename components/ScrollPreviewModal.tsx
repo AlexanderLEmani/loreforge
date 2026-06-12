@@ -2,7 +2,6 @@
 
 import {
   scrollCombatTeaser,
-  scrollEffectMeta,
   scrollPreviewExampleLine,
   scrollTeaserText,
 } from '@/lib/scroll-display'
@@ -30,7 +29,6 @@ export default function ScrollPreviewModal({
   onBuy,
   onOpenGrimoire,
 }: Props) {
-  const effect = scrollEffectMeta(scroll)
   const exampleLine = scrollPreviewExampleLine(scroll)
 
   return (
@@ -66,24 +64,6 @@ export default function ScrollPreviewModal({
         <h2 style={{ color: c.accent, fontSize: '22px', margin: '0 0 4px' }}>{scroll.title}</h2>
         <div style={{ color: '#6b5a45', fontSize: '13px', fontStyle: 'italic', marginBottom: '12px' }}>{scroll.subtitle}</div>
 
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '6px 12px',
-            background: 'rgba(123,108,255,0.12)',
-            border: '1px solid rgba(123,108,255,0.35)',
-            borderRadius: '8px',
-            marginBottom: '14px',
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: '#a99fff',
-          }}
-        >
-          {effect.icon} В бою: {effect.label} — {effect.desc}
-        </div>
-
         {scroll.body && (
           <p style={{ color: '#b8a888', fontSize: '14px', lineHeight: 1.7, marginBottom: '12px' }}>
             {scrollTeaserText(scroll.body)}
@@ -114,7 +94,7 @@ export default function ScrollPreviewModal({
         )}
 
         <p style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic', marginBottom: '16px', lineHeight: 1.5 }}>
-          Полный разбор, все шаги и использование в бою — в Гримуаре после покупки.
+          Полный разбор и все шаги — в Гримуаре после покупки. Бафы в данже — отдельные расходники в Лавке.
         </p>
 
         <div style={{ display: 'flex', gap: '8px' }}>

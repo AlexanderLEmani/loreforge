@@ -147,15 +147,6 @@ export function getAttacksForBattle(
   }))
 }
 
-export function scrollBattleEffect(scroll: { title?: string; level?: number }): ScrollBattleEffect {
-  const t = (scroll.title || '').toLowerCase()
-  if (t.includes('щит') || t.includes('защит') || t.includes('барьер')) return 'shield'
-  if (t.includes('подсказ') || t.includes('метод') || t.includes('лайфхак')) return 'hint'
-  if ((scroll.level ?? 1) <= 1) return 'hint'
-  if ((scroll.level ?? 1) >= 3) return 'shield'
-  return 'power'
-}
-
 export const SCROLL_EFFECT_LABELS: Record<ScrollBattleEffect, { label: string; icon: string; desc: string }> = {
   hint: { label: 'Подсказка', icon: '💡', desc: 'Подсветит верный ответ' },
   power: { label: 'Мощь', icon: '⚡', desc: '×2 урон следующей атаки' },

@@ -6,7 +6,12 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import ScrollPreviewModal from '@/components/ScrollPreviewModal'
 import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
-import { scrollEffectMeta } from '@/lib/scroll-display'
+import {
+  BATTLE_CONSUMABLES,
+  consumableMeta,
+  parseConsumables,
+  type ConsumableInventory,
+} from '@/lib/battle-consumables'
 
 const levelColors: Record<number, { border: string; accent: string; bg: string; tag: string }> = {
   1: { border: '#5a3e2b', accent: '#c9a45a', bg: '#1a1008', tag: '#3d2a14' },
@@ -22,6 +27,8 @@ export default function ShopPage() {
   const [scrolls, setScrolls] = useState<any[]>([])
   const [owned, setOwned] = useState<number[]>([])
   const [buying, setBuying] = useState<number | null>(null)
+  const [buyingConsumable, setBuyingConsumable] = useState<string | null>(null)
+  const [consumables, setConsumables] = useState<ConsumableInventory>({ hint: 0, power: 0, shield: 0 })
   const [filterLevel, setFilterLevel] = useState(1)
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
@@ -33,8 +40,9 @@ export default function ShopPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
 
-      const { data } = await supabase.from('users').select(USER_NAV_SELECT).eq('id', user.id).single()
+      const { data } = await supabase.from('users').select(`${USER_NAV_SELECT}, consumables`).eq('id', user.id).single()
       setUserData({ ...data, id: user.id })
+      setConsumables(parseConsumables(data?.consumables))
       if (data && !data.visited_shop) {
         setShowHelp(true)
         await supabase.from('users').update({ visited_shop: true }).eq('id', user.id)
@@ -68,6 +76,24 @@ export default function ShopPage() {
     setBuying(null)
     setPreviewScroll(null)
     setToast(`Свиток «${scroll.title}» добавлен в Гримуар`)
+    setTimeout(() => setToast(null), 2500)
+  }
+
+  async function buyConsumable(effect: string, name: string, cost: number) {
+    if (!userData || buyingConsumable) return
+    if ((userData.gold || 0) < cost) {
+      setToast('Недостаточно золота')
+      setTimeout(() => setToast(null), 2000)
+      return
+    }
+    setBuyingConsumable(effect)
+    const newGold = userData.gold - cost
+    const newInv = { ...consumables, [effect]: consumables[effect as keyof ConsumableInventory] + 1 }
+    await supabase.from('users').update({ gold: newGold, consumables: newInv }).eq('id', userData.id)
+    setUserData({ ...userData, gold: newGold })
+    setConsumables(newInv)
+    setBuyingConsumable(null)
+    setToast(`${name} +1 (в запасе: ${newInv[effect as keyof ConsumableInventory]})`)
     setTimeout(() => setToast(null), 2500)
   }
 
@@ -114,9 +140,43 @@ export default function ShopPage() {
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Лавка магических знаний</div>
             <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '4px' }}>Свитки техник</div>
             <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic' }}>
-              За золото — методы быстрого счёта. Превью перед покупкой; полный свиток и бой — в Гримуаре.
+              Свитки — знания в Гримуаре. Расходники — одноразовые бафы в данже (один за бой).
             </div>
           </div>
+
+          <div style={{ marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>Расходники для данжа</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              {BATTLE_CONSUMABLES.map(c => {
+                const meta = consumableMeta(c.effect)
+                const canAfford = (userData?.gold || 0) >= c.cost
+                const qty = consumables[c.effect]
+                return (
+                  <div key={c.effect} style={{ background: '#141820', border: '1px solid rgba(169,159,255,0.2)', borderRadius: '8px', padding: '14px' }}>
+                    <div style={{ fontSize: '20px', marginBottom: '6px' }}>{meta.icon}</div>
+                    <div style={{ fontSize: '13px', color: '#c8c0d8', marginBottom: '2px' }}>{c.name}</div>
+                    <div style={{ fontSize: '10px', color: '#8a849c', marginBottom: '8px', lineHeight: 1.4 }}>{c.shortDesc}</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#a99fff', marginBottom: '8px' }}>В запасе: ×{qty}</div>
+                    <div
+                      onClick={() => buyConsumable(c.effect, c.name, c.cost)}
+                      style={{
+                        padding: '8px', textAlign: 'center', borderRadius: '6px', fontFamily: 'monospace', fontSize: '10px',
+                        background: canAfford ? 'rgba(169,159,255,0.12)' : 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${canAfford ? 'rgba(169,159,255,0.35)' : 'rgba(255,255,255,0.06)'}`,
+                        color: canAfford ? '#a99fff' : '#3a3650',
+                        cursor: canAfford ? 'pointer' : 'default',
+                        opacity: buyingConsumable === c.effect ? 0.5 : 1,
+                      }}
+                    >
+                      {buyingConsumable === c.effect ? '...' : `💰 ${c.cost}`}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div style={{ fontFamily: 'serif', fontSize: '20px', color: '#e0bc6a', marginBottom: '1rem' }}>Свитки техник</div>
 
           <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem' }}>
             {availableLevels.map(lv => {
@@ -136,15 +196,9 @@ export default function ShopPage() {
               const c = levelColors[s.level] || levelColors[1]
               const isOwned = owned.includes(s.id)
               const canAfford = (userData?.gold || 0) >= s.cost
-              const effect = scrollEffectMeta(s)
               return (
                 <div key={s.id} style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: '8px', padding: '16px 18px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
-                    <div style={{ fontSize: '9px', color: c.accent, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.7 }}>Ур.{s.level}</div>
-                    <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#a99fff', whiteSpace: 'nowrap' }}>
-                      {effect.icon} {effect.label}
-                    </div>
-                  </div>
+                  <div style={{ fontSize: '9px', color: c.accent, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.7, marginBottom: '6px' }}>Ур.{s.level} · Гримуар</div>
                   <div style={{ color: c.accent, fontSize: '15px', fontWeight: 'bold', marginBottom: '3px' }}>{s.title}</div>
                   <div style={{ color: '#6b5a45', fontSize: '11px', fontStyle: 'italic', marginBottom: '10px' }}>{s.subtitle}</div>
 
@@ -205,8 +259,8 @@ export default function ShopPage() {
           <div style={{ background: '#1c1f2a', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '16px', padding: '2rem', maxWidth: '460px', width: '100%' }}>
             <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#e0bc6a', marginBottom: '12px' }}>Лавка свитков</div>
             <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
-              «Просмотр» показывает тизер: о чём техника и что даёт в бою.
-              После покупки полный свиток — в Гримуаре, там же берёшь его в данж.
+              Свитки — постоянные знания в Гримуаре: методы и примеры для учёбы.
+              Расходники — отдельные одноразовые бафы в данже (один за бой), купи их выше.
             </div>
             <div onClick={() => setShowHelp(false)}
               style={{ width: '100%', padding: '14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#e0bc6a', cursor: 'pointer' }}>

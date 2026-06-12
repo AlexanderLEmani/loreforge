@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
-import { scrollEffectMeta } from '@/lib/scroll-display'
 
 const levelColors: Record<number, { border: string; accent: string; bg: string; tag: string }> = {
   1: { border: '#5a3e2b', accent: '#c9a45a', bg: '#1a1008', tag: '#3d2a14' },
@@ -178,17 +177,13 @@ export default function GrimoirePage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               {filtered.map(s => {
                 const c = levelColors[s.level] || levelColors[1]
-                const effect = scrollEffectMeta(s)
                 return (
                   <div key={s.id} onClick={() => setSelected(s)}
                     style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: '8px', padding: '16px 18px', cursor: 'pointer', transition: 'all 0.2s' }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = c.accent; (e.currentTarget as HTMLElement).style.boxShadow = `0 0 20px ${c.accent}22` }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = c.border; (e.currentTarget as HTMLElement).style.boxShadow = 'none' }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
-                      <div style={{ fontSize: '9px', color: c.accent, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.7 }}>Ур.{s.level}</div>
-                      <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#a99fff' }}>{effect.icon} {effect.label}</div>
-                    </div>
+                    <div style={{ fontSize: '9px', color: c.accent, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.7, marginBottom: '6px' }}>Ур.{s.level}</div>
                     <div style={{ color: c.accent, fontSize: '15px', fontWeight: 'bold', marginBottom: '3px' }}>{s.title}</div>
                     <div style={{ color: '#6b5a45', fontSize: '11px', fontStyle: 'italic' }}>{s.subtitle}</div>
                   </div>

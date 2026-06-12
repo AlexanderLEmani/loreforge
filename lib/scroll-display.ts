@@ -1,10 +1,3 @@
-import { scrollBattleEffect, SCROLL_EFFECT_LABELS } from '@/lib/battle-config'
-
-export function scrollEffectMeta(scroll: { title?: string; level?: number }) {
-  const key = scrollBattleEffect(scroll)
-  return SCROLL_EFFECT_LABELS[key]
-}
-
 export function scrollTeaserText(body?: string, maxLen = 120): string {
   if (!body) return ''
   const t = body.trim()
@@ -50,7 +43,6 @@ export function answersMatch(player: string, correct: string): boolean {
   const a = norm(player)
   const b = norm(correct)
   if (a === b) return true
-  // 1/2 vs ½ — только если совпадают как числа
   const na = parseFloat(a)
   const nb = parseFloat(b)
   if (!Number.isNaN(na) && !Number.isNaN(nb) && na === nb) return true
