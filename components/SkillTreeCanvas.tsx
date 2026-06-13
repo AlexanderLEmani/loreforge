@@ -79,14 +79,14 @@ export default function SkillTreeCanvas({
 
     const xs = target.map(n => n.position_x)
     const ys = target.map(n => n.position_y)
-    const margin = compact ? 44 : 120
+    const margin = compact ? 56 : 120
     const minX = Math.min(...xs) - margin
     const maxX = Math.max(...xs) + margin
     const minY = Math.min(...ys) - margin
     const maxY = Math.max(...ys) + margin
     const w = maxX - minX
     const h = maxY - minY
-    const pad = fitAll ? 16 : 40
+    const pad = fitAll ? 24 : 40
     const scaleX = (container.clientWidth - pad * 2) / w
     const scaleY = (container.clientHeight - pad * 2) / h
     const maxScale = fitAll ? 1.05 : 1.4

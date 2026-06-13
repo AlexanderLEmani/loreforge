@@ -85,26 +85,26 @@ function layoutCompactOverview(nodes: SkillTreeNode[]): SkillTreeNode[] {
   })
 }
 
-/** Мобилка: одна тема — лестница вокруг CY, узлы внутри радиуса ~200. */
+/** Мобилка: одна тема — лестница вокруг CY, узлы внутри радиуса ~210. */
 function layoutBranchDetail(nodes: SkillTreeNode[], branch: SkillBranch): SkillTreeNode[] {
   const branchIndex = BRANCH_ORDER.indexOf(branch)
   const baseId = BRANCH_ROOT_IDS[branchIndex]
 
   const pos: Record<number, { x: number; y: number }> = {
-    [baseId]: { x: CX, y: CY - 28 },
-    [baseId + 6]: { x: CX, y: CY - 168 },
-    [baseId + 1]: { x: CX - 68, y: CY - 72 },
-    [baseId + 2]: { x: CX - 74, y: CY - 108 },
-    [baseId + 3]: { x: CX - 78, y: CY - 132 },
-    [baseId + 4]: { x: CX + 68, y: CY - 72 },
-    [baseId + 5]: { x: CX + 74, y: CY - 108 },
+    [baseId]: { x: CX, y: CY - 38 },
+    [baseId + 6]: { x: CX, y: CY - 205 },
+    [baseId + 1]: { x: CX - 74, y: CY - 88 },
+    [baseId + 2]: { x: CX - 82, y: CY - 128 },
+    [baseId + 3]: { x: CX - 88, y: CY - 168 },
+    [baseId + 4]: { x: CX + 74, y: CY - 88 },
+    [baseId + 5]: { x: CX + 82, y: CY - 128 },
   }
 
   const prevPassiveId = branchIndex > 0 ? BRANCH_PASSIVE_IDS[branchIndex - 1] : null
 
   return nodes.map(n => {
     if (prevPassiveId !== null && n.id === prevPassiveId) {
-      return { ...n, position_x: CX, position_y: CY + 18 }
+      return { ...n, position_x: CX, position_y: CY + 24 }
     }
     const p = pos[n.id]
     if (p) return { ...n, position_x: p.x, position_y: p.y }
@@ -135,7 +135,7 @@ export function applyRadialSkillLayout(
     laid = laid.map(n => (n.id === 1 ? { ...n, requires: 0 } : n))
   }
 
-  return [{ ...SKILL_TREE_CENTER, position_x: CX, position_y: mode === 'compact-detail' ? CY + 58 : CY }, ...laid]
+  return [{ ...SKILL_TREE_CENTER, position_x: CX, position_y: mode === 'compact-detail' ? CY + 68 : CY }, ...laid]
 }
 
 export function visibleSkillNodes(
@@ -200,4 +200,4 @@ export function branchWedgeAngles(): Array<{ branch: SkillBranch; start: number;
 }
 
 export const SKILL_TREE_LAYOUT_RADIUS = 250
-export const SKILL_TREE_DETAIL_RADIUS = 195
+export const SKILL_TREE_DETAIL_RADIUS = 215
