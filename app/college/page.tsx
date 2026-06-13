@@ -15,6 +15,7 @@ import {
   resolveLecture,
   type Lecture,
 } from '@/lib/college-lectures'
+import { canTakeExam, isV1Graduate, V1_COMPLETE_DESC, V1_COMPLETE_TITLE } from '@/lib/v1-cap'
 
 const LEVEL_SPELLS: Record<number, [string, string, string][]> = {
   1: [['➕', 'Сложение', '#3db87a'], ['➖', 'Вычитание', '#3db87a']],
@@ -27,7 +28,7 @@ const NEXT_TOPIC: Record<number, string> = {
   1: 'Пройди данжи уровня 1 чтобы открыть Лекцию II и получить заклинания умножения.',
   2: 'Пройди данжи уровня 2 чтобы открыть Лекцию III и получить заклинания дробей.',
   3: 'Пройди данжи уровня 3 чтобы открыть Лекцию IV и получить заклинания процентов.',
-  4: 'Это последняя доступная лекция. Скоро здесь появится больше.',
+  4: 'Это последняя лекция курса арифметики. Тренировка на % → Рынок процентов → экзамен IV — дальше твой собственный путь.',
 }
 
 export default function CollegePage() {
@@ -128,6 +129,9 @@ export default function CollegePage() {
   const xpBase = xpThresholds[level - 1] || 0
   const xpNext = xpToNext[level - 1] || 100
   const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
+  const examReady = xpCurrent >= xpNext
+  const v1Done = isV1Graduate(level)
+  const showExamCta = canTakeExam(level, examReady)
 
   const canGoPrev = selectedLectureLevel > 1 && isLectureUnlocked(selectedLectureLevel - 1, level)
   const canGoNext = selectedLectureLevel < 4 && isLectureUnlocked(selectedLectureLevel + 1, level)
@@ -310,10 +314,15 @@ export default function CollegePage() {
             <div style={{ background: 'rgba(123,108,255,0.06)', border: '1px solid rgba(123,108,255,0.2)', borderRadius: '9px', padding: '10px 12px' }}>
               <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#a99fff', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '8px' }}>Прогресс к экзамену</div>
               <div style={{ height: '4px', background: '#171920', borderRadius: '2px', overflow: 'hidden', marginBottom: '5px' }}>
-                <div style={{ height: '100%', background: xpCurrent >= xpNext ? '#e0bc6a' : '#7b6cff', width: `${Math.min((xpCurrent / xpNext) * 100, 100)}%`, transition: 'width 0.4s' }}></div>
+                <div style={{ height: '100%', background: v1Done ? '#3db87a' : examReady ? '#e0bc6a' : '#7b6cff', width: `${Math.min((xpCurrent / xpNext) * 100, 100)}%`, transition: 'width 0.4s' }}></div>
               </div>
               <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#8a849c', marginBottom: '8px' }}>{xpCurrent} / {xpNext} XP</div>
-              {xpCurrent >= xpNext ? (
+              {v1Done ? (
+                <div style={{ fontSize: '11px', color: '#3db87a', lineHeight: 1.55 }}>
+                  <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#3db87a', marginBottom: '4px' }}>{V1_COMPLETE_TITLE}</div>
+                  {V1_COMPLETE_DESC}
+                </div>
+              ) : showExamCta ? (
                 <div onClick={() => router.push(`/exam?level=${level}`)}
                   style={{ padding: '8px', background: 'rgba(224,188,106,0.12)', border: '1px solid rgba(224,188,106,0.4)', borderRadius: '7px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px', color: '#e0bc6a', cursor: 'pointer' }}>
                   🎓 Сдать экзамен

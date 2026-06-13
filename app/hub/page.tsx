@@ -20,6 +20,7 @@ import { navUnlockFromUser } from '@/lib/nav-unlock'
 import { buildHubDailyQuests, type DailyQuest } from '@/lib/daily-quests'
 import { todayIso } from '@/lib/guild-quests'
 import { syncQuestRewards, withHubClaimed } from '@/lib/quest-rewards'
+import { canTakeExam, isV1Graduate, V1_COMPLETE_DESC, V1_COMPLETE_TITLE } from '@/lib/v1-cap'
 
 export default function Hub() {
   const supabase = createClient()
@@ -121,6 +122,8 @@ export default function Hub() {
   const xpNext = xpToNext[level - 1] || 100
   const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
   const examReady = xpCurrent >= xpNext
+  const v1Done = isV1Graduate(level)
+  const showExamCta = canTakeExam(level, examReady)
   const onboardCtx = {
     onboarding_step: userData?.onboarding_step || 0,
     quest_first_dungeon: !!userData?.quest_first_dungeon,
@@ -273,8 +276,16 @@ export default function Hub() {
           </div>
         )}
 
-        {/* Кнопка экзамена */}
-        {examReady && (
+        {/* Кнопка экзамена / финал v1 */}
+        {v1Done && (
+          <div style={{ background: 'rgba(61,184,122,0.08)', border: '1px solid rgba(61,184,122,0.35)', borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
+            <div style={{ fontSize: '28px', marginBottom: '8px' }}>🏁</div>
+            <div style={{ fontFamily: 'serif', fontSize: '15px', color: '#3db87a', marginBottom: '6px' }}>{V1_COMPLETE_TITLE}</div>
+            <div style={{ fontSize: '12px', color: '#9590a8', lineHeight: 1.65, fontStyle: 'italic' }}>{V1_COMPLETE_DESC}</div>
+          </div>
+        )}
+
+        {showExamCta && (
           <div onClick={() => router.push(`/exam?level=${level}`)}
             style={{ background: 'rgba(224,188,106,0.08)', border: '1px solid rgba(224,188,106,0.4)', borderRadius: '10px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', marginBottom: '1.25rem' }}>
             <div style={{ fontSize: '28px' }}>🎓</div>
@@ -294,7 +305,9 @@ export default function Hub() {
           <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: '#171920', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>∑</div>
           <div>
             <div style={{ fontFamily: 'serif', fontSize: '15px', color: '#e6e2f0', marginBottom: '5px' }}>Математика</div>
-            <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic', marginBottom: '7px' }}>Арифметика → Алгебра → Тригонометрия → Мат.анализ</div>
+            <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic', marginBottom: '7px' }}>
+              {v1Done ? 'Арифметика v1 ✓ · дальше — практика и мастерство' : 'Арифметика → Алгебра (скоро)'}
+            </div>
             <div style={{ height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden', marginBottom: '3px' }}>
               <div style={{ height: '100%', background: '#c9a84c', borderRadius: '2px', width: `${Math.min((xpCurrent / xpNext) * 100, 100)}%` }}></div>
             </div>
@@ -311,7 +324,11 @@ export default function Hub() {
               <div key={c} style={{ marginBottom: '4px' }}>· {c}</div>
             ))}
           </div>
-          {nextPlan && (
+          {v1Done ? (
+            <div style={{ fontSize: '11px', color: '#3db87a', fontStyle: 'italic' }}>
+              Курс арифметики v1 пройден. Экзамен V — в следующем обновлении.
+            </div>
+          ) : nextPlan && (
             <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic' }}>
               До ур. {nextPlan.level} «{nextPlan.title}»: {examReady ? 'готов к экзамену' : `${xpNext - xpCurrent} XP`}
             </div>

@@ -44,10 +44,10 @@ export const EXAM_BY_LEVEL: Record<number, ExamLevelConfig> = {
   },
 }
 
-export function examConfigForLevel(examLevel: number): ExamLevelConfig {
-  return EXAM_BY_LEVEL[examLevel] ?? EXAM_BY_LEVEL[1]
+export function examConfigForLevel(examLevel: number): ExamLevelConfig | null {
+  return EXAM_BY_LEVEL[examLevel] ?? null
 }
 
 export function dungeonsForExam(examLevel: number): string[] {
-  return examConfigForLevel(examLevel).dungeons
+  return examConfigForLevel(examLevel)?.dungeons ?? []
 }

@@ -7,6 +7,13 @@ import { SKILL_POINTS_PER_LEVEL } from '@/lib/skill-points'
 import { mergeWithFallback } from '@/lib/fallback-questions'
 import { dungeonsForExam, examConfigForLevel } from '@/lib/exam-config'
 import { answersMatch, sanitizeAnswerInput } from '@/lib/scroll-display'
+import {
+  isValidExamLevel,
+  V1_COMPLETE_DESC,
+  V1_COMPLETE_TITLE,
+  V1_GRADUATE_PLAYER_LEVEL,
+  V1_MAX_EXAM_LEVEL,
+} from '@/lib/v1-cap'
 
 const XP_THRESHOLDS = [0, 100, 250, 500, 900, 1400, 2000, 2700, 3500, 4400, 5400]
 
@@ -29,9 +36,14 @@ function ExamContent() {
   const [skillPointsEarned, setSkillPointsEarned] = useState(0)
 
   const examCfg = examConfigForLevel(examLevel)
+  const examAllowed = isValidExamLevel(examLevel) && examCfg
 
   useEffect(() => {
     async function load() {
+      if (!examAllowed) {
+        setLoading(false)
+        return
+      }
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
       setUser(user)
@@ -52,9 +64,27 @@ function ExamContent() {
       setLoading(false)
     }
     load()
-  }, [examLevel])
+  }, [examLevel, examAllowed])
 
   const q = questions[current]
+
+  function v1BlockedScreen() {
+    return (
+      <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+        <div style={{ maxWidth: '520px', width: '100%', textAlign: 'center' }}>
+          <div style={{ fontSize: '56px', marginBottom: '1rem' }}>🏁</div>
+          <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '10px' }}>{V1_COMPLETE_TITLE}</div>
+          <div style={{ fontSize: '14px', color: '#9590a8', lineHeight: 1.7, marginBottom: '1.5rem' }}>{V1_COMPLETE_DESC}</div>
+          <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic', marginBottom: '1.5rem' }}>
+            Экзамены I–IV — весь курс v1. Экзамен V появится в следующем обновлении.
+          </div>
+          <div onClick={() => router.push('/hub')} style={{ padding: '14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', color: '#e0bc6a', cursor: 'pointer' }}>
+            → В хаб
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   async function handleAnswerText() {
     if (selected !== null || !inputAnswer.trim() || !q) return
@@ -85,20 +115,23 @@ function ExamContent() {
     setPhase('result')
 
     if (passed && user) {
-      const newLevel = examLevel + 1
-      const newXP = XP_THRESHOLDS[newLevel - 1] || 0
       const { data: ud } = await supabase
         .from('users')
-        .select('skill_points')
+        .select('skill_points, level')
         .eq('id', user.id)
         .single()
-      const newSkillPoints = (ud?.skill_points ?? 0) + SKILL_POINTS_PER_LEVEL
-      setSkillPointsEarned(SKILL_POINTS_PER_LEVEL)
-      await supabase.from('users').update({
-        level: newLevel,
-        xp: newXP,
-        skill_points: newSkillPoints,
-      }).eq('id', user.id)
+      const currentLevel = ud?.level ?? 1
+      const targetLevel = Math.min(examLevel + 1, V1_GRADUATE_PLAYER_LEVEL)
+      if (currentLevel < targetLevel) {
+        const newXP = XP_THRESHOLDS[targetLevel - 1] || 0
+        const newSkillPoints = (ud?.skill_points ?? 0) + SKILL_POINTS_PER_LEVEL
+        setSkillPointsEarned(SKILL_POINTS_PER_LEVEL)
+        await supabase.from('users').update({
+          level: targetLevel,
+          xp: newXP,
+          skill_points: newSkillPoints,
+        }).eq('id', user.id)
+      }
     }
   }
 
@@ -107,6 +140,8 @@ function ExamContent() {
       Готовим экзамен...
     </div>
   )
+
+  if (!examAllowed) return v1BlockedScreen()
 
   // ИНТРО
   if (phase === 'intro') return (
@@ -177,7 +212,9 @@ function ExamContent() {
             <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#e0bc6a', marginBottom: '6px' }}>ПРОФЕССОР ГОРУС</div>
             <div style={{ fontSize: '14px', color: '#c8c0d8', fontStyle: 'italic', lineHeight: 1.6 }}>
               {finalPassed
-                ? `"${finalCorrect} из ${answers.length}. Неплохо. Не скажу что впечатлён, но уровень ${examLevel + 1} ты заслужил. Иди. Тебя ждут более серьёзные задачи."`
+                ? examLevel === V1_MAX_EXAM_LEVEL
+                  ? `"${finalCorrect} из ${answers.length}. На этот раз без сарказма: арифметика v1 закрыта. От «два плюс два» до процентов — целиком. Дальше твой путь: данжи, тренировка, мастерство. Смешанные действия и алгебра — другая книга."`
+                  : `"${finalCorrect} из ${answers.length}. Неплохо. Не скажу что впечатлён, но уровень ${examLevel + 1} ты заслужил. Иди. Тебя ждут более серьёзные задачи."`
                 : `"${finalCorrect} из ${answers.length}. Позорище. Ты называешь это магией? Иди тренируйся. Вернёшься когда будешь готов."`
               }
             </div>
@@ -187,7 +224,11 @@ function ExamContent() {
         {finalPassed && (
           <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', padding: '1rem', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#e0bc6a', marginBottom: '4px' }}>ПОЛУЧЕНО</div>
-            <div style={{ fontSize: '16px', color: '#e6e2f0' }}>🎓 Уровень {examLevel + 1} разблокирован</div>
+            <div style={{ fontSize: '16px', color: '#e6e2f0' }}>
+              {examLevel === V1_MAX_EXAM_LEVEL
+                ? '🏁 Арифметика v1 завершена · выпускник'
+                : `🎓 Уровень ${examLevel + 1} разблокирован`}
+            </div>
             {skillPointsEarned > 0 && (
               <div style={{ fontSize: '16px', color: '#a99fff' }}>✦ +{skillPointsEarned} очка способностей</div>
             )}

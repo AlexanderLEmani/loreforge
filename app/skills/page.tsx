@@ -47,7 +47,7 @@ export default function SkillsPage() {
         .single()
 
       if (userError && userError.message.includes('skill_points')) {
-        setDbError('Колонка skill_points не найдена. Выполни supabase/skill_tree.sql в Supabase.')
+        setDbError('Колонка skill_points не найдена. Выполни npm run db:push в Supabase.')
       } else if (data) {
         setUserData({ ...data, id: user.id })
         if (!data.visited_skills) {
@@ -73,7 +73,7 @@ export default function SkillsPage() {
       setDemoMode(useDemo)
 
       if (nodesError) {
-        setDbError('Таблица skill_tree_nodes не найдена — показан прототип. Выполни supabase/skill_tree.sql в Supabase.')
+        setDbError('Таблица skill_tree_nodes пуста — показан прототип. Выполни npm run db:push (все миграции).')
       } else if (dbNodes.length === 0) {
         setDbError('Узлы в БД пусты — показан локальный прототип. Запусти: npm run db:apply')
       }

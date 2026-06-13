@@ -56,6 +56,28 @@ const DEFAULT_POOL: PoolEntry[] = [
   { kind: 'gold', weight: 8, goldMin: 10, goldMax: 22 },
 ]
 
+/** Ур.1 данжи — больше свитков, меньше дублей снаряжения */
+const TIER1_POOL: PoolEntry[] = [
+  { kind: 'scroll', weight: 36 },
+  { kind: 'equipment', weight: 28 },
+  { kind: 'consumable', weight: 14, consumable: 'hint' },
+  { kind: 'consumable', weight: 12, consumable: 'power' },
+  { kind: 'consumable', weight: 10, consumable: 'shield' },
+  { kind: 'consumable', weight: 5, consumable: 'heal' },
+  { kind: 'gold', weight: 10, goldMin: 8, goldMax: 18 },
+]
+
+/** Ур.2 — таблица и деление */
+const TIER2_POOL: PoolEntry[] = [
+  { kind: 'scroll', weight: 34 },
+  { kind: 'equipment', weight: 32 },
+  { kind: 'consumable', weight: 14, consumable: 'hint' },
+  { kind: 'consumable', weight: 12, consumable: 'power' },
+  { kind: 'consumable', weight: 10, consumable: 'shield' },
+  { kind: 'consumable', weight: 5, consumable: 'heal' },
+  { kind: 'gold', weight: 12, goldMin: 12, goldMax: 24 },
+]
+
 const FRACTION_POOL: PoolEntry[] = [
   { kind: 'equipment', weight: 42 },
   { kind: 'scroll', weight: 30 },
@@ -77,6 +99,8 @@ const PERCENT_POOL: PoolEntry[] = [
 ]
 
 function poolForDungeon(dungeonName: string): PoolEntry[] {
+  if (dungeonName === 'Пещера сложения' || dungeonName === 'Пещера вычитания') return TIER1_POOL
+  if (dungeonName === 'Башня умножения' || dungeonName === 'Пещера деления') return TIER2_POOL
   if (dungeonName === 'Храм дробей') return FRACTION_POOL
   if (dungeonName === 'Рынок процентов') return PERCENT_POOL
   return DEFAULT_POOL

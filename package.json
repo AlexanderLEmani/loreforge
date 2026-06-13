@@ -10,6 +10,7 @@
     "db:apply": "node scripts/apply-sql.mjs supabase/skill_tree.sql",
     "db:rls": "node scripts/apply-sql.mjs supabase/skill_tree_rls.sql",
     "db:push": "npx supabase db push",
+    "db:bootstrap": "npm run db:push",
     "questions:generate": "node scripts/generate-question-banks.mjs",
     "questions:seed": "node scripts/seed-questions.mjs"
   },
