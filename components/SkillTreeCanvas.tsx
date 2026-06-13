@@ -423,9 +423,10 @@ export default function SkillTreeCanvas({
   }
 
   function hitTest(wx: number, wy: number): number | null {
+    const pad = compact ? 16 : 8
     let best: { id: number; d: number } | null = null
     for (const node of nodes) {
-      const r = nodeRadius(node) + 6
+      const r = nodeRadius(node) + pad
       const dx = wx - node.position_x
       const dy = wy - node.position_y
       const d = dx * dx + dy * dy
@@ -450,10 +451,10 @@ export default function SkillTreeCanvas({
   }
 
   function onPointerDown(e: React.PointerEvent) {
-    if (fitAll || pinchRef.current) return
-    draggingRef.current = true
-    lastPointerRef.current = { x: e.clientX, y: e.clientY }
+    if (pinchRef.current) return
     downPointerRef.current = { x: e.clientX, y: e.clientY }
+    lastPointerRef.current = { x: e.clientX, y: e.clientY }
+    draggingRef.current = !fitAll
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
 
@@ -469,15 +470,19 @@ export default function SkillTreeCanvas({
 
   function onPointerUp(e: React.PointerEvent) {
     const moved =
-      Math.abs(e.clientX - downPointerRef.current.x) > 4 ||
-      Math.abs(e.clientY - downPointerRef.current.y) > 4
+      Math.abs(e.clientX - downPointerRef.current.x) > 10 ||
+      Math.abs(e.clientY - downPointerRef.current.y) > 10
     draggingRef.current = false
     if (!moved) {
       const { x, y } = worldFromClient(e.clientX, e.clientY)
       const hit = hitTest(x, y)
       onSelect(hit === selectedId ? null : hit)
     }
-    ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
+    try {
+      ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
+    } catch {
+      /* capture may already be released */
+    }
   }
 
   function onWheel(e: React.WheelEvent) {
