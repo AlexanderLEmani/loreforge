@@ -16,7 +16,7 @@ export default function Sidebar({ level = 1, xp = 0, xpNext = 100, gold = 0, ste
   const xpPct = Math.min((xp / xpNext) * 100, 100)
 
   return (
-    <div className="lf-sidebar-l" style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', minHeight: 'calc(100vh - 56px)' }}>
+    <div className="lf-sidebar-l lf-sidebar-panel" style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
 
       <div style={{ marginBottom: '6px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', marginBottom: '4px' }}>
@@ -34,7 +34,9 @@ export default function Sidebar({ level = 1, xp = 0, xpNext = 100, gold = 0, ste
 
       <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }}></div>
 
-      <AppNav step={step} navUnlock={navUnlock} />
+      <div className="lf-sidebar-nav">
+        <AppNav step={step} navUnlock={navUnlock} />
+      </div>
     </div>
   )
 }

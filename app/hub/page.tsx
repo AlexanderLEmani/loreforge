@@ -184,7 +184,9 @@ export default function Hub() {
           </div>
         ))}
 
-        <AppNav step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
+        <div className="lf-sidebar-nav">
+          <AppNav step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
+        </div>
 
         <div onClick={signOut} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 10px', fontSize: '14px', color: '#5a5670', cursor: 'pointer', marginTop: '8px' }}>
           <span>🚪</span>Выйти

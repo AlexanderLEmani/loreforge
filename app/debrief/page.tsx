@@ -5,6 +5,7 @@ import { tryGrantDungeonLoot, type LootDrop } from '@/lib/dungeon-loot'
 import { battleDebriefRewards } from '@/lib/economy'
 import { grantGlory } from '@/lib/glory-wallet'
 import { syncQuestRewards } from '@/lib/quest-rewards'
+import { syncGuildRankRewards } from '@/lib/guild-rank-rewards'
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
@@ -95,6 +96,7 @@ function DebriefContent() {
 
     if (gloryGained > 0) {
       await grantGlory(supabase, user.id, gloryGained)
+      await syncGuildRankRewards(supabase, user.id)
     }
 
     if (spellKill && result === 'win') {

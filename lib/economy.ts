@@ -51,7 +51,7 @@ export function battleDebriefRewards(
   return {
     xpGained: score * 10 * hardMult,
     goldGained: battleGoldReward(score, won, hard, dungeonName),
-    gloryGained: won ? Math.max(10, score * 8) : 0,
+    gloryGained: won ? Math.max(20, score * 12) : 0,
   }
 }
 

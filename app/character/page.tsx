@@ -184,7 +184,9 @@ export default function CharacterPage() {
             </div>
           ))}
           <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '14px 0 12px' }} />
-          <AppNav step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
+          <div className="lf-sidebar-nav">
+            <AppNav step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
+          </div>
         </div>
 
         <div className={`${layout.main} lf-main lf-pad-main`} style={{ background: '#0b0c10', overflowY: 'auto' }}>

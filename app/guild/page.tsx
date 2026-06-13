@@ -9,18 +9,10 @@ import { navUnlockFromUser } from '@/lib/nav-unlock'
 import { syncQuestRewards, withGuildClaimed } from '@/lib/quest-rewards'
 import { spendGlory } from '@/lib/glory-wallet'
 import { GUILD_RANKS, guildRankProgress } from '@/lib/guild-ranks'
+import { GUILD_DUNGEONS, effectiveDungeonCost, type GuildDungeon } from '@/lib/guild-dungeons'
+import { syncGuildRankRewards } from '@/lib/guild-rank-rewards'
 import { fetchSpellKills, fetchUserRow } from '@/lib/user-profile'
 import { layout } from '@/lib/layout-classes'
-
-const DUNGEONS = [
-  { id: 'add',   icon: '➕', name: 'Пещера сложения',   tag: 'Ур.1', desc: 'Сложение до 1000. Базовый данж. Бесплатно.', cost: 0,   color: '#c9a84c', rarity: null,    level: 1, route: 'Пещера сложения' },
-  { id: 'sub',   icon: '➖', name: 'Пещера вычитания',  tag: 'Ур.1', desc: 'Вычитание до 1000. Базовый данж. Бесплатно.', cost: 0,  color: '#c9a84c', rarity: null,    level: 1, route: 'Пещера вычитания' },
-  { id: 'mul',   icon: '✕',  name: 'Башня умножения',   tag: 'Ур.2', desc: 'Таблица умножения. Монстры атакуют быстро.', cost: 80,  color: '#a99fff', rarity: 'rare',  level: 2, route: 'Башня умножения' },
-  { id: 'div', icon: '÷', name: 'Пещера деления', tag: 'Ур.2', desc: 'Деление до 100. Остатки и комбинированные действия.', cost: 60, color: '#3db87a', rarity: null, level: 2, route: 'Пещера деления' },
-  { id: 'frac',  icon: '½',  name: 'Храм дробей',       tag: 'Ур.3', desc: 'Дроби: ½ ⅓ ¼, общий знаменатель, × и ÷. Примеры с дробями — свитки III в дропе.', cost: 200, color: '#e05555', rarity: 'epic', level: 3, route: 'Храм дробей' },
-  { id: 'market',icon: '💰', name: 'Рынок процентов',   tag: 'Ур.4', desc: '10%, 25%, скидки и наценки. Нужен игровой ур.4.', cost: 300, color: '#3db87a', rarity: null, level: 4, route: 'Рынок процентов' },
-]
-
 
 export default function GuildPage() {
   const router = useRouter()
@@ -86,6 +78,13 @@ export default function GuildPage() {
       }
       if (ud && (rewards.gloryDelta > 0 || rewards.goldDelta > 0)) setUserData(ud)
 
+      const rankRewards = await syncGuildRankRewards(supabase, user.id)
+      if (rankRewards.granted.length > 0) {
+        const labels = rankRewards.granted.map(g => `${g.label}`).join(', ')
+        setRewardToast(`Новый ранг гильдии! В сумку: ${labels}`)
+        setTimeout(() => setRewardToast(null), 5000)
+      }
+
       setQuests(withGuildClaimed(built, rewards.claims))
       setRunHistory((runs || []).slice(0, 5))
       setLoading(false)
@@ -93,17 +92,22 @@ export default function GuildPage() {
     load()
   }, [])
 
-  async function buyDungeon(dungeon: typeof DUNGEONS[0]) {
-    if (!userData || dungeon.cost > (userData.glory || 0)) return
+  async function enterDungeon(dungeon: GuildDungeon, cost: number) {
+    if (!userData) return
     if (dungeon.level > (userData.level || 1)) return
-    setBuying(dungeon.id)
-    const ok = await spendGlory(supabase, userData.id, dungeon.cost)
-    if (!ok) {
+    if (cost > 0 && cost > (userData.glory || 0)) return
+
+    if (cost > 0) {
+      setBuying(dungeon.id)
+      const ok = await spendGlory(supabase, userData.id, cost)
+      if (!ok) {
+        setBuying(null)
+        return
+      }
+      setUserData((prev: any) => ({ ...prev, glory: (prev.glory || 0) - cost }))
       setBuying(null)
-      return
     }
-    setUserData((prev: any) => ({ ...prev, glory: (prev.glory || 0) - dungeon.cost }))
-    setBuying(null)
+
     router.push(`/prepare?dungeon=${encodeURIComponent(dungeon.route)}`)
   }
 
@@ -123,6 +127,9 @@ export default function GuildPage() {
   const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
 
   const { rank, next: nextRank, pct: rankPct, idx: rankIdx } = guildRankProgress(reputation)
+
+  const freeDungeons = GUILD_DUNGEONS.filter(d => effectiveDungeonCost(d.id, rankIdx) === 0)
+  const paidDungeons = GUILD_DUNGEONS.filter(d => effectiveDungeonCost(d.id, rankIdx) > 0)
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
@@ -161,7 +168,7 @@ export default function GuildPage() {
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Гильдия Авантюристов</div>
             <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '4px' }}>Доска заданий</div>
             <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic' }}>
-              Ранг растёт от суммарной репутации. На вход в данж тратится слава из кошелька — репутация не падает.
+              Ранг открывает бесплатные данжи и скидки. Слава с побед — в кошелёк; репутация для ранга не падает.
             </div>
           </div>
 
@@ -179,18 +186,28 @@ export default function GuildPage() {
               <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>
                 Репутация {reputation}{nextRank ? ` / ${nextRank.min}` : ''} · Кошелёк {gloryWallet} ⭐
               </div>
+              {nextRank?.perkText && (
+                <div style={{ fontSize: '11px', color: '#b8b0c8', marginTop: '8px', lineHeight: 1.55 }}>
+                  <span style={{ color: '#a99fff' }}>Следующий ранг ({nextRank.name}):</span> {nextRank.perkText}
+                </div>
+              )}
             </div>
           </div>
 
           {/* БЕСПЛАТНЫЕ ДАНЖИ */}
+          {freeDungeons.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>
             <span>Бесплатные данжи</span>
             <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
           </div>
+          )}
+          {freeDungeons.length > 0 && (
           <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '1.5rem' }}>
-            {DUNGEONS.filter(d => d.cost === 0).map(d => (
-              <div key={d.id} onClick={() => router.push(`/prepare?dungeon=${encodeURIComponent(d.route)}`)}
-                style={{ background: 'rgba(61,184,122,0.06)', border: '1px solid rgba(61,184,122,0.25)', borderRadius: '10px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', transition: 'all 0.15s' }}
+            {freeDungeons.map(d => {
+              const locked = d.level > level
+              return (
+              <div key={d.id} onClick={() => !locked && enterDungeon(d, 0)}
+                style={{ background: 'rgba(61,184,122,0.06)', border: '1px solid rgba(61,184,122,0.25)', borderRadius: '10px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: locked ? 'default' : 'pointer', opacity: locked ? 0.4 : 1, transition: 'all 0.15s' }}
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(61,184,122,0.5)'}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(61,184,122,0.25)'}
               >
@@ -199,10 +216,12 @@ export default function GuildPage() {
                   <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0', marginBottom: '2px' }}>{d.name}</div>
                   <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic' }}>Математика · {d.tag} · Бесплатно</div>
                 </div>
-                <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#3db87a', padding: '5px 12px', border: '1px solid rgba(61,184,122,0.4)', borderRadius: '6px', background: 'rgba(61,184,122,0.08)', whiteSpace: 'nowrap' }}>▶ Войти</div>
+                <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#3db87a', padding: '5px 12px', border: '1px solid rgba(61,184,122,0.4)', borderRadius: '6px', background: 'rgba(61,184,122,0.08)', whiteSpace: 'nowrap' }}>{locked ? '🔒' : '▶ Войти'}</div>
               </div>
-            ))}
+              )
+            })}
           </div>
+          )}
 
           {level >= 3 && (
             <div style={{ background: 'rgba(224,85,85,0.06)', border: '1px solid rgba(224,85,85,0.25)', borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
@@ -220,26 +239,29 @@ export default function GuildPage() {
               <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#3db87a', letterSpacing: '0.12em', marginBottom: '8px' }}>% РЫНОК ПРОЦЕНТОВ</div>
               <div style={{ fontSize: '13px', color: '#c8c0d8', lineHeight: 1.65 }}>
                 <span style={{ color: '#e0bc6a' }}>10% от 80 = 8</span>. Скидка 20%: вычти пятую часть цены.
-                Лекция IV → тренировка на % → данж ниже (300 ⭐ славы).
+                Лекция IV → тренировка на % → данж открывается по рангу или со скидкой.
               </div>
             </div>
           )}
 
-          {/* ДОСКА */}
+          {paidDungeons.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>
-            <span>Доска заданий</span>
+            <span>Платные данжи</span>
             <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
-            <span style={{ whiteSpace: 'nowrap', color: '#3a3650' }}>Обновление через 04:23:11</span>
           </div>
+          )}
 
+          {paidDungeons.length > 0 && (
           <div style={{ background: '#1a1610', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.5rem' }}>
             <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              {DUNGEONS.filter(d => d.cost > 0).map(d => {
+              {paidDungeons.map(d => {
+                const cost = effectiveDungeonCost(d.id, rankIdx)
                 const locked = d.level > level
-                const canAfford = gloryWallet >= d.cost
+                const canAfford = gloryWallet >= cost
+                const discounted = cost < d.baseCost
                 return (
                   <div key={d.id}
-                    onClick={() => !locked && canAfford && buyDungeon(d)}
+                    onClick={() => !locked && canAfford && enterDungeon(d, cost)}
                     style={{ background: '#1c1f2a', border: `1px solid ${locked ? 'rgba(255,255,255,0.05)' : canAfford ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.05)'}`, borderRadius: '10px', padding: '1rem', cursor: locked || !canAfford ? 'default' : 'pointer', opacity: locked ? 0.4 : 1, position: 'relative', overflow: 'hidden', transition: 'all 0.2s' }}
                     onMouseEnter={e => { if (!locked && canAfford) (e.currentTarget as HTMLElement).style.borderColor = `rgba(${d.color === '#e05555' ? '224,85,85' : d.color === '#a99fff' ? '123,108,255' : '201,168,76'},0.4)` }}
                     onMouseLeave={e => { if (!locked && canAfford) (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
@@ -257,7 +279,8 @@ export default function GuildPage() {
                     <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic', lineHeight: 1.4, marginBottom: '10px' }}>{d.desc}</div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontFamily: 'monospace', fontSize: '11px', color: locked ? '#3a3650' : canAfford ? '#a99fff' : '#e05555' }}>
-                        ⭐ {d.cost} славы
+                        ⭐ {cost} славы
+                        {discounted && <span style={{ color: '#3db87a', fontSize: '9px' }}> · было {d.baseCost}</span>}
                       </div>
                       {!locked && !canAfford && <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#e05555' }}>Не хватает славы</div>}
                       {buying === d.id && <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670' }}>...</div>}
@@ -267,6 +290,7 @@ export default function GuildPage() {
               })}
             </div>
           </div>
+          )}
 
           {/* КВЕСТЫ */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>
@@ -317,10 +341,15 @@ export default function GuildPage() {
           <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>Ранги гильдии</div>
 
           {GUILD_RANKS.map((r, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '7px', marginBottom: '3px', background: i === rankIdx ? 'rgba(123,108,255,0.08)' : 'transparent', border: `1px solid ${i === rankIdx ? 'rgba(123,108,255,0.2)' : 'transparent'}` }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: r.color, flexShrink: 0 }}></div>
-              <div style={{ flex: 1, fontSize: '13px', color: i === rankIdx ? '#e6e2f0' : '#5a5670' }}>{r.name}</div>
-              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#3a3650' }}>{r.min}+</div>
+            <div key={i} style={{ padding: '7px 10px', borderRadius: '7px', marginBottom: '3px', background: i === rankIdx ? 'rgba(123,108,255,0.08)' : 'transparent', border: `1px solid ${i === rankIdx ? 'rgba(123,108,255,0.2)' : 'transparent'}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: r.color, flexShrink: 0 }}></div>
+                <div style={{ flex: 1, fontSize: '13px', color: i === rankIdx ? '#e6e2f0' : '#5a5670' }}>{r.name}</div>
+                <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#3a3650' }}>{r.min}+</div>
+              </div>
+              {r.perkText && (
+                <div style={{ fontSize: '10px', color: '#5a5670', marginTop: '4px', lineHeight: 1.45, paddingLeft: '18px' }}>{r.perkText}</div>
+              )}
             </div>
           ))}
 
@@ -330,7 +359,7 @@ export default function GuildPage() {
             <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic' }}>Ещё нет забегов — войди в данж.</div>
           ) : runHistory.map((r, i) => {
             const win = r.result === 'win'
-            const gloryEst = win ? `+${Math.max(10, (r.score || 0) * 8)}⭐` : ''
+            const gloryEst = win ? `+${Math.max(20, (r.score || 0) * 12)}⭐` : ''
             const short = (r.dungeon_name || 'Данж').replace('Пещера ', '').replace('Башня ', '')
             return (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
@@ -354,11 +383,11 @@ export default function GuildPage() {
             <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
               Здесь ты выбираешь <span style={{ color: '#e0bc6a' }}>данжи</span> и отправляешься в бой.
               <br/><br/>
-              <span style={{ color: '#e6e2f0' }}>Бесплатные данжи</span> — всегда доступны. Меньше наград.
+              <span style={{ color: '#e6e2f0' }}>Ранг гильдии</span> открывает бесплатные данжи, скидки и <span style={{ color: '#e0bc6a' }}>снаряжение</span> в награду.
               <br/>
-              <span style={{ color: '#e6e2f0' }}>Платные данжи</span> — за <span style={{ color: '#a99fff' }}>⭐ славу</span>. Дроп: снаряжение, свитки, расходники.
+              <span style={{ color: '#e6e2f0' }}>Платные данжи</span> — за <span style={{ color: '#a99fff' }}>⭐ славу</span> из кошелька. Победы и квесты пополняют кошелёк.
               <br/><br/>
-              Выполняй <span style={{ color: '#e0bc6a' }}>квесты</span> чтобы зарабатывать дополнительную славу и повышать <span style={{ color: '#a99fff' }}>ранг</span> в гильдии.
+              Выполняй <span style={{ color: '#e0bc6a' }}>квесты</span> для славы и роста <span style={{ color: '#a99fff' }}>репутации</span>.
               <br/><br/>
               Побеждай. Расти. Становись легендой.
             </div>
