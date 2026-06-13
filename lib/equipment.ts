@@ -116,3 +116,34 @@ export function bonusLabel(b: StatBonuses): string {
   if (b.defendTimerSec) parts.push(`+${b.defendTimerSec}с защита`)
   return parts.join(' · ') || '—'
 }
+
+export const EQUIP_TIER_META: Record<
+  EquipmentItem['tier'],
+  { label: string; color: string; border: string; glow: string; bg: string }
+> = {
+  1: {
+    label: 'Ученик',
+    color: '#9aa8b8',
+    border: 'rgba(154, 168, 184, 0.45)',
+    glow: 'rgba(154, 168, 184, 0.12)',
+    bg: 'rgba(154, 168, 184, 0.06)',
+  },
+  2: {
+    label: 'Мастер',
+    color: '#a99fff',
+    border: 'rgba(169, 159, 255, 0.5)',
+    glow: 'rgba(169, 159, 255, 0.18)',
+    bg: 'rgba(169, 159, 255, 0.08)',
+  },
+  3: {
+    label: 'Архимаг',
+    color: '#e0bc6a',
+    border: 'rgba(224, 188, 106, 0.55)',
+    glow: 'rgba(224, 188, 106, 0.22)',
+    bg: 'rgba(224, 188, 106, 0.1)',
+  },
+}
+
+export function tierMeta(tier: EquipmentItem['tier']) {
+  return EQUIP_TIER_META[tier]
+}

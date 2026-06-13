@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import PixelCharacter from '@/components/PixelCharacter'
+import EquipmentCard from '@/components/EquipmentCard'
+import EquipSlotButton from '@/components/EquipSlotButton'
 import AppNav from '@/components/AppNav'
 import { BATTLE_CONSUMABLES, parseConsumables } from '@/lib/battle-consumables'
 import {
@@ -135,9 +137,20 @@ export default function CharacterPage() {
     return equipped[i.slot] !== i.id
   })
   const equippedCount = EQUIP_SLOTS.filter(s => equipped[s.id]).length
+  const maxGlowTier = EQUIP_SLOTS.reduce<1 | 2 | 3 | undefined>((max, s) => {
+    const id = equipped[s.id]
+    if (!id) return max
+    const item = itemById(id)
+    if (!item) return max
+    if (!max || item.tier > max) return item.tier
+    return max
+  }, undefined)
+
+  const leftSlots = EQUIP_SLOTS.filter(s => s.id === 'head' || s.id === 'body')
+  const rightSlots = EQUIP_SLOTS.filter(s => s.id === 'weapon' || s.id === 'hands' || s.id === 'feet')
 
   return (
-    <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
+    <div className="lf-char-page">
       <nav className={layout.navBar} style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.11)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ fontFamily: 'monospace', fontSize: '18px', color: '#e0bc6a', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '28px', height: '28px', border: '1.5px solid #c9a84c', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px' }}>✦</div>
@@ -187,13 +200,28 @@ export default function CharacterPage() {
             <div style={{ fontFamily: 'monospace', fontSize: '26px', color: '#e0bc6a' }}>Твой персонаж</div>
           </div>
 
-          <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-            <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ fontFamily: 'monospace', fontSize: '18px', color: '#e0bc6a', marginBottom: '4px' }}>{character?.name}</div>
-              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#a99fff', letterSpacing: '0.15em', marginBottom: '1rem' }}>
-                {RACE_LABELS[race]?.toUpperCase()} · УР. {level}
+          <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '12px', padding: '1.25rem 1rem', marginBottom: '1.5rem' }}>
+            <div className="lf-char-hero">
+              <div className="lf-char-hero-name">
+                <div className="lf-char-hero-title">{character?.name}</div>
+                <div className="lf-char-hero-sub">
+                  {RACE_LABELS[race]?.toUpperCase()} · УР. {level} · {equippedCount}/5 слотов
+                </div>
               </div>
-              <div style={{ background: '#0d0f14', borderRadius: '10px', border: '1px solid rgba(201,168,76,0.15)', padding: '1rem', marginBottom: '1rem' }}>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', maxWidth: 110 }}>
+                {leftSlots.map(slot => (
+                  <EquipSlotButton
+                    key={slot.id}
+                    slot={slot}
+                    equipped={equipped}
+                    onEquip={setBagFilter}
+                    onUnequip={unequipSlot}
+                  />
+                ))}
+              </div>
+
+              <div className="lf-char-portrait-frame">
                 <PixelCharacter
                   race={race}
                   skinColor={character?.skin_color || '#c8a882'}
@@ -201,50 +229,45 @@ export default function CharacterPage() {
                   hairColor={character?.hair_color || '#3d2b1f'}
                   cloakColor={character?.cloak_color || '#4a1f6e'}
                   equipment={visualEquip}
-                  size={200}
+                  size={220}
+                  glowTier={maxGlowTier}
                 />
               </div>
-              <div style={{ fontSize: '11px', color: '#7b6cff', textAlign: 'center', marginBottom: '12px', fontFamily: 'monospace' }}>
-                {equippedCount > 0 ? bonusLabel(equipBonuses) : 'Снаряжение — только из данжей'}
-              </div>
-              <div style={{ width: '100%' }}>
-                <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', letterSpacing: '0.12em', marginBottom: '8px' }}>НА ПЕРСОНАЖЕ</div>
-                {EQUIP_SLOTS.map(slot => {
-                  const id = equipped[slot.id]
-                  const item = id ? itemById(id) : null
-                  return (
-                    <div key={slot.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <span style={{ fontSize: '16px', width: '24px', textAlign: 'center' }}>{item?.icon ?? slot.icon}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '11px', color: '#9590a8' }}>{slot.label}</div>
-                        <div style={{ fontSize: '12px', color: item ? '#e6e2f0' : '#5a5670', fontStyle: item ? 'normal' : 'italic' }}>
-                          {item?.name ?? 'Пусто — выбей в данже'}
-                        </div>
-                      </div>
-                      {item ? (
-                        <div onClick={() => unequipSlot(slot.id)} style={{ fontFamily: 'monospace', fontSize: '9px', color: '#e05555', cursor: 'pointer', padding: '4px 8px', border: '1px solid rgba(224,85,85,0.35)', borderRadius: '4px' }}>Снять</div>
-                      ) : (
-                        <div onClick={() => setBagFilter(slot.id)} style={{ fontFamily: 'monospace', fontSize: '9px', color: '#a99fff', cursor: 'pointer', padding: '4px 8px' }}>Надеть →</div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
 
-            <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '12px', padding: '1.5rem' }}>
-              <div style={{ fontFamily: 'monospace', fontSize: '14px', color: '#e0bc6a', marginBottom: '1rem', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Статистика</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', maxWidth: 110 }}>
+                {rightSlots.map(slot => (
+                  <EquipSlotButton
+                    key={slot.id}
+                    slot={slot}
+                    equipped={equipped}
+                    onEquip={setBagFilter}
+                    onUnequip={unequipSlot}
+                  />
+                ))}
+              </div>
+
+              {equippedCount > 0 && (
+                <div className="lf-char-bonus-strip">
+                  {bonusLabel(equipBonuses)}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '12px', padding: '1.25rem' }}>
+            <div style={{ fontFamily: 'monospace', fontSize: '14px', color: '#e0bc6a', marginBottom: '1rem', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Статистика</div>
+            <div className="lf-char-stats-grid">
               {[
-                ['📚', 'Ответов дано', userData?.total_answers || 0],
-                ['🔥', 'Дней подряд', userData?.streak || 0],
-                ['📖', 'Свитков в гримуаре', scrollCount],
-                ['🎽', 'Предметов снаряжения', ownedItems.length],
-              ].map(([icon, label, val]) => (
-                <div key={label as string} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#9590a8' }}>
-                    <span>{icon as string}</span>{label as string}
+                ['📚', 'Ответов дано', userData?.total_answers || 0, '#e6e2f0'],
+                ['🔥', 'Дней подряд', userData?.streak || 0, '#e05555'],
+                ['📖', 'Свитков', scrollCount, '#a99fff'],
+                ['🎽', 'Снаряжение', ownedItems.length, '#e0bc6a'],
+              ].map(([icon, label, val, color]) => (
+                <div key={label as string} className="lf-char-stat">
+                  <div className="lf-char-stat-label">
+                    <span>{icon as string}</span> {label as string}
                   </div>
-                  <div style={{ fontFamily: 'monospace', fontSize: '13px', color: '#e0bc6a' }}>{val as number}</div>
+                  <div className="lf-char-stat-val" style={{ color: color as string }}>{val as number}</div>
                 </div>
               ))}
             </div>
@@ -259,10 +282,23 @@ export default function CharacterPage() {
             Снаряжение выпадает из данжей (~72% шанс дропа). Надеть — на персонаже.
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '12px' }}>
-            <div onClick={() => setBagFilter('all')} style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '9px', fontFamily: 'monospace', cursor: 'pointer', border: `1px solid ${bagFilter === 'all' ? 'rgba(201,168,76,0.5)' : 'rgba(255,255,255,0.08)'}`, color: bagFilter === 'all' ? '#e0bc6a' : '#5a5670' }}>Все</div>
+          <div className="lf-char-bag-filters">
+            <button
+              type="button"
+              className={`lf-char-bag-filter${bagFilter === 'all' ? ' lf-char-bag-filter--active' : ''}`}
+              onClick={() => setBagFilter('all')}
+            >
+              Все
+            </button>
             {EQUIP_SLOTS.map(s => (
-              <div key={s.id} onClick={() => setBagFilter(s.id)} style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '9px', fontFamily: 'monospace', cursor: 'pointer', border: `1px solid ${bagFilter === s.id ? 'rgba(123,108,255,0.5)' : 'rgba(255,255,255,0.08)'}`, color: bagFilter === s.id ? '#a99fff' : '#5a5670' }}>{s.icon}</div>
+              <button
+                key={s.id}
+                type="button"
+                className={`lf-char-bag-filter${bagFilter === s.id ? ' lf-char-bag-filter--active' : ''}`}
+                onClick={() => setBagFilter(s.id)}
+              >
+                {s.icon} {s.label}
+              </button>
             ))}
           </div>
 
@@ -271,16 +307,13 @@ export default function CharacterPage() {
           )}
 
           {bagItems.map(item => (
-            <div key={item.id} style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '9px', padding: '10px 12px', marginBottom: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                <span style={{ fontSize: '22px' }}>{item.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', color: '#e6e2f0' }}>{item.name}</div>
-                  <div style={{ fontSize: '10px', color: '#7b6cff', fontFamily: 'monospace' }}>{item.desc}</div>
-                </div>
-              </div>
-              <div onClick={() => equipItem(item)} style={{ padding: '6px', borderRadius: '6px', textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', cursor: 'pointer', background: 'rgba(123,108,255,0.1)', border: '1px solid rgba(123,108,255,0.3)', color: '#a99fff' }}>Надеть</div>
-            </div>
+            <EquipmentCard
+              key={item.id}
+              item={item}
+              action="equip"
+              onAction={() => equipItem(item)}
+              compact
+            />
           ))}
 
           <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', margin: '14px 0 12px' }}>Расходники</div>

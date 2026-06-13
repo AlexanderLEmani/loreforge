@@ -9,6 +9,14 @@ type Props = {
   cloakColor: string
   equipment?: Partial<Record<EquipSlot, string>>
   size?: number
+  /** Максимальный tier снаряжения — свечение вокруг фигуры */
+  glowTier?: 1 | 2 | 3
+}
+
+const GLOW_COLORS: Record<number, string> = {
+  1: 'rgba(154, 168, 184, 0.25)',
+  2: 'rgba(169, 159, 255, 0.35)',
+  3: 'rgba(224, 188, 106, 0.45)',
 }
 
 const HAIR_STYLES: Record<string, (color: string) => React.ReactNode> = {
@@ -93,6 +101,12 @@ function HeadGear({ visualId }: { visualId: string }) {
 }
 
 function BodyGear({ visualId }: { visualId: string }) {
+  if (visualId === 'body_cloth') return <>
+    <rect x="5" y="19" width="3" height="11" fill="#b8a898" opacity="0.35"/>
+    <rect x="20" y="19" width="3" height="11" fill="#b8a898" opacity="0.35"/>
+    <rect x="8" y="28" width="12" height="2" fill="#6a5a48" opacity="0.45"/>
+    <rect x="10" y="30" width="8" height="1" fill="#c9a84c" opacity="0.35"/>
+  </>
   if (visualId === 'body_runed') return <>
     <rect x="8" y="22" width="1" height="18" fill="#e0bc6a" opacity="0.55"/>
     <rect x="13" y="21" width="1" height="20" fill="#e0bc6a" opacity="0.45"/>
@@ -163,7 +177,7 @@ function FeetGear({ visualId }: { visualId: string }) {
 }
 
 export default function PixelCharacter({
-  race, skinColor, hairStyle, hairColor, cloakColor, equipment = {}, size = 200,
+  race, skinColor, hairStyle, hairColor, cloakColor, equipment = {}, size = 200, glowTier,
 }: Props) {
   const isOrc = race === 'orc'
   const isUndead = race === 'undead'
@@ -177,13 +191,22 @@ export default function PixelCharacter({
   const feetV = equipment.feet
 
   return (
-    <svg
-      viewBox="0 0 28 48"
-      width={size * 0.7}
-      height={size}
-      style={{ imageRendering: 'pixelated' }}
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <div className="lf-pixel-char-wrap" style={{ width: size * 0.75, height: size }}>
+      {glowTier && (
+        <div
+          className="lf-pixel-char-glow"
+          style={{
+            background: `radial-gradient(circle, ${GLOW_COLORS[glowTier]} 0%, transparent 68%)`,
+          }}
+        />
+      )}
+      <svg
+        viewBox="0 0 28 48"
+        width={size * 0.7}
+        height={size}
+        className="lf-pixel-char-svg"
+        xmlns="http://www.w3.org/2000/svg"
+      >
       <g transform={race === 'elf' ? 'scale(1, 1.15) translate(0, -3)' : race === 'dwarf' ? 'scale(1.1, 0.88) translate(-1.5, 2)' : ''}>
         <ellipse cx="14" cy="46" rx="7" ry="2" fill="rgba(0,0,0,0.3)"/>
 
@@ -241,5 +264,6 @@ export default function PixelCharacter({
         <rect x="7" y="21" width="2" height="6" fill="rgba(255,255,255,0.06)"/>
       </g>
     </svg>
+    </div>
   )
 }

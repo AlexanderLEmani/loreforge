@@ -78,7 +78,7 @@ export default function CreateCharacter() {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
           <div style={{ background: '#1c1f2a', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '16px', padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '1rem' }}>Предпросмотр</div>
-            <div style={{ background: '#0d0f14', borderRadius: '12px', border: '1px solid rgba(201,168,76,0.1)', padding: '1.5rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="lf-char-portrait-frame" style={{ marginBottom: '1rem', width: '100%' }}>
               <PixelCharacter
                 race={race}
                 skinColor={skinColor}

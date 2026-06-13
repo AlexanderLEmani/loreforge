@@ -2,6 +2,8 @@
 
 import { createClient } from '@/lib/supabase'
 import { tryGrantDungeonLoot, type LootDrop } from '@/lib/dungeon-loot'
+import { itemById } from '@/lib/equipment'
+import EquipmentCard from '@/components/EquipmentCard'
 import { battleDebriefRewards } from '@/lib/economy'
 import { applyRaceXp } from '@/lib/race-bonuses'
 import { grantGlory } from '@/lib/glory-wallet'
@@ -160,12 +162,16 @@ function DebriefContent() {
               </div>
             </>
           )}
-          {lootDrop && (
+          {lootDrop && lootDrop.kind === 'equipment' && lootDrop.equipmentId && itemById(lootDrop.equipmentId) ? (
+            <div style={{ minWidth: '200px', maxWidth: '280px' }}>
+              <EquipmentCard item={itemById(lootDrop.equipmentId)!} action="none" compact />
+            </div>
+          ) : lootDrop ? (
             <div style={{ background: 'rgba(169,159,255,0.1)', border: '1px solid rgba(169,159,255,0.35)', borderRadius: '8px', padding: '10px 14px', textAlign: 'center', minWidth: '88px' }}>
               <div style={{ fontSize: '20px' }}>{lootDrop.icon}</div>
               <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#c8c0d8', marginTop: '2px' }}>{lootDrop.label}</div>
             </div>
-          )}
+          ) : null}
         </div>
 
         {mistakes.length > 0 && (

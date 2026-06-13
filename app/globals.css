@@ -1773,3 +1773,283 @@ body {
     display: none;
   }
 }
+
+/* ── Character & equipment ── */
+
+.lf-char-page {
+  background: #0b0c10;
+  min-height: 100vh;
+  font-family: serif;
+}
+
+.lf-char-hero {
+  display: grid;
+  grid-template-columns: 1fr minmax(220px, 320px) 1fr;
+  gap: 10px;
+  align-items: center;
+  justify-items: center;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.lf-char-hero-name {
+  grid-column: 1 / -1;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.lf-char-hero-title {
+  font-family: serif;
+  font-size: 22px;
+  color: #e0bc6a;
+  margin-bottom: 2px;
+}
+
+.lf-char-hero-sub {
+  font-family: monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #a99fff;
+}
+
+.lf-char-portrait-frame {
+  position: relative;
+  padding: 1.25rem 1rem 0.75rem;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(123, 108, 255, 0.08), transparent 55%),
+    linear-gradient(180deg, #0a0c12 0%, #12141c 100%);
+  border: 1px solid rgba(201, 168, 76, 0.22);
+  min-height: 260px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.lf-char-portrait-frame::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(201, 168, 76, 0.08);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.lf-pixel-char-wrap {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.lf-pixel-char-glow {
+  position: absolute;
+  inset: -12%;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.lf-pixel-char-svg {
+  position: relative;
+  z-index: 1;
+  image-rendering: pixelated;
+}
+
+.lf-char-bonus-strip {
+  grid-column: 1 / -1;
+  width: 100%;
+  text-align: center;
+  font-family: monospace;
+  font-size: 11px;
+  color: #b8b0d8;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(123, 108, 255, 0.06);
+  border: 1px solid rgba(123, 108, 255, 0.15);
+}
+
+.lf-equip-slot {
+  width: 100%;
+  max-width: 110px;
+  min-height: 72px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(12, 14, 20, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+
+.lf-equip-slot:hover {
+  transform: translateY(-1px);
+}
+
+.lf-equip-slot--empty:hover {
+  border-color: rgba(169, 159, 255, 0.35);
+}
+
+.lf-equip-slot-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.lf-equip-slot-label {
+  font-family: monospace;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  color: #6a7080;
+  text-transform: uppercase;
+}
+
+.lf-equip-slot-tier {
+  font-family: monospace;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+}
+
+.lf-equip-slot-hint {
+  font-family: monospace;
+  font-size: 8px;
+  color: #4a5060;
+  font-style: italic;
+}
+
+.lf-char-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lf-char-stat {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.lf-char-stat-label {
+  font-size: 11px;
+  color: #7a8090;
+  margin-bottom: 4px;
+}
+
+.lf-char-stat-val {
+  font-family: monospace;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.lf-equip-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lf-equip-card--compact {
+  padding: 8px 10px;
+}
+
+.lf-equip-card--equipped {
+  outline: 1px solid rgba(224, 188, 106, 0.25);
+}
+
+.lf-equip-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.lf-equip-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.lf-equip-card-name {
+  font-size: 13px;
+  color: #e6e2f0;
+  margin-bottom: 2px;
+}
+
+.lf-equip-card-tier {
+  font-family: monospace;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.lf-equip-card-btn {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: 5px;
+  border: 1px solid rgba(169, 159, 255, 0.35);
+  background: rgba(169, 159, 255, 0.1);
+  color: #a99fff;
+  font-family: monospace;
+  font-size: 10px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.lf-equip-card-btn--danger {
+  border-color: rgba(224, 85, 85, 0.35);
+  background: rgba(224, 85, 85, 0.08);
+  color: #e05555;
+}
+
+.lf-char-bag-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.lf-char-bag-filter {
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 10px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #6a7080;
+  background: rgba(12, 14, 20, 0.8);
+  touch-action: manipulation;
+}
+
+.lf-char-bag-filter--active {
+  border-color: rgba(201, 168, 76, 0.45);
+  color: #e0bc6a;
+  background: rgba(201, 168, 76, 0.08);
+}
+
+@media (max-width: 900px) {
+  .lf-char-hero {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .lf-char-portrait-frame {
+    grid-column: 1 / -1;
+    min-height: 220px;
+  }
+
+  .lf-char-stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

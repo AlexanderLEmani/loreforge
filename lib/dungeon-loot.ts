@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ScrollBattleEffect } from '@/lib/battle-config'
 import { consumableMeta, parseConsumables } from '@/lib/battle-consumables'
-import { itemsForTier } from '@/lib/equipment'
+import { itemsForTier, EQUIPMENT_ITEMS } from '@/lib/equipment'
+import { addOwnedItem, loadOwnedIds } from '@/lib/equipment-storage'
 
 /** Частый шанс дропа при победе — настройка в DUNGEON_WIN_DROP_CHANCE */
 export const DUNGEON_WIN_DROP_CHANCE = 0.72
@@ -121,26 +122,31 @@ export function rollDungeonLoot(dungeonName: string): PoolEntry | null {
   return pickWeighted(poolForDungeon(dungeonName))
 }
 
-async function loadOwnedEquipmentIds(supabase: SupabaseClient, userId: string): Promise<Set<string>> {
-  const { data } = await supabase.from('user_equipment').select('item_id').eq('user_id', userId)
-  if (data?.length) return new Set(data.map(r => r.item_id))
-  return new Set()
-}
-
 async function grantEquipment(
   supabase: SupabaseClient,
   userId: string,
   dungeonName: string,
-  ownedIds: Set<string>,
 ): Promise<LootDrop | null> {
+  const ownedIds = new Set(await loadOwnedIds(userId))
   const tier = DUNGEON_EQUIP_TIER[dungeonName] ?? 1
-  const candidates = itemsForTier(tier).filter(i => !ownedIds.has(i.id))
+  let candidates = itemsForTier(tier).filter(i => !ownedIds.has(i.id))
+
+  // Все предметы тира собраны — любой ещё не полученный с тиром ≤ данжа
+  if (candidates.length === 0) {
+    candidates = EQUIPMENT_ITEMS.filter(i => !ownedIds.has(i.id) && i.tier <= tier)
+  }
+
   if (candidates.length === 0) return null
 
   const item = candidates[Math.floor(Math.random() * candidates.length)]
-  await supabase
-    .from('user_equipment')
-    .upsert({ user_id: userId, item_id: item.id }, { onConflict: 'user_id,item_id' })
+  const { ids, ok } = await addOwnedItem(userId, item.id)
+  if (!ids.includes(item.id)) return null
+
+  if (!ok) {
+    console.warn(
+      'equipment drop saved locally — apply migration 20250612150000_equipment.sql in Supabase',
+    )
+  }
 
   return {
     kind: 'equipment',
@@ -162,10 +168,8 @@ export async function grantDungeonLoot(
   dungeonName: string,
   entry: PoolEntry,
 ): Promise<LootDrop | null> {
-  const ownedEquip = await loadOwnedEquipmentIds(supabase, userId)
-
   if (entry.kind === 'equipment') {
-    const eq = await grantEquipment(supabase, userId, dungeonName, ownedEquip)
+    const eq = await grantEquipment(supabase, userId, dungeonName)
     if (eq) return eq
     return grantDungeonLoot(supabase, userId, dungeonName, fallbackEntry(dungeonName))
   }
@@ -200,7 +204,7 @@ export async function grantDungeonLoot(
     const candidates = (catalog || []).filter(s => !ownedIds.has(s.id))
 
     if (candidates.length === 0) {
-      const eq = await grantEquipment(supabase, userId, dungeonName, ownedEquip)
+      const eq = await grantEquipment(supabase, userId, dungeonName)
       if (eq) return eq
       return grantDungeonLoot(supabase, userId, dungeonName, fallbackEntry(dungeonName))
     }

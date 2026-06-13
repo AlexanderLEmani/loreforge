@@ -62,21 +62,32 @@ export function saveOwnedLocal(userId: string, ids: string[]) {
 }
 
 export async function loadOwnedIds(userId: string): Promise<string[]> {
+  const local = loadOwnedLocal(userId)
   const supabase = createClient()
   const { data, error } = await supabase.from('user_equipment').select('item_id').eq('user_id', userId)
-  if (!error && data?.length) return data.map(r => r.item_id)
 
-  return loadOwnedLocal(userId)
+  if (!error && data) {
+    const dbIds = data.map(r => r.item_id)
+    const merged = [...new Set([...dbIds, ...local])]
+    if (merged.length > 0) saveOwnedLocal(userId, merged)
+    return merged
+  }
+
+  return local
 }
 
-export async function addOwnedItem(userId: string, itemId: string): Promise<string[]> {
+export async function addOwnedItem(userId: string, itemId: string): Promise<{ ids: string[]; ok: boolean }> {
   const supabase = createClient()
   const { error } = await supabase
     .from('user_equipment')
     .upsert({ user_id: userId, item_id: itemId }, { onConflict: 'user_id,item_id' })
 
-  const current = await loadOwnedIds(userId)
-  const next = [...new Set([...current, itemId])]
-  if (error) saveOwnedLocal(userId, next)
-  return next
+  const next = [...new Set([...(await loadOwnedIds(userId)), itemId])]
+  saveOwnedLocal(userId, next)
+
+  if (error) {
+    console.warn('user_equipment upsert failed — saved locally:', error.message)
+  }
+
+  return { ids: next, ok: !error }
 }

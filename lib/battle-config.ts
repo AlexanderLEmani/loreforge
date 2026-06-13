@@ -41,7 +41,9 @@ export const DUNGEON_TO_TOPIC: Record<string, string> = {
 }
 
 export const BOSS_ENRAGE_HP_RATIO = 0.4
-export const BOSS_ENRAGE_BONUS_HP = 45
+/** Бонус к урону и таймеру при ярости — без подмены врага и без «лечения» */
+export const BOSS_ENRAGE_ATTACK_BONUS = 4
+export const BOSS_ENRAGE_TIMEOUT_BONUS = 5
 export const BOSS_ENRAGE_TIMER_DELTA = -3
 
 export const STREAK_CRIT_THRESHOLD = 3
@@ -84,10 +86,6 @@ export const MONSTERS_BY_DUNGEON: Record<string, Monster[]> = {
     { id: 'tax', name: 'Сборщик процентов', icon: '💰', hp: 115, defendTimer: 14, attackDmg: 23, timeoutDmg: 32, trait: 'Точный' },
     { id: 'pct_boss', name: 'Лорд наценки', icon: '%', hp: 135, defendTimer: 15, attackDmg: 25, timeoutDmg: 34, trait: 'Жадный' },
   ],
-}
-
-export const BOSS_VARIANTS: Record<string, Partial<Monster>> = {
-  default: { name: 'Яростная тень', icon: '👺', trait: 'Ярость · быстрый и сильный' },
 }
 
 export const BATTLE_ATTACKS: BattleAttack[] = [

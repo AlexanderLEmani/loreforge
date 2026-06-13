@@ -10,10 +10,10 @@ import {
   type BattleAttack,
   type Monster,
   type ScrollBattleEffect,
-  BOSS_ENRAGE_BONUS_HP,
+  BOSS_ENRAGE_ATTACK_BONUS,
+  BOSS_ENRAGE_TIMEOUT_BONUS,
   BOSS_ENRAGE_HP_RATIO,
   BOSS_ENRAGE_TIMER_DELTA,
-  BOSS_VARIANTS,
   getAttacksForBattle,
   getUnlockedTopics,
   pickMonster,
@@ -58,6 +58,14 @@ import {
 } from '@/lib/race-bonuses'
 import { useStudyTimer } from '@/lib/use-study-timer'
 import StudyProgressChip from '@/components/StudyProgressChip'
+import {
+  applyStanceToMonster,
+  monsterProfile,
+  rageChargeMultiplier,
+  RAGE_CHARGE_MAX,
+  stanceCap,
+  topicDamageMultiplier,
+} from '@/lib/monster-mechanics'
 
 type Phase = 'choose_attack' | 'player_attack' | 'monster_attack' | 'result_flash'
 
@@ -107,6 +115,9 @@ function BattleContent() {
     damagePct: 0, damageReductionPct: 0, shieldOnCorrect: false, unlockedNames: [],
   })
   const [bossEnraged, setBossEnraged] = useState(false)
+  const [stanceStacks, setStanceStacks] = useState(0)
+  const [rageChargeStacks, setRageChargeStacks] = useState(0)
+  const baseMonsterRef = useRef<{ attackDmg: number; timeoutDmg: number; defendTimer: number } | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const consumablesRef = useRef<ConsumableInventory>(EMPTY_CONSUMABLES)
   const consumablesRestoredRef = useRef(false)
@@ -118,6 +129,10 @@ function BattleContent() {
   }, [consumables])
 
   const unlockedTopics = useMemo(() => getUnlockedTopics(userLevel), [userLevel])
+  const currentProfile = useMemo(
+    () => (monster ? monsterProfile(monster.id) : null),
+    [monster],
+  )
   const availableAttacks = useMemo(
     () => getAttacksForBattle(userLevel, dungeonName, unlockedTopics),
     [userLevel, dungeonName, unlockedTopics],
@@ -219,6 +234,14 @@ function BattleContent() {
       }
 
       const m = pickMonster(dungeonName)
+      baseMonsterRef.current = {
+        attackDmg: m.attackDmg,
+        timeoutDmg: m.timeoutDmg,
+        defendTimer: m.defendTimer,
+      }
+      setStanceStacks(0)
+      setRageChargeStacks(0)
+      setBossEnraged(false)
       setMonster(m)
       setEnemyHP(m.hp)
       setEnemyMaxHP(m.hp)
@@ -249,6 +272,41 @@ function BattleContent() {
     }, 1000)
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [phase, monsterQ, chosenAttack, monster])
+
+  function recomputeMonsterStats(stacks: number, enraged: boolean) {
+    const base = baseMonsterRef.current
+    if (!base) return
+    let { attackDmg, timeoutDmg } = applyStanceToMonster(base, stacks)
+    let defendTimer = base.defendTimer
+    if (enraged) {
+      attackDmg += BOSS_ENRAGE_ATTACK_BONUS
+      timeoutDmg += BOSS_ENRAGE_TIMEOUT_BONUS
+      defendTimer = Math.max(6, defendTimer + BOSS_ENRAGE_TIMER_DELTA)
+    }
+    setMonster(prev => prev ? { ...prev, attackDmg, timeoutDmg, defendTimer } : prev)
+  }
+
+  function applyIncomingDamage(rawDmg: number): number {
+    let dmg = rawDmg
+    const reduction = skillBonuses.damageReductionPct + (equipBonuses.defensePct || 0)
+    if (reduction > 0) dmg = Math.round(dmg * (1 - reduction / 100))
+    return Math.max(0, dmg)
+  }
+
+  function dealPlayerDamage(rawDmg: number, newMistakes: string[], mistakeQ?: string) {
+    const dmg = applyIncomingDamage(rawDmg)
+    const newPlayerHP = Math.max(0, playerHP - dmg)
+    setPlayerHP(newPlayerHP)
+    if (mistakeQ) {
+      setMistakes(newMistakes)
+      setCorrectStreak(0)
+    }
+    if (dmg > 0) {
+      setDamageFlash({ target: 'player', amount: dmg })
+      setTimeout(() => setDamageFlash(null), 1200)
+    }
+    return newPlayerHP
+  }
 
   function markUsed(q: { id?: number; question?: string }) {
     if (q.id != null) usedIdsRef.current.add(Number(q.id))
@@ -347,31 +405,28 @@ function BattleContent() {
     flash(`${SCROLL_EFFECT_LABELS[effect].icon} ${SCROLL_EFFECT_LABELS[effect].label}!`, '#a99fff', () => setPhase('choose_attack'))
   }
 
-  function calcDamage(base: number, isCrit: boolean, isSpell = false) {
+  function calcDamage(base: number, isCrit: boolean, isSpell: boolean, attack: BattleAttack) {
     let baseDmg = base
     if (!isSpell) baseDmg += raceBasicDamageBonus(playerRace)
     let dmg = baseDmg * (1 + skillBonuses.damagePct / 100 + (equipBonuses.damagePct || 0) / 100)
     if (isSpell) dmg *= 1 + (equipBonuses.spellDamagePct || 0) / 100
     if (powerBuff) dmg *= 2
     if (isCrit) dmg *= STREAK_CRIT_MULT
+    if (monster) {
+      const { mult } = topicDamageMultiplier(attack, dungeonName, monsterProfile(monster.id))
+      dmg *= mult
+    }
     return Math.round(dmg)
   }
 
-  function tryBossEnrage(hp: number, maxHp: number) {
-    if (bossEnraged || hp > maxHp * BOSS_ENRAGE_HP_RATIO) return
+  function tryBossEnrage(hp: number, maxHp: number): boolean {
+    if (!monster || bossEnraged || hp > maxHp * BOSS_ENRAGE_HP_RATIO) return false
+    if (!monsterProfile(monster.id).enrage) return false
     setBossEnraged(true)
-    const boss = BOSS_VARIANTS.default
-    setMonster(prev => prev ? {
-      ...prev,
-      name: boss.name ?? prev.name,
-      icon: boss.icon ?? prev.icon,
-      trait: boss.trait ?? prev.trait,
-      defendTimer: Math.max(6, prev.defendTimer + BOSS_ENRAGE_TIMER_DELTA),
-      attackDmg: prev.attackDmg + 4,
-      timeoutDmg: prev.timeoutDmg + 5,
-    } : prev)
-    setEnemyHP(hp + BOSS_ENRAGE_BONUS_HP)
-    setEnemyMaxHP(maxHp + BOSS_ENRAGE_BONUS_HP)
+    recomputeMonsterStats(stanceStacks, true)
+    setItemToast('🔥 Ярость! Тот же враг — быстрее и сильнее')
+    setTimeout(() => setItemToast(null), 2800)
+    return true
   }
 
   async function applyPlayerHit(correct: boolean, newMistakes: string[]) {
@@ -384,7 +439,7 @@ function BattleContent() {
     if (correct) {
       newStreak = correctStreak + 1
       const isCrit = newStreak >= STREAK_CRIT_THRESHOLD
-      const dmg = calcDamage(chosenAttack.dmg, isCrit, chosenAttack.kind === 'spell')
+      const dmg = calcDamage(chosenAttack.dmg, isCrit, chosenAttack.kind === 'spell', chosenAttack)
       playSound('hit')
       newEnemyHP = Math.max(0, enemyHP - dmg)
       setEnemyHP(newEnemyHP)
@@ -463,7 +518,7 @@ function BattleContent() {
     if (correct) {
       const newStreak = correctStreak + 1
       const isCrit = newStreak >= STREAK_CRIT_THRESHOLD
-      const dmg = calcDamage(Math.round(chosenAttack.dmg * 1.5), isCrit, chosenAttack.kind === 'spell')
+      const dmg = calcDamage(Math.round(chosenAttack.dmg * 1.5), isCrit, chosenAttack.kind === 'spell', chosenAttack)
       playSound('hit')
       const newEnemyHP = Math.max(0, enemyHP - dmg)
       setEnemyHP(newEnemyHP)
@@ -499,10 +554,10 @@ function BattleContent() {
 
     const correct = !timeout && idx === monsterQ.correct_index
     await recordAnswer(monsterQ, correct)
-    let newPlayerHP = playerHP
+    const profile = monsterProfile(monster.id)
     let newMistakes = [...mistakes]
 
-    if ((shieldActive || skillShieldActive) && !correct) {
+    if ((shieldActive || skillShieldActive) && !correct && !timeout) {
       setShieldActive(false)
       setSkillShieldActive(false)
       playSound('block')
@@ -514,32 +569,70 @@ function BattleContent() {
       return
     }
 
+    const finishRound = (newPlayerHP: number, finalMistakes: string[]) => {
+      if (newPlayerHP <= 0) {
+        endBattle('lose', finalMistakes)
+        return
+      }
+      tickCooldowns()
+      setRoundCount(r => r + 1)
+      setPhase('choose_attack')
+    }
+
+    // Парирование: уклонение (неверный ответ) безопасно, блок заряжает врага
+    if (profile.defendBehavior === 'rage_on_block') {
+      if (timeout) {
+        playSound('miss')
+        const raw = Math.round(monster.timeoutDmg * rageChargeMultiplier(rageChargeStacks))
+        setRageChargeStacks(0)
+        newMistakes = [...mistakes, monsterQ.question]
+        const hp = dealPlayerDamage(raw, newMistakes, monsterQ.question)
+        flash(`⏰ Время! -${applyIncomingDamage(raw)} HP`, '#e05555', () => finishRound(hp, newMistakes))
+      } else if (correct) {
+        playSound('block')
+        const newCharge = Math.min(RAGE_CHARGE_MAX, rageChargeStacks + 1)
+        setRageChargeStacks(newCharge)
+        flash(
+          `⚡ Блок заряжает врага (${newCharge}/${RAGE_CHARGE_MAX})! Уклоняйся — другой ответ`,
+          '#e0bc6a',
+          () => finishRound(playerHP, mistakes),
+        )
+      } else {
+        playSound('block')
+        setRageChargeStacks(0)
+        flash('💨 Уклонение! Враг промахнулся', '#3db87a', () => finishRound(playerHP, mistakes))
+      }
+      return
+    }
+
     if (!correct) {
       playSound('miss')
-      let dmg = timeout ? monster.timeoutDmg : monster.attackDmg
-      const reduction = skillBonuses.damageReductionPct + (equipBonuses.defensePct || 0)
-      if (reduction > 0) dmg = Math.round(dmg * (1 - reduction / 100))
-      newPlayerHP = Math.max(0, playerHP - dmg)
-      setPlayerHP(newPlayerHP)
-      setDamageFlash({ target: 'player', amount: dmg })
-      setTimeout(() => setDamageFlash(null), 1200)
+      const raw = Math.round(
+        (timeout ? monster.timeoutDmg : monster.attackDmg) * rageChargeMultiplier(rageChargeStacks),
+      )
+      setRageChargeStacks(0)
       newMistakes = [...mistakes, monsterQ.question]
-      setMistakes(newMistakes)
-      setCorrectStreak(0)
-      flash(timeout ? `⏰ Время! -${dmg} HP` : `💥 ${monster.name} бьёт! -${dmg} HP`, '#e05555', () => {
-        if (newPlayerHP <= 0) { endBattle('lose', newMistakes); return }
-        tickCooldowns()
-        setRoundCount(r => r + 1)
-        setPhase('choose_attack')
-      })
-    } else {
-      playSound('block')
-      flash('🛡️ Заблокировано!', '#3db87a', () => {
-        tickCooldowns()
-        setRoundCount(r => r + 1)
-        setPhase('choose_attack')
-      })
+      const hp = dealPlayerDamage(raw, newMistakes, monsterQ.question)
+      flash(
+        timeout ? `⏰ Время! -${applyIncomingDamage(raw)} HP` : `💥 ${monster.name} бьёт! -${applyIncomingDamage(raw)} HP`,
+        '#e05555',
+        () => finishRound(hp, newMistakes),
+      )
+      return
     }
+
+    // Верный блок
+    playSound('block')
+    if (profile.defendBehavior === 'stance_on_block') {
+      const cap = stanceCap(profile)
+      const newStacks = Math.min(cap, stanceStacks + 1)
+      setStanceStacks(newStacks)
+      recomputeMonsterStats(newStacks, bossEnraged)
+      flash(`🛡️ Блок! Стойка ${newStacks}/${cap} — враг сильнее`, '#3db87a', () => finishRound(playerHP, mistakes))
+      return
+    }
+
+    flash('🛡️ Заблокировано!', '#3db87a', () => finishRound(playerHP, mistakes))
   }
 
   async function restoreUnusedConsumables() {
@@ -651,16 +744,34 @@ function BattleContent() {
           <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#8a849c', marginTop: '2px' }}>РАУНД {roundCount + 1}</div>
         </div>
 
-        {monster && (
+        {monster && currentProfile && (
           <div style={{ background: '#1a1f28', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '10px 12px' }}>
             <div style={{ fontSize: '10px', fontFamily: 'monospace', color: '#8a849c', marginBottom: '6px' }}>ВРАГ</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '24px' }}>{monster.icon}</span>
-              <div>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '13px', color: '#e6e2f0' }}>{monster.name}</div>
                 <div style={{ fontSize: '10px', color: bossEnraged ? '#e05555' : '#8a849c' }}>
-              {monster.trait} · таймер {monster.defendTimer}s{bossEnraged ? ' · ЯРОСТЬ' : ''}
-            </div>
+                  {monster.trait}{bossEnraged ? ' · ЯРОСТЬ' : ''} · таймер {monster.defendTimer}s
+                </div>
+                {stanceStacks > 0 && (
+                  <div style={{ fontSize: '10px', color: '#e0bc6a', marginTop: '4px' }}>
+                    🛡 Стойка {stanceStacks}/{stanceCap(currentProfile)}
+                  </div>
+                )}
+                {rageChargeStacks > 0 && (
+                  <div style={{ fontSize: '10px', color: '#e05555', marginTop: '4px' }}>
+                    ⚡ Заряд удара ×{rageChargeMultiplier(rageChargeStacks).toFixed(2)}
+                  </div>
+                )}
+                <div style={{ fontSize: '10px', color: '#7b6cff', marginTop: '6px', lineHeight: 1.45 }}>
+                  {currentProfile.tip}
+                </div>
+                {currentProfile.defendBehavior === 'rage_on_block' && (
+                  <div style={{ fontSize: '9px', color: '#e0bc6a', marginTop: '4px', fontFamily: 'monospace' }}>
+                    ПАРИРОВАНИЕ: уклонение · не блок
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -784,6 +895,9 @@ function BattleContent() {
               {basicAttacks.map(atk => {
                 const cd = cooldowns[atk.id] ?? 0
                 const locked = cd > 0
+                const topicHint = monster
+                  ? topicDamageMultiplier(atk, dungeonName, monsterProfile(monster.id))
+                  : { mult: 1, label: null }
                 return (
                   <div key={atk.id} onClick={() => !locked && chooseAttack(atk)}
                     className="lf-battle-attack-card"
@@ -792,6 +906,11 @@ function BattleContent() {
                     <div style={{ fontSize: '13px', color: '#e6e2f0', marginBottom: '2px' }}>{atk.label}</div>
                     <div className="lf-battle-attack-desc" style={{ fontSize: '11px', color: '#8a849c', marginBottom: '8px' }}>{atk.desc}</div>
                     <div style={{ fontFamily: 'monospace', fontSize: '16px', color: atk.color }}>+{atk.dmg}</div>
+                    {topicHint.label && (
+                      <div style={{ fontSize: '9px', marginTop: '4px', color: topicHint.mult > 1 ? '#3db87a' : '#e05555', fontFamily: 'monospace' }}>
+                        {topicHint.label}
+                      </div>
+                    )}
                     {locked && <div style={{ fontSize: '10px', color: '#e05555', marginTop: '4px' }}>⏳ {cd}</div>}
                   </div>
                 )
@@ -805,6 +924,9 @@ function BattleContent() {
                   {spellAttacks.map(atk => {
                     const cd = cooldowns[atk.id] ?? 0
                     const locked = cd > 0
+                    const topicHint = monster
+                      ? topicDamageMultiplier(atk, dungeonName, monsterProfile(monster.id))
+                      : { mult: 1, label: null }
                     return (
                       <div key={atk.id} onClick={() => !locked && chooseAttack(atk)}
                         className="lf-battle-spell-card"
@@ -812,6 +934,11 @@ function BattleContent() {
                         <div style={{ fontSize: '24px', marginBottom: '4px' }}>{atk.icon}</div>
                         <div style={{ fontSize: '12px', color: '#e6e2f0', marginBottom: '2px' }}>{atk.label}</div>
                         <div style={{ fontFamily: 'monospace', fontSize: '14px', color: atk.color }}>+{atk.dmg}</div>
+                        {topicHint.label && (
+                          <div style={{ fontSize: '9px', marginTop: '4px', color: topicHint.mult > 1 ? '#3db87a' : '#e05555', fontFamily: 'monospace' }}>
+                            {topicHint.label}
+                          </div>
+                        )}
                         {locked && <div style={{ fontSize: '10px', color: '#e05555' }}>⏳ {cd}</div>}
                       </div>
                     )
@@ -951,7 +1078,11 @@ function BattleContent() {
             </div>
             <div style={{ background: 'rgba(224,85,85,0.04)', border: '1px solid rgba(224,85,85,0.3)', borderRadius: '12px', padding: '1.5rem', marginBottom: '1rem' }}>
               <div className="lf-battle-question" style={{ fontFamily: 'serif', fontSize: '42px', color: '#e6e2f0', lineHeight: 1.1 }}>{monsterQ.question}</div>
-              <div style={{ fontSize: '12px', color: '#8a849c', marginTop: '8px' }}>Верный ответ блокирует · ошибка −{monster.attackDmg} HP</div>
+              <div style={{ fontSize: '12px', color: '#8a849c', marginTop: '8px' }}>
+                {currentProfile?.defendBehavior === 'rage_on_block'
+                  ? 'Уклонение: неверный ответ · блок заряжает врага · таймаут −' + monster.attackDmg + ' HP'
+                  : `Верный ответ блокирует · ошибка −${monster.attackDmg} HP`}
+              </div>
             </div>
             <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
               {monsterQ.answers.map((ans: string, idx: number) => {
