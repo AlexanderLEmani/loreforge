@@ -17,6 +17,7 @@ body {
   background: #0b0c10;
   min-height: 100vh;
   font-family: serif;
+  overflow-x: clip;
 }
 
 .lf-layout-2col {
@@ -175,12 +176,80 @@ body {
     padding: 1rem !important;
   }
 
+  .lf-college-sidebar-r {
+    padding: 1rem 1.25rem !important;
+  }
+
+  .lf-formula-block {
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 1rem;
+  }
+
+  .lf-formula-hint {
+    flex: none;
+    width: 100%;
+  }
+
+  .lf-section-heading-wrap {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .lf-section-heading-line {
+    flex: 1 1 24px;
+  }
+
+  .lf-section-heading-text {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .lf-page-title {
+    font-size: 22px;
+  }
+
+  .lf-race-picker {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lf-race-picker > div {
+    flex: unset !important;
+    min-width: 0;
+  }
+
+  .lf-hair-picker {
+    flex-wrap: wrap;
+  }
+
+  .lf-hair-picker > div {
+    flex: 1 1 calc(33.333% - 8px);
+    min-width: 52px;
+  }
+
+  .lf-exam-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lf-modal-panel {
+    padding: 1.25rem;
+    max-height: min(88vh, 640px);
+  }
+
   .lf-nav-subtitle {
     display: none;
   }
 
   .lf-sidebar-nav {
     display: none;
+  }
+
+  .lf-modal-overlay {
+    padding: 1rem !important;
   }
 }
 
@@ -326,4 +395,151 @@ body {
 .lf-college-content {
   padding: 2rem;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
+  min-width: 0;
+}
+
+/* --- Lecture / prose blocks --- */
+
+.lf-prose {
+  font-size: 15px;
+  color: #b8b0c8;
+  line-height: 1.8;
+  margin-bottom: 1rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.lf-formula-block {
+  background: #171920;
+  border: 1px solid rgba(123, 108, 255, 0.25);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.lf-formula-expr {
+  font-family: monospace;
+  font-size: clamp(15px, 4.2vw, 24px);
+  color: #a99fff;
+  line-height: 1.45;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.lf-formula-hint {
+  font-size: 12px;
+  color: #8a849c;
+  font-style: italic;
+  line-height: 1.55;
+  flex: 1 1 38%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.lf-section-heading-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2rem 0 1rem;
+  min-width: 0;
+}
+
+.lf-section-heading-line {
+  height: 1px;
+  flex: 1;
+  min-width: 12px;
+  background: rgba(201, 168, 76, 0.2);
+}
+
+.lf-section-heading-text {
+  font-family: monospace;
+  font-size: 10px;
+  color: #e0bc6a;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.45;
+  max-width: 100%;
+}
+
+.lf-lecture-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.lf-lecture-nav {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.lf-page-title {
+  font-family: serif;
+  font-size: 26px;
+  color: #e0bc6a;
+  margin-bottom: 6px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.lf-professor-block {
+  background: #1c1f2a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 2rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.lf-race-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.lf-hair-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.lf-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 2rem;
+}
+
+.lf-exam-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin-top: 1rem;
+}
+
+.lf-modal-panel {
+  background: #1c1f2a;
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 480px;
+  width: 100%;
+  max-height: min(90vh, 720px);
+  overflow-y: auto;
 }

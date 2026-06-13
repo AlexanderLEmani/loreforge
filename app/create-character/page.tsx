@@ -108,7 +108,7 @@ export default function CreateCharacter() {
           {/* Раса */}
           <div>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '8px' }}>Раса</div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="lf-race-picker">
               {RACE_OPTIONS.map(r => (
                 <div key={r.id} onClick={() => setRace(r.id)}
                   style={{ flex: 1, background: race === r.id ? 'rgba(201,168,76,0.1)' : '#1c1f2a', border: `1px solid ${race === r.id ? 'rgba(201,168,76,0.6)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '10px', padding: '10px 6px', textAlign: 'center', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
@@ -124,7 +124,7 @@ export default function CreateCharacter() {
           {/* Причёска */}
           <div>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '8px' }}>Причёска</div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="lf-hair-picker">
               {HAIR_STYLES.map(s => (
                 <div key={s} onClick={() => setHairStyle(s)}
                   style={{ flex: 1, padding: '8px', background: hairStyle === s ? 'rgba(201,168,76,0.1)' : '#1c1f2a', border: `1px solid ${hairStyle === s ? 'rgba(201,168,76,0.5)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '8px', textAlign: 'center', cursor: 'pointer' }}>

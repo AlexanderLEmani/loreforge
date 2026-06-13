@@ -169,7 +169,7 @@ function ExamContent() {
               </div>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px', marginTop: '1rem' }}>
+          <div className="lf-exam-meta-grid">
             {[
               ['📝', `${questions.length} вопросов`],
               ['✅', `Нужно ${Math.ceil(questions.length * 0.8)}/${questions.length}`],

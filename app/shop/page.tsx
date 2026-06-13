@@ -254,8 +254,8 @@ export default function ShopPage() {
       )}
 
       {showHelp && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '2rem' }}>
-          <div style={{ background: '#1c1f2a', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '16px', padding: '2rem', maxWidth: '460px', width: '100%' }}>
+        <div className="lf-modal-overlay">
+          <div className="lf-modal-panel">
             <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#e0bc6a', marginBottom: '12px' }}>Лавка свитков</div>
             <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
               Свитки — постоянные знания в Гримуаре: методы и примеры для учёбы.

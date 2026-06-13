@@ -334,8 +334,8 @@ export default function SkillsPage() {
       )}
 
       {showHelp && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '2rem' }}>
-          <div style={{ background: '#1c1f2a', border: '1px solid rgba(169,159,255,0.3)', borderRadius: '16px', padding: '2rem', maxWidth: '460px', width: '100%' }}>
+        <div className="lf-modal-overlay">
+          <div className="lf-modal-panel" style={{ borderColor: 'rgba(169,159,255,0.3)' }}>
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
               <div style={{ fontSize: '44px', marginBottom: '10px' }}>✦</div>
               <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#e0bc6a', marginBottom: '6px' }}>Древо способностей</div>

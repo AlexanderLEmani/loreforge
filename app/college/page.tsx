@@ -168,12 +168,12 @@ export default function CollegePage() {
           <div className="lf-college-content lf-main">
 
             <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '8px' }}>
+              <div className="lf-lecture-header">
                 <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#8a849c', textTransform: 'uppercase' }}>
                   Лекция {LECTURE_NUMS[selectedLectureLevel - 1]}
                   {viewingArchive && <span style={{ color: '#9590a8' }}> · архив</span>}
                 </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
+                <div className="lf-lecture-nav">
                   <div
                     onClick={() => canGoPrev && openLecture(selectedLectureLevel - 1, level)}
                     style={{
@@ -196,7 +196,7 @@ export default function CollegePage() {
                   </div>
                 </div>
               </div>
-              <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '6px' }}>
+              <div className="lf-page-title">
                 {lectureLoading ? 'Загрузка...' : lecture?.title}
               </div>
               <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff' }}>Профессор Горус · Архимаг Арифметики</div>
@@ -212,23 +212,23 @@ export default function CollegePage() {
 
             {(lecture?.sections || []).map((s, i) => {
               if (s.type === 'professor') return (
-                <div key={i} style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '1.25rem', marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                <div key={i} className="lf-professor-block">
                   <div style={{ fontSize: '40px', flexShrink: 0, lineHeight: 1 }}>🧙‍♂️</div>
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#e0bc6a', letterSpacing: '0.1em', marginBottom: '6px' }}>ПРОФЕССОР ГОРУС</div>
-                    <div style={{ fontSize: '15px', color: '#c8c0d8', lineHeight: 1.7, fontStyle: 'italic' }}>"{s.text}"</div>
+                    <div className="lf-prose" style={{ fontStyle: 'italic', marginBottom: 0 }}>"{s.text}"</div>
                   </div>
                 </div>
               )
               if (s.type === 'heading') return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '2rem 0 1rem' }}>
-                  <div style={{ height: '1px', flex: 1, background: 'rgba(201,168,76,0.2)' }}></div>
-                  <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#e0bc6a', letterSpacing: '0.2em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{s.text}</div>
-                  <div style={{ height: '1px', flex: 1, background: 'rgba(201,168,76,0.2)' }}></div>
+                <div key={i} className="lf-section-heading-wrap">
+                  <div className="lf-section-heading-line"></div>
+                  <div className="lf-section-heading-text">{s.text}</div>
+                  <div className="lf-section-heading-line"></div>
                 </div>
               )
               if (s.type === 'text') return (
-                <p key={i} style={{ fontSize: '15px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1rem' }}>{s.text}</p>
+                <p key={i} className="lf-prose">{s.text}</p>
               )
               if (s.type === 'quote') return (
                 <div key={i} style={{ borderLeft: '3px solid rgba(201,168,76,0.4)', padding: '1rem 1.25rem', margin: '1.5rem 0', background: 'rgba(201,168,76,0.04)', borderRadius: '0 8px 8px 0' }}>
@@ -236,9 +236,9 @@ export default function CollegePage() {
                 </div>
               )
               if (s.type === 'formula') return (
-                <div key={i} style={{ background: '#171920', border: '1px solid rgba(123,108,255,0.25)', borderRadius: '10px', padding: '1rem 1.25rem', margin: '1rem 0', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                  <div style={{ fontFamily: 'monospace', fontSize: '24px', color: '#a99fff', whiteSpace: 'nowrap' }}>{s.text}</div>
-                  <div style={{ fontSize: '12px', color: '#8a849c', fontStyle: 'italic', lineHeight: 1.5 }}>{s.hint}</div>
+                <div key={i} className="lf-formula-block">
+                  <div className="lf-formula-expr">{s.text}</div>
+                  {s.hint && <div className="lf-formula-hint">{s.hint}</div>}
                 </div>
               )
               if (s.type === 'outro') return (
@@ -266,7 +266,7 @@ export default function CollegePage() {
 
           </div>
 
-          <div className={layout.sidebarR} style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className={`${layout.sidebarR} lf-college-sidebar-r`} style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
             <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '4px' }}>Лекции</div>
             {lectureList.map(l => (
@@ -337,8 +337,8 @@ export default function CollegePage() {
       </div>
 
       {showWelcome && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '2rem' }}>
-          <div style={{ background: '#1c1f2a', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '16px', padding: '2rem', maxWidth: '460px', width: '100%' }}>
+        <div className="lf-modal-overlay">
+          <div className="lf-modal-panel" style={{ maxWidth: '460px' }}>
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
               <div style={{ fontSize: '44px', marginBottom: '10px' }}>🏛️</div>
               <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#e0bc6a', marginBottom: '6px' }}>Коллегия Магов</div>
@@ -362,8 +362,8 @@ export default function CollegePage() {
       )}
 
       {showNext && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '2rem' }}>
-          <div style={{ background: '#1c1f2a', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '16px', padding: '2rem', maxWidth: '480px', width: '100%' }}>
+        <div className="lf-modal-overlay">
+          <div className="lf-modal-panel">
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
               <div style={{ fontSize: '40px', marginBottom: '10px' }}>🧙‍♂️</div>
               <div style={{ fontFamily: 'serif', fontSize: '20px', color: '#e0bc6a', marginBottom: '6px' }}>Первый шаг сделан</div>
