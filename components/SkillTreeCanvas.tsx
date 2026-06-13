@@ -4,15 +4,17 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   BRANCHES,
   TYPE_COLORS,
+  type SkillBranch,
   type SkillTreeNode,
   getNodeState,
 } from '@/lib/skill-tree'
 
-const BG = '#151820'
+const BG_TOP = '#0c0e14'
+const BG_BOTTOM = '#06080c'
 const GOLD = '#e0bc6a'
 const PURPLE = '#b8aeff'
 const LOCKED = '#5a6070'
-const LOCKED_LINE = '#3a4050'
+const LOCKED_LINE = '#2a3040'
 
 type Props = {
   nodes: SkillTreeNode[]
@@ -21,6 +23,7 @@ type Props = {
   skillPoints: number
   selectedId: number | null
   onSelect: (id: number | null) => void
+  highlightBranch?: SkillBranch | null
 }
 
 function nodeRadius(type: SkillTreeNode['type']): number {
@@ -36,6 +39,7 @@ export default function SkillTreeCanvas({
   skillPoints,
   selectedId,
   onSelect,
+  highlightBranch = null,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -43,6 +47,7 @@ export default function SkillTreeCanvas({
   const draggingRef = useRef(false)
   const lastPointerRef = useRef({ x: 0, y: 0 })
   const downPointerRef = useRef({ x: 0, y: 0 })
+  const pinchRef = useRef<{ dist: number; scale: number } | null>(null)
   const [ready, setReady] = useState(false)
 
   const fitToNodes = useCallback(() => {
@@ -50,8 +55,13 @@ export default function SkillTreeCanvas({
     const container = containerRef.current
     if (!canvas || !container || nodes.length === 0) return
 
-    const xs = nodes.map(n => n.position_x)
-    const ys = nodes.map(n => n.position_y)
+    const filtered = highlightBranch
+      ? nodes.filter(n => n.branch === highlightBranch)
+      : nodes
+    const target = filtered.length > 0 ? filtered : nodes
+
+    const xs = target.map(n => n.position_x)
+    const ys = target.map(n => n.position_y)
     const minX = Math.min(...xs) - 80
     const maxX = Math.max(...xs) + 80
     const minY = Math.min(...ys) - 80
@@ -68,7 +78,7 @@ export default function SkillTreeCanvas({
       offsetX: (container.clientWidth - w * scale) / 2 - minX * scale,
       offsetY: (container.clientHeight - h * scale) / 2 - minY * scale,
     }
-  }, [nodes])
+  }, [nodes, highlightBranch])
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current
@@ -89,22 +99,31 @@ export default function SkillTreeCanvas({
 
     const { scale, offsetX, offsetY } = transformRef.current
 
-    ctx.fillStyle = BG
+    const grad = ctx.createLinearGradient(0, 0, 0, h)
+    grad.addColorStop(0, BG_TOP)
+    grad.addColorStop(1, BG_BOTTOM)
+    ctx.fillStyle = grad
     ctx.fillRect(0, 0, w, h)
 
-    // subtle grid
+    const vignette = ctx.createRadialGradient(w / 2, h / 2, h * 0.15, w / 2, h / 2, h * 0.85)
+    vignette.addColorStop(0, 'rgba(0,0,0,0)')
+    vignette.addColorStop(1, 'rgba(0,0,0,0.55)')
+    ctx.fillStyle = vignette
+    ctx.fillRect(0, 0, w, h)
+
     ctx.save()
     ctx.translate(offsetX, offsetY)
     ctx.scale(scale, scale)
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)'
+
+    ctx.strokeStyle = 'rgba(201, 168, 76, 0.04)'
     ctx.lineWidth = 1 / scale
-    for (let x = -200; x < 1600; x += 40) {
+    for (let x = -200; x < 1600; x += 48) {
       ctx.beginPath()
       ctx.moveTo(x, -200)
       ctx.lineTo(x, 800)
       ctx.stroke()
     }
-    for (let y = -200; y < 800; y += 40) {
+    for (let y = -200; y < 800; y += 48) {
       ctx.beginPath()
       ctx.moveTo(-200, y)
       ctx.lineTo(1600, y)
@@ -113,12 +132,17 @@ export default function SkillTreeCanvas({
 
     const nodeMap = new Map(nodes.map(n => [n.id, n]))
 
-    // edges
+    function branchDim(branch: SkillBranch): number {
+      if (!highlightBranch) return 1
+      return branch === highlightBranch ? 1 : 0.22
+    }
+
     for (const node of nodes) {
       if (node.requires === null) continue
       const parent = nodeMap.get(node.requires)
       if (!parent) continue
 
+      const dim = Math.min(branchDim(node.branch), branchDim(parent.branch))
       const pState = getNodeState(parent, unlockedIds, userLevel, skillPoints)
       const cState = getNodeState(node, unlockedIds, userLevel, skillPoints)
       const lit = pState === 'unlocked' && (cState === 'unlocked' || cState === 'available')
@@ -126,72 +150,79 @@ export default function SkillTreeCanvas({
       ctx.beginPath()
       ctx.moveTo(parent.position_x, parent.position_y)
       ctx.lineTo(node.position_x, node.position_y)
-      ctx.strokeStyle = lit ? (pState === 'unlocked' && cState === 'unlocked' ? GOLD : PURPLE) : LOCKED_LINE
-      ctx.globalAlpha = lit ? 0.85 : 0.35
-      ctx.lineWidth = lit ? 2.5 / scale : 1.5 / scale
-      if (lit) {
+      ctx.strokeStyle = lit ? (cState === 'unlocked' ? GOLD : PURPLE) : LOCKED_LINE
+      ctx.globalAlpha = lit ? 0.9 * dim : 0.25 * dim
+      ctx.lineWidth = lit ? 3 / scale : 1.5 / scale
+      if (lit && dim > 0.5) {
         ctx.shadowColor = cState === 'unlocked' ? GOLD : PURPLE
-        ctx.shadowBlur = 8 / scale
+        ctx.shadowBlur = 10 / scale
       }
       ctx.stroke()
       ctx.shadowBlur = 0
       ctx.globalAlpha = 1
     }
 
-    // nodes
     for (const node of nodes) {
+      const dim = branchDim(node.branch)
       const state = getNodeState(node, unlockedIds, userLevel, skillPoints)
       const r = nodeRadius(node.type)
       const branchColor = BRANCHES.find(b => b.id === node.branch)?.color ?? TYPE_COLORS[node.type]
       const color = state === 'locked' ? TYPE_COLORS[node.type] : branchColor
       const isSelected = selectedId === node.id
 
+      ctx.globalAlpha = dim
+
       ctx.beginPath()
-      ctx.arc(node.position_x, node.position_y, r + 6, 0, Math.PI * 2)
+      ctx.arc(node.position_x, node.position_y, r + 8, 0, Math.PI * 2)
       if (state === 'unlocked') {
-        ctx.fillStyle = `${color}18`
+        ctx.fillStyle = `${color}20`
+        ctx.fill()
+      } else if (state === 'available') {
+        ctx.fillStyle = `${color}12`
         ctx.fill()
       }
 
       ctx.beginPath()
       ctx.arc(node.position_x, node.position_y, r, 0, Math.PI * 2)
       if (state === 'unlocked') {
-        ctx.fillStyle = '#1e2430'
+        ctx.fillStyle = '#12161f'
         ctx.strokeStyle = color
         ctx.lineWidth = 2.5 / scale
         ctx.shadowColor = color
-        ctx.shadowBlur = 14 / scale
+        ctx.shadowBlur = 16 / scale
       } else if (state === 'available') {
-        ctx.fillStyle = '#222836'
+        ctx.fillStyle = '#1a2030'
         ctx.strokeStyle = color
         ctx.lineWidth = 2 / scale
         ctx.shadowColor = color
-        ctx.shadowBlur = 8 / scale
+        ctx.shadowBlur = 12 / scale
       } else {
-        ctx.fillStyle = '#1a1f28'
+        ctx.fillStyle = '#10141c'
         ctx.strokeStyle = LOCKED
         ctx.lineWidth = 1.5 / scale
         ctx.shadowBlur = 0
       }
       if (isSelected) {
         ctx.strokeStyle = GOLD
-        ctx.lineWidth = 3 / scale
+        ctx.lineWidth = 3.5 / scale
         ctx.shadowColor = GOLD
-        ctx.shadowBlur = 18 / scale
+        ctx.shadowBlur = 22 / scale
       }
       ctx.fill()
       ctx.stroke()
       ctx.shadowBlur = 0
 
-      ctx.fillStyle = state === 'locked' ? '#7a8090' : color
-      ctx.font = `bold ${(node.type === 'passive' ? 12 : 14) / scale}px sans-serif`
+      ctx.fillStyle = state === 'locked' ? '#6a7080' : color
+      ctx.font = `bold ${(node.type === 'passive' ? 12 : 14) / scale}px serif`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillText(node.icon || '✦', node.position_x, node.position_y)
+
+      ctx.globalAlpha = 1
     }
 
     ctx.restore()
-  }, [nodes, unlockedIds, userLevel, skillPoints, selectedId])
+  }, [nodes, unlockedIds, userLevel, skillPoints, selectedId, highlightBranch])
 
   useEffect(() => {
     fitToNodes()
@@ -214,6 +245,55 @@ export default function SkillTreeCanvas({
     return () => ro.disconnect()
   }, [draw, fitToNodes])
 
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    function touchDist(touches: TouchList) {
+      const dx = touches[0].clientX - touches[1].clientX
+      const dy = touches[0].clientY - touches[1].clientY
+      return Math.hypot(dx, dy)
+    }
+
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length === 2) {
+        pinchRef.current = { dist: touchDist(e.touches), scale: transformRef.current.scale }
+        draggingRef.current = false
+      }
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      if (!el || e.touches.length !== 2 || !pinchRef.current) return
+      e.preventDefault()
+      const dist = touchDist(e.touches)
+      const ratio = dist / pinchRef.current.dist
+      const newScale = Math.min(2.5, Math.max(0.35, pinchRef.current.scale * ratio))
+      const rect = el.getBoundingClientRect()
+        const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left
+        const my = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top
+        const { scale, offsetX, offsetY } = transformRef.current
+        const wx = (mx - offsetX) / scale
+        const wy = (my - offsetY) / scale
+        transformRef.current.scale = newScale
+        transformRef.current.offsetX = mx - wx * newScale
+        transformRef.current.offsetY = my - wy * newScale
+        draw()
+    }
+
+    function onTouchEnd() {
+      pinchRef.current = null
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd)
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [draw])
+
   function worldFromClient(clientX: number, clientY: number) {
     const container = containerRef.current
     if (!container) return { x: 0, y: 0 }
@@ -235,7 +315,23 @@ export default function SkillTreeCanvas({
     return null
   }
 
+  function zoomAt(factor: number) {
+    const container = containerRef.current
+    if (!container) return
+    const mx = container.clientWidth / 2
+    const my = container.clientHeight / 2
+    const { scale, offsetX, offsetY } = transformRef.current
+    const newScale = Math.min(2.5, Math.max(0.35, scale * factor))
+    const wx = (mx - offsetX) / scale
+    const wy = (my - offsetY) / scale
+    transformRef.current.scale = newScale
+    transformRef.current.offsetX = mx - wx * newScale
+    transformRef.current.offsetY = my - wy * newScale
+    draw()
+  }
+
   function onPointerDown(e: React.PointerEvent) {
+    if (pinchRef.current) return
     draggingRef.current = true
     lastPointerRef.current = { x: e.clientX, y: e.clientY }
     downPointerRef.current = { x: e.clientX, y: e.clientY }
@@ -243,7 +339,7 @@ export default function SkillTreeCanvas({
   }
 
   function onPointerMove(e: React.PointerEvent) {
-    if (!draggingRef.current) return
+    if (!draggingRef.current || pinchRef.current) return
     const dx = e.clientX - lastPointerRef.current.x
     const dy = e.clientY - lastPointerRef.current.y
     lastPointerRef.current = { x: e.clientX, y: e.clientY }
@@ -284,28 +380,27 @@ export default function SkillTreeCanvas({
   }
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        minHeight: '480px',
-        borderRadius: '12px',
-        border: '1px solid rgba(255,255,255,0.12)',
-        overflow: 'hidden',
-        cursor: 'grab',
-        touchAction: 'none',
-        background: BG,
-      }}
-      onWheel={onWheel}
-    >
-      <canvas
-        ref={canvasRef}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        style={{ display: 'block', width: '100%', height: '100%' }}
-      />
+    <div className="lf-skill-tree-canvas-wrap">
+      <div
+        ref={containerRef}
+        className="lf-skill-tree-canvas-inner"
+        onWheel={onWheel}
+      >
+        <canvas
+          ref={canvasRef}
+          className="lf-skill-tree-canvas"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+        />
+      </div>
+      <div className="lf-skill-tree-zoom">
+        <button type="button" className="lf-skill-tree-zoom-btn" onClick={() => zoomAt(1.15)} aria-label="Увеличить">+</button>
+        <button type="button" className="lf-skill-tree-zoom-btn" onClick={() => zoomAt(0.87)} aria-label="Уменьшить">−</button>
+        <button type="button" className="lf-skill-tree-zoom-btn" onClick={() => { fitToNodes(); draw() }} aria-label="Центр">◎</button>
+      </div>
+      <div className="lf-skill-tree-hint lf-skill-tree-hint--desktop">Перетаскивание · колёсико — зум</div>
+      <div className="lf-skill-tree-hint lf-skill-tree-hint--mobile">Тяни · два пальца — зум</div>
     </div>
   )
 }

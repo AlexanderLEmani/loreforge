@@ -5,16 +5,14 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import SkillTreeCanvas from '@/components/SkillTreeCanvas'
+import SkillNodeDetail from '@/components/SkillNodeDetail'
+import SkillBranchChips from '@/components/SkillBranchChips'
 import {
-  BRANCHES,
   PROTOTYPE_NODES,
-  TYPE_COLORS,
-  TYPE_LABELS,
-  branchMeta,
-  getLockReason,
-  getNodeState,
   loadDemoSkillState,
   saveDemoSkillState,
+  getNodeState,
+  type SkillBranch,
   type SkillTreeNode,
 } from '@/lib/skill-tree'
 import { SKILL_POINTS_PER_LEVEL } from '@/lib/skill-points'
@@ -31,6 +29,7 @@ export default function SkillsPage() {
   const [nodes, setNodes] = useState<SkillTreeNode[]>([])
   const [unlockedIds, setUnlockedIds] = useState<Set<number>>(new Set())
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [branchFilter, setBranchFilter] = useState<SkillBranch | null>(null)
   const [loading, setLoading] = useState(true)
   const [unlocking, setUnlocking] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -110,11 +109,7 @@ export default function SkillsPage() {
   const skillPoints = userData?.skill_points ?? 0
   const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)
 
-  const selectedNode = selectedId
-    ? nodes.find(n => n.id === selectedId)
-    : null
-
-  const selectedBranchMeta = selectedNode ? branchMeta(selectedNode.branch) : null
+  const selectedNode = selectedId != null ? nodes.find(n => n.id === selectedId) ?? null : null
 
   async function unlockNode(node: SkillTreeNode) {
     if (!userData || unlocking) return
@@ -158,195 +153,149 @@ export default function SkillsPage() {
     setUnlocking(false)
   }
 
+  const detailProps = {
+    node: selectedNode,
+    nodes,
+    unlockedIds,
+    level,
+    skillPoints,
+    unlocking,
+    onUnlock: unlockNode,
+  }
+
   if (loading) return <LoadingScreen />
 
   return (
-    <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
-      <nav className={layout.navBar} style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ fontFamily: 'monospace', fontSize: '16px', color: '#e0bc6a', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '26px', height: '26px', border: '1.5px solid #c9a84c', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✦</div>
-          LoreForge
+    <div className="lf-skills-page">
+      <nav className={`${layout.navBar} lf-skills-nav`}>
+        <div className="lf-skills-nav-brand">
+          <div className="lf-skills-nav-sigil">✦</div>
+          <span>Древо знаний</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ fontFamily: 'monospace', fontSize: '12px', color: '#9590a8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            ✦ <span style={{ color: '#b8aeff', fontWeight: 600 }}>{skillPoints}</span>
-            <span>очков способностей</span>
+        <div className="lf-skills-nav-meta">
+          <div className="lf-skill-points-badge">
+            <span className="lf-skill-points-badge-icon">✦</span>
+            <span className="lf-skill-points-badge-val">{skillPoints}</span>
+            <span className="lf-skill-points-badge-label">очков</span>
           </div>
-          <div onClick={() => setShowHelp(true)}
-            style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#5a5670', cursor: 'pointer', fontFamily: 'monospace' }}>
+          <button type="button" className="lf-skills-help-btn" onClick={() => setShowHelp(true)} aria-label="Помощь">
             ?
-          </div>
+          </button>
         </div>
       </nav>
 
-      <div className={layout.twoCol}>
-        <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
+      <div className={`${layout.twoCol} lf-skills-shell`}>
+        <Sidebar
+          level={level}
+          xp={xpCurrent}
+          xpNext={xpNext}
+          gold={userData?.gold || 0}
+          step={userData?.onboarding_step || 0}
+          navUnlock={navUnlockFromUser(userData)}
+        />
 
-        <div className={`${layout.main} lf-main`} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: 'calc(100vh - 56px)' }}>
-          <div style={{ paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '4px' }}>Древо знаний</div>
-            <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '4px' }}>Способности</div>
-            <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.5 }}>
-              Одно древо по темам математики. +{SKILL_POINTS_PER_LEVEL} очка за уровень.
-            </div>
-          </div>
-
-          <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.28)', borderRadius: '10px', padding: '12px 16px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-            <div style={{ fontSize: '20px', lineHeight: 1 }}>🧭</div>
-            <div style={{ fontSize: '13px', color: '#d4c4a0', lineHeight: 1.65 }}>
-              <span style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.12em', color: '#c9a84c', display: 'block', marginBottom: '6px' }}>ПОРЯДОК ТЕМ</span>
-              {SKILL_TREE_PATH_HINT}
-            </div>
-          </div>
+        <div className={`${layout.main} lf-skills-main lf-pad-main`}>
+          <header className="lf-skills-intro lf-skills-intro--desktop">
+            <p className="lf-skills-intro-kicker">Способности</p>
+            <h1 className="lf-skills-intro-title">Путь математики</h1>
+            <p className="lf-skills-intro-desc">
+              Одно древо по темам. +{SKILL_POINTS_PER_LEVEL} очка за уровень — вложи в узлы, как в древе навыков.
+            </p>
+          </header>
 
           {dbError && (
-            <div style={{ background: demoMode ? 'rgba(169,159,255,0.08)' : 'rgba(224,85,85,0.08)', border: `1px solid ${demoMode ? 'rgba(169,159,255,0.35)' : 'rgba(224,85,85,0.35)'}`, borderRadius: '10px', padding: '14px 18px', fontSize: '13px', color: demoMode ? '#b8b0d8' : '#e8a0a0', lineHeight: 1.6 }}>
+            <div className={`lf-skills-db-notice${demoMode ? ' lf-skills-db-notice--demo' : ''}`}>
               {dbError}
             </div>
           )}
 
-          {/* Легенда тем */}
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-            {BRANCHES.map(b => {
-              const locked = level < b.minLevel
-              const unlockedInBranch = nodes.filter(n => n.branch === b.id && unlockedIds.has(n.id)).length
-              return (
-                <div
-                  key={b.id}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    fontFamily: 'monospace', fontSize: '10px', color: locked ? '#5a5670' : '#9590a8',
-                    opacity: locked ? 0.5 : 1,
-                  }}
-                >
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: b.color, flexShrink: 0 }} />
-                  {b.icon} {b.name}
-                  {locked ? ` · ур.${b.minLevel}` : unlockedInBranch > 0 ? ` · ${unlockedInBranch}` : ''}
-                </div>
-              )
-            })}
+          <div className="lf-skills-path-hint lf-skills-path-hint--desktop">
+            <span className="lf-skills-path-kicker">Порядок тем</span>
+            {SKILL_TREE_PATH_HINT}
           </div>
 
+          <SkillBranchChips
+            nodes={nodes}
+            unlockedIds={unlockedIds}
+            level={level}
+            selectedBranch={branchFilter}
+            onSelectBranch={id => setBranchFilter(id as SkillBranch | null)}
+          />
+
           <div className={layout.skillsInner}>
-            <div style={{ minHeight: '520px', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#8a849c', marginBottom: '8px' }}>
-                Перетаскивание — пан, колёсико — зум · связи между темами — через «Мастер…»
+            <div className="lf-skill-tree-col">
+              <div className="lf-skill-tree-frame lf-poe-frame">
+                {nodes.length > 0 ? (
+                  <SkillTreeCanvas
+                    nodes={nodes}
+                    unlockedIds={unlockedIds}
+                    userLevel={level}
+                    skillPoints={skillPoints}
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                    highlightBranch={branchFilter}
+                  />
+                ) : (
+                  <div className="lf-skill-tree-empty">Узлы не загружены</div>
+                )}
               </div>
-              {nodes.length > 0 ? (
-                <SkillTreeCanvas
-                  nodes={nodes}
-                  unlockedIds={unlockedIds}
-                  userLevel={level}
-                  skillPoints={skillPoints}
-                  selectedId={selectedId}
-                  onSelect={setSelectedId}
-                />
-              ) : (
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', color: '#5a5670', fontSize: '14px' }}>
-                  Узлы не загружены
-                </div>
-              )}
             </div>
 
-            {/* Панель узла */}
-            <div style={{ background: '#1a1f28', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {!selectedNode ? (
-                <div style={{ color: '#b8b0c8', fontSize: '14px', lineHeight: 1.7 }}>
-                  Кликни на узел дерева, чтобы увидеть описание и открыть способность.
-                  <br /><br />
-                  <span style={{ color: '#b8aeff' }}>●</span> <span style={{ color: '#9590a8' }}>доступен</span>
-                  <span style={{ color: '#e0bc6a' }}> ●</span> <span style={{ color: '#9590a8' }}>открыт</span>
-                  <span style={{ color: '#5a6070' }}> ●</span> <span style={{ color: '#9590a8' }}>заблокирован</span>
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.2em', color: selectedBranchMeta?.color ?? TYPE_COLORS[selectedNode.type], textTransform: 'uppercase', marginBottom: '6px' }}>
-                      {selectedBranchMeta ? `${selectedBranchMeta.icon} ${selectedBranchMeta.name}` : ''} · {TYPE_LABELS[selectedNode.type]}
-                    </div>
-                    <div style={{ fontSize: '20px', color: '#e0bc6a', marginBottom: '6px' }}>{selectedNode.name}</div>
-                    <div style={{ fontSize: '14px', color: '#c8c0d8', lineHeight: 1.65 }}>{selectedNode.description}</div>
-                  </div>
-
-                  {selectedNode.effect?.detail && (
-                    <div style={{ background: 'rgba(169,159,255,0.08)', border: '1px solid rgba(169,159,255,0.2)', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: '#b8b0d8', lineHeight: 1.5 }}>
-                      {selectedNode.effect.detail}
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: '12px', color: '#9590a8' }}>
-                    <span>Стоимость</span>
-                    <span style={{ color: '#a99fff' }}>{selectedNode.cost} очк.</span>
-                  </div>
-
-                  {(() => {
-                    const state = getNodeState(selectedNode, unlockedIds, level, skillPoints)
-                    if (state === 'unlocked') {
-                      return (
-                        <div style={{ textAlign: 'center', padding: '12px', border: '1px solid rgba(224,188,106,0.3)', borderRadius: '8px', color: '#e0bc6a', fontSize: '13px' }}>
-                          ✦ Открыто
-                        </div>
-                      )
-                    }
-                    if (state === 'available') {
-                      return (
-                        <div
-                          onClick={() => unlockNode(selectedNode)}
-                          style={{
-                            textAlign: 'center',
-                            padding: '12px',
-                            background: 'rgba(169,159,255,0.12)',
-                            border: '1px solid rgba(169,159,255,0.45)',
-                            borderRadius: '8px',
-                            color: '#a99fff',
-                            fontSize: '14px',
-                            cursor: unlocking ? 'default' : 'pointer',
-                            opacity: unlocking ? 0.6 : 1,
-                          }}
-                        >
-                          {unlocking ? 'Открываем...' : `Открыть (−${selectedNode.cost} очк.)`}
-                        </div>
-                      )
-                    }
-                    const reason = getLockReason(selectedNode, nodes, unlockedIds, level, skillPoints)
-                    return (
-                      <div style={{ textAlign: 'center', padding: '12px', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', color: '#5a5670', fontSize: '13px' }}>
-                        🔒 {reason}
-                      </div>
-                    )
-                  })()}
-                </>
-              )}
-            </div>
+            <aside className="lf-skill-detail-desktop lf-poe-panel">
+              <SkillNodeDetail {...detailProps} />
+            </aside>
           </div>
         </div>
       </div>
 
-      {toast && (
-        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: '#1c1f2a', border: '1px solid rgba(169,159,255,0.4)', borderRadius: '10px', padding: '12px 24px', fontFamily: 'monospace', fontSize: '12px', color: '#a99fff', zIndex: 300 }}>
-          {toast}
+      {selectedNode && (
+        <div className="lf-skill-sheet" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="lf-skill-sheet-backdrop"
+            aria-label="Закрыть"
+            onClick={() => setSelectedId(null)}
+          />
+          <div className="lf-skill-sheet-panel lf-poe-panel">
+            <div className="lf-skill-sheet-handle" />
+            <button
+              type="button"
+              className="lf-skill-sheet-close"
+              onClick={() => setSelectedId(null)}
+              aria-label="Закрыть"
+            >
+              ✕
+            </button>
+            <SkillNodeDetail {...detailProps} compact />
+          </div>
         </div>
+      )}
+
+      {toast && (
+        <div className="lf-skills-toast">{toast}</div>
       )}
 
       {showHelp && (
         <div className="lf-modal-overlay">
-          <div className="lf-modal-panel" style={{ borderColor: 'rgba(169,159,255,0.3)' }}>
-            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-              <div style={{ fontSize: '44px', marginBottom: '10px' }}>✦</div>
-              <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#e0bc6a', marginBottom: '6px' }}>Древо способностей</div>
-              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', letterSpacing: '0.2em' }}>PATH OF EXPEDITION</div>
+          <div className="lf-modal-panel lf-poe-panel lf-skills-help-modal">
+            <div className="lf-skills-help-hero">
+              <div className="lf-skills-help-sigil">✦</div>
+              <h2>Древо способностей</h2>
+              <p className="lf-skills-help-sub">PATH OF KNOWLEDGE</p>
             </div>
-            <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
+            <div className="lf-skills-help-body">
               {SKILL_TREE_PATH_HINT}
-              <br /><br />
-              <span style={{ color: '#e0bc6a' }}>Атаки</span> — урон, <span style={{ color: '#a99fff' }}>защиты</span> — щит, <span style={{ color: '#3db87a' }}>«Мастер…»</span> — ключ к следующей теме.
-              <br /><br />
-              Перетаскивай поле, колёсико — зум.
+              <p>
+                <span className="lf-help-gold">Атаки</span> — урон,
+                <span className="lf-help-purple"> защиты</span> — щит,
+                <span className="lf-help-green"> «Мастер…»</span> — мост к следующей теме.
+              </p>
+              <p className="lf-skills-help-mobile-only">На телефоне: тяни древо, зум двумя пальцами или кнопки +/−. Описание узла — снизу.</p>
+              <p className="lf-skills-help-desktop-only">На компьютере: перетаскивание и колёсико мыши.</p>
             </div>
-            <div onClick={() => setShowHelp(false)}
-              style={{ width: '100%', padding: '14px', background: 'rgba(169,159,255,0.12)', border: '1px solid rgba(169,159,255,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#a99fff', cursor: 'pointer' }}>
+            <button type="button" className="lf-skill-detail-cta lf-skill-detail-cta--unlock" onClick={() => setShowHelp(false)}>
               Понял →
-            </div>
+            </button>
           </div>
         </div>
       )}

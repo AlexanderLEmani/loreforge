@@ -620,7 +620,14 @@ function BattleContent() {
           >
             {hardMode ? '2× XP' : '1×'}
           </div>
-          <div className="lf-battle-hud-btn lf-battle-hud-btn--escape" onClick={() => setConfirmEscape(true)}>🏃</div>
+          <button
+            type="button"
+            className={`lf-battle-hud-btn lf-battle-hud-btn--escape`}
+            onClick={() => setConfirmEscape(true)}
+            aria-label="Сбежать из данжа"
+          >
+            🏃
+          </button>
         </div>
         {(powerBuff || shieldActive) && (
           <div style={{ fontSize: '10px', color: '#a99fff', fontFamily: 'monospace' }}>
@@ -713,23 +720,14 @@ function BattleContent() {
         </div>
 
         <div style={{ marginTop: 'auto' }}>
-          <div onClick={() => setConfirmEscape(true)} style={{ padding: '8px 10px', fontSize: '13px', color: '#e05555', cursor: 'pointer', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '7px', textAlign: 'center' }}>
+          <button
+            type="button"
+            className="lf-battle-sidebar-escape"
+            onClick={() => setConfirmEscape(true)}
+          >
             🏃 Бежать
-          </div>
+          </button>
         </div>
-
-        {confirmEscape && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-            <div style={{ background: '#1c1f2a', border: '1px solid rgba(224,85,85,0.3)', borderRadius: '14px', padding: '2rem', maxWidth: '320px', textAlign: 'center' }}>
-              <div style={{ fontSize: '36px', marginBottom: '12px' }}>🏃</div>
-              <div style={{ fontFamily: 'serif', fontSize: '20px', color: '#e6e2f0', marginBottom: '20px' }}>Сбежать из данжа?</div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div onClick={() => setConfirmEscape(false)} style={{ flex: 1, padding: '10px', background: '#111318', borderRadius: '8px', cursor: 'pointer', color: '#9590a8' }}>Остаться</div>
-                <div onClick={() => fleeDungeon()} style={{ flex: 1, padding: '10px', background: 'rgba(224,85,85,0.1)', borderRadius: '8px', cursor: 'pointer', color: '#e05555' }}>Бежать</div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className={`${layout.main} lf-battle-main`}>
@@ -968,6 +966,25 @@ function BattleContent() {
         )}
         </div>
       </div>
+
+      {confirmEscape && (
+        <div className="lf-battle-escape-overlay" role="dialog" aria-modal="true" aria-labelledby="lf-battle-escape-title">
+          <div className="lf-battle-escape-dialog">
+            <div style={{ fontSize: '36px', marginBottom: '12px' }}>🏃</div>
+            <div id="lf-battle-escape-title" style={{ fontFamily: 'serif', fontSize: '20px', color: '#e6e2f0', marginBottom: '20px' }}>
+              Сбежать из данжа?
+            </div>
+            <div className="lf-battle-escape-actions">
+              <button type="button" className="lf-battle-escape-btn lf-battle-escape-btn--stay" onClick={() => setConfirmEscape(false)}>
+                Остаться
+              </button>
+              <button type="button" className="lf-battle-escape-btn lf-battle-escape-btn--run" onClick={() => fleeDungeon()}>
+                Бежать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

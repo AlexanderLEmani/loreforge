@@ -735,17 +735,90 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: #1c1f2a;
   color: #8a849c;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lf-battle-hud-btn--escape {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  color: #e05555;
+  border-color: rgba(224, 85, 85, 0.25);
+}
+
+.lf-battle-sidebar-escape {
+  width: 100%;
+  padding: 10px;
+  font-size: 13px;
+  color: #e05555;
+  cursor: pointer;
+  border: 1px solid rgba(224, 85, 85, 0.2);
+  border-radius: 7px;
+  text-align: center;
+  background: transparent;
+  font-family: serif;
+  touch-action: manipulation;
+}
+
+.lf-battle-escape-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.lf-battle-escape-dialog {
+  background: #1c1f2a;
+  border: 1px solid rgba(224, 85, 85, 0.3);
+  border-radius: 14px;
+  padding: 2rem;
+  max-width: 320px;
+  width: 100%;
+  text-align: center;
+}
+
+.lf-battle-escape-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.lf-battle-escape-btn {
+  flex: 1;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: none;
+  font-family: serif;
+  font-size: 15px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lf-battle-escape-btn--stay {
+  background: #111318;
+  color: #9590a8;
+}
+
+.lf-battle-escape-btn--run {
+  background: rgba(224, 85, 85, 0.15);
+  color: #e05555;
 }
 
 .lf-battle-hud-btn--hard-on {
   border-color: rgba(201, 168, 76, 0.45);
   color: #e0bc6a;
   background: rgba(201, 168, 76, 0.1);
-}
-
-.lf-battle-hud-btn--escape {
-  color: #e05555;
-  border-color: rgba(224, 85, 85, 0.25);
 }
 
 .lf-battle-question {
@@ -799,4 +872,697 @@ body {
   background: rgba(201, 168, 76, 0.14);
   color: #e0bc6a;
   margin-top: 1.25rem;
+}
+
+/* --- Skills: Path of Exile–style tree --- */
+
+.lf-skills-page {
+  background: #0b0c10;
+  min-height: 100vh;
+  font-family: serif;
+  color: #e6e2f0;
+}
+
+.lf-skills-nav {
+  height: 56px;
+  background: rgba(8, 9, 12, 0.96);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(201, 168, 76, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 0 1.25rem;
+}
+
+.lf-skills-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: serif;
+  font-size: 18px;
+  color: #e0bc6a;
+}
+
+.lf-skills-nav-sigil {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(201, 168, 76, 0.55);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  box-shadow: inset 0 0 12px rgba(201, 168, 76, 0.12);
+}
+
+.lf-skills-nav-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lf-skill-points-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
+  font-family: monospace;
+  font-size: 11px;
+  color: #9590a8;
+}
+
+.lf-skill-points-badge-icon {
+  color: #b8aeff;
+}
+
+.lf-skill-points-badge-val {
+  color: #e0bc6a;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.lf-skills-help-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: #5a5670;
+  font-family: monospace;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.lf-skills-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-height: calc(100vh - 56px);
+}
+
+.lf-skills-intro-kicker {
+  font-family: monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: #8a849c;
+  text-transform: uppercase;
+  margin: 0 0 4px;
+}
+
+.lf-skills-intro-title {
+  font-size: 26px;
+  color: #e0bc6a;
+  margin: 0 0 6px;
+  font-weight: normal;
+}
+
+.lf-skills-intro-desc {
+  font-size: 14px;
+  color: #b8b0c8;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.lf-skills-db-notice {
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+  border: 1px solid rgba(224, 85, 85, 0.35);
+  background: rgba(224, 85, 85, 0.08);
+  color: #e8a0a0;
+}
+
+.lf-skills-db-notice--demo {
+  border-color: rgba(169, 159, 255, 0.35);
+  background: rgba(169, 159, 255, 0.08);
+  color: #b8b0d8;
+}
+
+.lf-skills-path-hint {
+  padding: 12px 14px;
+  border: 1px solid rgba(201, 168, 76, 0.22);
+  border-radius: 6px;
+  background: rgba(201, 168, 76, 0.05);
+  font-size: 13px;
+  color: #d4c4a0;
+  line-height: 1.6;
+}
+
+.lf-skills-path-kicker {
+  display: block;
+  font-family: monospace;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: #c9a84c;
+  margin-bottom: 6px;
+}
+
+.lf-skill-branch-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.lf-skill-branch-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(20, 24, 32, 0.9);
+  font-family: monospace;
+  font-size: 10px;
+  color: #9590a8;
+  cursor: pointer;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+
+.lf-skill-branch-chip--active {
+  border-color: rgba(201, 168, 76, 0.45);
+  color: #e0bc6a;
+  background: rgba(201, 168, 76, 0.1);
+}
+
+.lf-skill-branch-chip--locked {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.lf-skill-branch-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.lf-skill-tree-col {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.lf-poe-frame {
+  position: relative;
+  flex: 1;
+  min-height: 480px;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 4px;
+  padding: 4px;
+  background: linear-gradient(145deg, #12141c 0%, #06080c 100%);
+  box-shadow:
+    inset 0 0 80px rgba(0, 0, 0, 0.65),
+    0 4px 24px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(201, 168, 76, 0.12);
+}
+
+.lf-poe-frame::before,
+.lf-poe-frame::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.lf-poe-frame::before {
+  top: 6px;
+  left: 6px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.lf-poe-frame::after {
+  bottom: 6px;
+  right: 6px;
+  border-left: none;
+  border-top: none;
+}
+
+.lf-poe-panel {
+  position: relative;
+  border-radius: 4px;
+  padding: 1.25rem;
+  background: linear-gradient(160deg, #161a24 0%, #0a0c12 100%);
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  box-shadow:
+    inset 0 1px 0 rgba(201, 168, 76, 0.12),
+    0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.lf-skill-tree-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 460px;
+}
+
+.lf-skill-tree-canvas-inner {
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  border-radius: 2px;
+}
+
+.lf-skill-tree-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.lf-skill-tree-zoom {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 3;
+}
+
+.lf-skill-tree-zoom-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 3px;
+  background: rgba(10, 12, 18, 0.92);
+  color: #e0bc6a;
+  font-family: monospace;
+  font-size: 16px;
+  cursor: pointer;
+  touch-action: manipulation;
+  line-height: 1;
+}
+
+.lf-skill-tree-hint {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  font-family: monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: rgba(149, 144, 168, 0.7);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.lf-skill-tree-hint--mobile {
+  display: none;
+}
+
+.lf-skill-tree-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #5a5670;
+  font-size: 14px;
+  min-height: 200px;
+}
+
+.lf-skill-detail-empty {
+  text-align: center;
+  color: #b8b0c8;
+  font-size: 14px;
+  line-height: 1.65;
+  padding: 0.5rem 0;
+}
+
+.lf-skill-detail-empty-icon {
+  font-size: 32px;
+  color: rgba(201, 168, 76, 0.5);
+  margin-bottom: 12px;
+}
+
+.lf-skill-legend-mini {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  font-size: 12px;
+  color: #9590a8;
+}
+
+.lf-skill-legend-mini li {
+  margin-bottom: 6px;
+}
+
+.lf-skill-legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.lf-skill-legend-dot--avail {
+  background: #b8aeff;
+  box-shadow: 0 0 6px rgba(184, 174, 255, 0.6);
+}
+
+.lf-skill-legend-dot--open {
+  background: #e0bc6a;
+  box-shadow: 0 0 6px rgba(224, 188, 106, 0.6);
+}
+
+.lf-skill-legend-dot--lock {
+  background: #5a6070;
+}
+
+.lf-skill-detail-type {
+  font-family: monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.lf-skill-detail-name {
+  font-size: 22px;
+  color: #e0bc6a;
+  margin: 0;
+  font-weight: normal;
+  line-height: 1.2;
+}
+
+.lf-skill-detail-desc {
+  font-size: 14px;
+  color: #c8c0d8;
+  line-height: 1.65;
+  margin: 12px 0 0;
+}
+
+.lf-skill-detail-effect {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(169, 159, 255, 0.22);
+  background: rgba(169, 159, 255, 0.06);
+  font-size: 13px;
+  color: #b8b0d8;
+  line-height: 1.55;
+}
+
+.lf-skill-detail-effect-label {
+  display: block;
+  font-family: monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: #a99fff;
+  margin-bottom: 6px;
+}
+
+.lf-skill-detail-cost {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: monospace;
+  font-size: 12px;
+  color: #9590a8;
+}
+
+.lf-skill-detail-cost-val {
+  color: #a99fff;
+}
+
+.lf-skill-detail-status {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.lf-skill-detail-status--open {
+  border: 1px solid rgba(224, 188, 106, 0.35);
+  color: #e0bc6a;
+}
+
+.lf-skill-detail-status--lock {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #5a5670;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.lf-skill-detail-cta {
+  width: 100%;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 4px;
+  font-family: serif;
+  font-size: 15px;
+  cursor: pointer;
+  touch-action: manipulation;
+  border: none;
+}
+
+.lf-skill-detail-cta--unlock {
+  background: linear-gradient(180deg, rgba(169, 159, 255, 0.18) 0%, rgba(123, 108, 255, 0.12) 100%);
+  border: 1px solid rgba(169, 159, 255, 0.45);
+  color: #c8c0ff;
+}
+
+.lf-skill-detail-cta--unlock:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.lf-skill-detail--compact .lf-skill-detail-name {
+  font-size: 20px;
+}
+
+.lf-skill-detail--compact .lf-skill-detail-desc {
+  font-size: 13px;
+}
+
+.lf-skill-sheet {
+  display: none;
+}
+
+.lf-skills-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 400;
+  padding: 12px 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(169, 159, 255, 0.4);
+  background: #141820;
+  font-family: monospace;
+  font-size: 12px;
+  color: #a99fff;
+}
+
+.lf-skills-help-modal {
+  border-color: rgba(201, 168, 76, 0.35) !important;
+}
+
+.lf-skills-help-hero {
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.lf-skills-help-sigil {
+  font-size: 44px;
+  margin-bottom: 8px;
+  color: rgba(201, 168, 76, 0.8);
+}
+
+.lf-skills-help-hero h2 {
+  font-size: 22px;
+  color: #e0bc6a;
+  margin: 0 0 4px;
+  font-weight: normal;
+}
+
+.lf-skills-help-sub {
+  font-family: monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: #5a5670;
+  margin: 0;
+}
+
+.lf-skills-help-body {
+  font-size: 14px;
+  color: #b8b0c8;
+  line-height: 1.75;
+  margin-bottom: 1.25rem;
+}
+
+.lf-skills-help-body p {
+  margin: 0 0 12px;
+}
+
+.lf-help-gold {
+  color: #e0bc6a;
+}
+
+.lf-help-purple {
+  color: #a99fff;
+}
+
+.lf-help-green {
+  color: #3db87a;
+}
+
+.lf-skills-help-mobile-only {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .lf-skills-page .lf-sidebar-l {
+    display: none;
+  }
+
+  .lf-skills-intro--desktop,
+  .lf-skills-path-hint--desktop {
+    display: none;
+  }
+
+  .lf-skills-main {
+    min-height: calc(100dvh - 56px);
+    padding-bottom: 0 !important;
+    gap: 0.5rem;
+  }
+
+  .lf-layout-skills-inner {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .lf-skill-detail-desktop {
+    display: none;
+  }
+
+  .lf-skill-tree-frame {
+    min-height: 0;
+    flex: 1;
+  }
+
+  .lf-skill-tree-canvas-wrap {
+    min-height: 0;
+  }
+
+  .lf-skill-branch-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  .lf-skill-branch-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .lf-skill-tree-hint--desktop {
+    display: none;
+  }
+
+  .lf-skill-tree-hint--mobile {
+    display: block;
+    max-width: 55%;
+    line-height: 1.35;
+  }
+
+  .lf-skill-sheet {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 250;
+    pointer-events: none;
+  }
+
+  .lf-skill-sheet-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    border: none;
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
+  .lf-skill-sheet-panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: min(52vh, 420px);
+    border-radius: 12px 12px 0 0;
+    border-bottom: none;
+    padding: 1rem 1.25rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    overflow-x: hidden;
+    pointer-events: auto;
+    animation: lf-skill-sheet-in 0.22s ease-out;
+  }
+
+  body.lf-mobile-nav-active .lf-skill-sheet-panel {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .lf-skill-sheet-handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(201, 168, 76, 0.35);
+    margin: 0 auto 12px;
+  }
+
+  .lf-skill-sheet-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.35);
+    color: #9590a8;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .lf-skills-help-mobile-only {
+    display: block;
+  }
+
+  .lf-skills-help-desktop-only {
+    display: none;
+  }
+
+  .lf-skills-toast {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@keyframes lf-skill-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
