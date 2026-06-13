@@ -16,6 +16,8 @@ export type OnboardingContext = {
   visited_guild: boolean
   visited_college: boolean
   onboarding_done: boolean
+  /** XP на текущий уровень набран — можно сдать экзамен */
+  exam_ready: boolean
 }
 
 /** Короткий путь новичка: тренировка → гильдия → первый данж */
@@ -117,6 +119,14 @@ export function onboardingProgress(ctx: OnboardingContext): number {
 
 export function coreOnboardingProgress(ctx: OnboardingContext): number {
   return CORE_ONBOARDING_STEPS.filter(s => s.check(ctx)).length
+}
+
+/** Экзамен-квесты ведут в тренировку, пока не набран XP на уровень */
+export function onboardingStepHref(step: OnboardingStep, ctx: OnboardingContext): string {
+  if (step.href.startsWith('/exam') && !ctx.exam_ready) {
+    return '/training'
+  }
+  return step.href
 }
 
 export const SKILL_TREE_PATH_HINT =

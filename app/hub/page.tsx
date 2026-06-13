@@ -12,6 +12,7 @@ import {
   currentOnboardingStep,
   onboardingProgress,
   ONBOARDING_STEPS,
+  onboardingStepHref,
 } from '@/lib/onboarding-quest'
 import { currentLevelPlan, nextLevelPlan } from '@/lib/curriculum'
 import { HUB_GUIDE_SECTIONS } from '@/lib/hub-guide'
@@ -147,6 +148,7 @@ export default function Hub() {
     visited_guild: !!userData?.visited_guild,
     visited_college: !!userData?.visited_college,
     onboarding_done: !!userData?.onboarding_done,
+    exam_ready: examReady,
   }
   const nextCoreStep = currentCoreOnboardingStep(onboardCtx)
   const coreDone = coreOnboardingProgress(onboardCtx)
@@ -283,7 +285,7 @@ export default function Hub() {
         )}
 
         {!coreQuestActive && nextStep && onboardDone < ONBOARDING_STEPS.length && (
-          <div onClick={() => router.push(nextStep.href)}
+          <div onClick={() => router.push(onboardingStepHref(nextStep, onboardCtx))}
             style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', marginBottom: '1.25rem' }}>
             <div style={{ fontSize: '24px' }}>{nextStep.icon}</div>
             <div style={{ flex: 1 }}>

@@ -9,12 +9,14 @@ import { dungeonsForExam, examConfigForLevel } from '@/lib/exam-config'
 import { answersMatch, sanitizeAnswerInput } from '@/lib/scroll-display'
 import {
   isValidExamLevel,
+  canTakeExam,
+  examLevelForPlayer,
   V1_COMPLETE_DESC,
   V1_COMPLETE_TITLE,
   V1_GRADUATE_PLAYER_LEVEL,
   V1_MAX_EXAM_LEVEL,
 } from '@/lib/v1-cap'
-import { XP_THRESHOLDS } from '@/lib/economy'
+import { XP_THRESHOLDS, xpProgress } from '@/lib/economy'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { useStudyTimer } from '@/lib/use-study-timer'
 import StudyProgressChip from '@/components/StudyProgressChip'
@@ -36,6 +38,8 @@ function ExamContent() {
   const [finalCorrect, setFinalCorrect] = useState(0)
   const [finalPassed, setFinalPassed] = useState(false)
   const [skillPointsEarned, setSkillPointsEarned] = useState(0)
+  const [examBlocked, setExamBlocked] = useState(false)
+  const [blockReason, setBlockReason] = useState<string | null>(null)
 
   const examCfg = examConfigForLevel(examLevel)
   const examAllowed = isValidExamLevel(examLevel) && examCfg
@@ -51,6 +55,25 @@ function ExamContent() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
       setUser(user)
+
+      const { data: ud } = await supabase.from('users').select('level, xp').eq('id', user.id).single()
+      const playerLevel = ud?.level ?? 1
+      const { current, next } = xpProgress(ud?.xp ?? 0, playerLevel)
+      const ready = canTakeExam(playerLevel, current >= next)
+      const expectedLevel = examLevelForPlayer(playerLevel)
+
+      if (!ready) {
+        setExamBlocked(true)
+        setBlockReason(`Нужно ${current} / ${next} XP на уровень. Тренируйся или иди в данж.`)
+        setLoading(false)
+        return
+      }
+      if (examLevel !== expectedLevel) {
+        setExamBlocked(true)
+        setBlockReason(`Сейчас доступен экзамен уровня ${expectedLevel}, не ${examLevel}.`)
+        setLoading(false)
+        return
+      }
 
       const dungeons = dungeonsForExam(examLevel)
       let allQ: any[] = []
@@ -142,6 +165,26 @@ function ExamContent() {
   if (loading) return <LoadingScreen flavor="exam" />
 
   if (!examAllowed) return v1BlockedScreen()
+
+  if (examBlocked) {
+    return (
+      <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+        <div style={{ maxWidth: '520px', width: '100%', textAlign: 'center' }}>
+          <div style={{ fontSize: '56px', marginBottom: '1rem' }}>🎓</div>
+          <div style={{ fontFamily: 'serif', fontSize: '24px', color: '#e0bc6a', marginBottom: '12px' }}>Экзамен ещё не открыт</div>
+          <div style={{ fontSize: '14px', color: '#9590a8', lineHeight: 1.65, marginBottom: '1.5rem' }}>{blockReason}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div onClick={() => router.push('/training')} style={{ padding: '14px', background: 'rgba(61,184,122,0.12)', border: '1px solid rgba(61,184,122,0.4)', borderRadius: '10px', color: '#3db87a', cursor: 'pointer' }}>
+              → Тренировка
+            </div>
+            <div onClick={() => router.push('/hub')} style={{ padding: '14px', background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', color: '#9590a8', cursor: 'pointer' }}>
+              ← Хаб
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // ИНТРО
   if (phase === 'intro') return (
