@@ -85,28 +85,26 @@ function layoutCompactOverview(nodes: SkillTreeNode[]): SkillTreeNode[] {
   })
 }
 
-/** Мобилка: одна тема — вертикальная лестница, атаки слева, защиты справа. */
+/** Мобилка: одна тема — лестница вокруг CY, узлы внутри радиуса ~200. */
 function layoutBranchDetail(nodes: SkillTreeNode[], branch: SkillBranch): SkillTreeNode[] {
   const branchIndex = BRANCH_ORDER.indexOf(branch)
   const baseId = BRANCH_ROOT_IDS[branchIndex]
-  const yBase = CY + 20
 
   const pos: Record<number, { x: number; y: number }> = {
-    [baseId]: { x: CX, y: yBase - 70 },
-    [baseId + 6]: { x: CX, y: yBase - 285 },
-    [baseId + 1]: { x: CX - 88, y: yBase - 130 },
-    [baseId + 2]: { x: CX - 100, y: yBase - 175 },
-    [baseId + 3]: { x: CX - 108, y: yBase - 220 },
-    [baseId + 4]: { x: CX + 88, y: yBase - 130 },
-    [baseId + 5]: { x: CX + 100, y: yBase - 175 },
+    [baseId]: { x: CX, y: CY - 28 },
+    [baseId + 6]: { x: CX, y: CY - 168 },
+    [baseId + 1]: { x: CX - 68, y: CY - 72 },
+    [baseId + 2]: { x: CX - 74, y: CY - 108 },
+    [baseId + 3]: { x: CX - 78, y: CY - 132 },
+    [baseId + 4]: { x: CX + 68, y: CY - 72 },
+    [baseId + 5]: { x: CX + 74, y: CY - 108 },
   }
 
   const prevPassiveId = branchIndex > 0 ? BRANCH_PASSIVE_IDS[branchIndex - 1] : null
 
   return nodes.map(n => {
-    if (n.id === 0) return { ...n, position_x: CX, position_y: yBase + 55 }
     if (prevPassiveId !== null && n.id === prevPassiveId) {
-      return { ...n, position_x: CX, position_y: yBase + 10 }
+      return { ...n, position_x: CX, position_y: CY + 18 }
     }
     const p = pos[n.id]
     if (p) return { ...n, position_x: p.x, position_y: p.y }
@@ -137,7 +135,7 @@ export function applyRadialSkillLayout(
     laid = laid.map(n => (n.id === 1 ? { ...n, requires: 0 } : n))
   }
 
-  return [{ ...SKILL_TREE_CENTER, position_x: CX, position_y: mode === 'compact-detail' ? CY + 75 : CY }, ...laid]
+  return [{ ...SKILL_TREE_CENTER, position_x: CX, position_y: mode === 'compact-detail' ? CY + 58 : CY }, ...laid]
 }
 
 export function visibleSkillNodes(
@@ -202,3 +200,4 @@ export function branchWedgeAngles(): Array<{ branch: SkillBranch; start: number;
 }
 
 export const SKILL_TREE_LAYOUT_RADIUS = 250
+export const SKILL_TREE_DETAIL_RADIUS = 195

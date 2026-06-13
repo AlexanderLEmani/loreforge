@@ -13,6 +13,7 @@ import {
   branchWedgeAngles,
   isBranchMasterNode,
   isSpineLinkPair,
+  SKILL_TREE_DETAIL_RADIUS,
   SKILL_TREE_LAYOUT_RADIUS,
 } from '@/lib/skill-tree-layout'
 
@@ -127,38 +128,68 @@ export default function SkillTreeCanvas({
     ctx.translate(offsetX, offsetY)
     ctx.scale(scale, scale)
 
-    const cx = nodes.find(n => n.id === 0)?.position_x ?? 500
-    const cy = nodes.find(n => n.id === 0)?.position_y ?? 440
-    const wedgeR = SKILL_TREE_LAYOUT_RADIUS
+    const detailView = compact && !spineCurves
+    const visibleIds = new Set(nodes.map(n => n.id))
 
-    for (const wedge of branchWedgeAngles()) {
-      const dim = highlightBranch && highlightBranch !== wedge.branch ? 0.35 : 1
+    let cx: number
+    let cy: number
+    if (detailView && nodes.length > 0) {
+      const xs = nodes.map(n => n.position_x)
+      const ys = nodes.map(n => n.position_y)
+      cx = (Math.min(...xs) + Math.max(...xs)) / 2
+      cy = (Math.min(...ys) + Math.max(...ys)) / 2
+    } else {
+      cx = nodes.find(n => n.id === 0)?.position_x ?? 500
+      cy = nodes.find(n => n.id === 0)?.position_y ?? 440
+    }
+    const wedgeR = detailView ? SKILL_TREE_DETAIL_RADIUS : SKILL_TREE_LAYOUT_RADIUS
+
+    if (detailView) {
+      const branchColor =
+        BRANCHES.find(b => b.id === nodes.find(n => n.id > 0)?.branch)?.color ?? '#3db87a'
       ctx.beginPath()
-      ctx.moveTo(cx, cy)
-      ctx.arc(cx, cy, wedgeR, wedge.start, wedge.end)
-      ctx.closePath()
-      ctx.fillStyle = wedge.color
-      ctx.globalAlpha = 0.06 * dim
+      ctx.arc(cx, cy, wedgeR, 0, Math.PI * 2)
+      ctx.fillStyle = branchColor
+      ctx.globalAlpha = 0.07
       ctx.fill()
       ctx.globalAlpha = 1
-    }
+      for (let r = 50; r <= wedgeR; r += 50) {
+        ctx.beginPath()
+        ctx.arc(cx, cy, r, 0, Math.PI * 2)
+        ctx.strokeStyle = 'rgba(201, 168, 76, 0.08)'
+        ctx.lineWidth = 1 / scale
+        ctx.stroke()
+      }
+    } else {
+      for (const wedge of branchWedgeAngles()) {
+        const dim = highlightBranch && highlightBranch !== wedge.branch ? 0.35 : 1
+        ctx.beginPath()
+        ctx.moveTo(cx, cy)
+        ctx.arc(cx, cy, wedgeR, wedge.start, wedge.end)
+        ctx.closePath()
+        ctx.fillStyle = wedge.color
+        ctx.globalAlpha = 0.06 * dim
+        ctx.fill()
+        ctx.globalAlpha = 1
+      }
 
-    for (let r = 70; r <= wedgeR; r += 50) {
-      ctx.beginPath()
-      ctx.arc(cx, cy, r, 0, Math.PI * 2)
-      ctx.strokeStyle = 'rgba(201, 168, 76, 0.06)'
+      for (let r = 70; r <= wedgeR; r += 50) {
+        ctx.beginPath()
+        ctx.arc(cx, cy, r, 0, Math.PI * 2)
+        ctx.strokeStyle = 'rgba(201, 168, 76, 0.06)'
+        ctx.lineWidth = 1 / scale
+        ctx.stroke()
+      }
+
+      ctx.strokeStyle = 'rgba(201, 168, 76, 0.04)'
       ctx.lineWidth = 1 / scale
-      ctx.stroke()
-    }
-
-    ctx.strokeStyle = 'rgba(201, 168, 76, 0.04)'
-    ctx.lineWidth = 1 / scale
-    for (let a = 0; a < 6; a++) {
-      const ang = -Math.PI / 2 + a * (Math.PI / 3)
-      ctx.beginPath()
-      ctx.moveTo(cx, cy)
-      ctx.lineTo(cx + Math.cos(ang) * wedgeR, cy + Math.sin(ang) * wedgeR)
-      ctx.stroke()
+      for (let a = 0; a < 6; a++) {
+        const ang = -Math.PI / 2 + a * (Math.PI / 3)
+        ctx.beginPath()
+        ctx.moveTo(cx, cy)
+        ctx.lineTo(cx + Math.cos(ang) * wedgeR, cy + Math.sin(ang) * wedgeR)
+        ctx.stroke()
+      }
     }
 
     const nodeMap = new Map(layoutNodes.map(n => [n.id, n]))
@@ -247,6 +278,7 @@ export default function SkillTreeCanvas({
       if (node.requires === null) continue
       const parent = nodeMap.get(node.requires)
       if (!parent) continue
+      if (!visibleIds.has(parent.id)) continue
       if (spineCurves && isSpineLinkPair(parent.id, node.id)) continue
 
       const dim = Math.min(branchDim(node.branch), branchDim(parent.branch))
