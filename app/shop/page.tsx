@@ -13,6 +13,7 @@ import {
   parseConsumables,
   type ConsumableInventory,
 } from '@/lib/battle-consumables'
+import { layout } from '@/lib/layout-classes'
 
 const levelColors: Record<number, { border: string; accent: string; bg: string; tag: string }> = {
   1: { border: '#5a3e2b', accent: '#c9a45a', bg: '#1a1008', tag: '#3d2a14' },
@@ -117,7 +118,7 @@ export default function ShopPage() {
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
 
-      <nav style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', position: 'sticky', top: 0, zIndex: 100 }}>
+      <nav className={layout.navBar} style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ fontFamily: 'monospace', fontSize: '16px', color: '#e0bc6a', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '26px', height: '26px', border: '1.5px solid #c9a84c', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✦</div>
           LoreForge
@@ -133,10 +134,10 @@ export default function ShopPage() {
         </div>
       </nav>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr' }}>
+      <div className={layout.twoCol}>
         <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
 
-        <div style={{ padding: '2rem', maxWidth: '900px' }}>
+        <div className={`${layout.main} lf-main`} style={{ maxWidth: '900px' }}>
           <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Лавка магических знаний</div>
             <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '4px' }}>Свитки техник</div>
@@ -147,7 +148,7 @@ export default function ShopPage() {
 
           <div style={{ marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>Расходники для данжа</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               {BATTLE_CONSUMABLES.map(c => {
                 const meta = consumableMeta(c.effect)
                 const canAfford = (userData?.gold || 0) >= c.cost
@@ -192,7 +193,7 @@ export default function ShopPage() {
             })}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             {filtered.map(s => {
               const c = levelColors[s.level] || levelColors[1]
               const isOwned = owned.includes(s.id)

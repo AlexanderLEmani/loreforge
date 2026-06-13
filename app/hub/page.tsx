@@ -21,6 +21,7 @@ import { buildHubDailyQuests, type DailyQuest } from '@/lib/daily-quests'
 import { todayIso } from '@/lib/guild-quests'
 import { syncQuestRewards, withHubClaimed } from '@/lib/quest-rewards'
 import { canTakeExam, isV1Graduate, V1_COMPLETE_DESC, V1_COMPLETE_TITLE } from '@/lib/v1-cap'
+import { layout } from '@/lib/layout-classes'
 
 export default function Hub() {
   const supabase = createClient()
@@ -143,10 +144,10 @@ export default function Hub() {
   const nextPlan = nextLevelPlan(level)
 
   return (
-    <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif', display: 'grid', gridTemplateColumns: '260px 1fr 280px' }}>
+    <div className={layout.hub}>
 
       {/* ЛЕВЫЙ САЙДБАР */}
-      <div style={{ background: '#111318', borderRight: '1px solid rgba(201,168,76,0.2)', padding: '1.5rem 1.25rem' }}>
+      <div className={layout.sidebarL} style={{ background: '#111318', borderRight: '1px solid rgba(201,168,76,0.2)', padding: '1.5rem 1.25rem' }}>
         <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>
           Персонаж
         </div>
@@ -204,7 +205,7 @@ export default function Hub() {
       </div>
 
       {/* ЦЕНТР */}
-      <div style={{ padding: '1.75rem 2rem', background: '#0b0c10' }}>
+      <div className={`${layout.main} lf-main`} style={{ background: '#0b0c10' }}>
         <div style={{ marginBottom: '1.75rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
             <div>
@@ -346,7 +347,7 @@ export default function Hub() {
       </div>
 
       {/* ПРАВЫЙ САЙДБАР */}
-      <div style={{ background: '#111318', borderLeft: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}>
+      <div className={layout.sidebarR} style={{ background: '#111318', borderLeft: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}>
         <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>
           Серия
         </div>

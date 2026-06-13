@@ -16,6 +16,7 @@ import {
   slotsToLoadout,
   subtractInventory,
 } from '@/lib/battle-loadout'
+import { layout } from '@/lib/layout-classes'
 
 function PrepareContent() {
   const router = useRouter()
@@ -133,7 +134,7 @@ function PrepareContent() {
         </div>
 
         <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.15em', color: '#5a5670', marginBottom: '10px' }}>ЗАПАС В ЛАВКЕ</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1.5rem' }}>
+        <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1.5rem' }}>
           {BATTLE_CONSUMABLES.map(c => {
             const meta = consumableMeta(c.effect)
             const stock = inventory[c.effect]

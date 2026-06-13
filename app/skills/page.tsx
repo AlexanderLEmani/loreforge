@@ -20,6 +20,7 @@ import {
 import { SKILL_POINTS_PER_LEVEL } from '@/lib/skill-points'
 import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
 import { SKILL_TREE_PATH_HINT } from '@/lib/onboarding-quest'
+import { layout } from '@/lib/layout-classes'
 
 export default function SkillsPage() {
   const router = useRouter()
@@ -169,7 +170,7 @@ export default function SkillsPage() {
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
-      <nav style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', position: 'sticky', top: 0, zIndex: 100 }}>
+      <nav className={layout.navBar} style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ fontFamily: 'monospace', fontSize: '16px', color: '#e0bc6a', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '26px', height: '26px', border: '1.5px solid #c9a84c', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✦</div>
           LoreForge
@@ -186,10 +187,10 @@ export default function SkillsPage() {
         </div>
       </nav>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr' }}>
+      <div className={layout.twoCol}>
         <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
 
-        <div style={{ padding: '1.5rem 2rem', display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: 'calc(100vh - 56px)' }}>
+        <div className={`${layout.main} lf-main`} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: 'calc(100vh - 56px)' }}>
           <div style={{ paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '4px' }}>Древо знаний</div>
             <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '4px' }}>Способности</div>
@@ -234,7 +235,7 @@ export default function SkillsPage() {
             })}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '1rem', flex: 1, minHeight: 0 }}>
+          <div className={layout.skillsInner}>
             <div style={{ minHeight: '520px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#8a849c', marginBottom: '8px' }}>
                 Перетаскивание — пан, колёсико — зум · связи между темами — через «Мастер…»

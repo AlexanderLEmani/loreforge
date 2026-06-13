@@ -18,6 +18,7 @@ import {
   SCROLL_TRAINING_PROFILES,
 } from '@/lib/scroll-training'
 import { answersMatch, sanitizeAnswerInput } from '@/lib/scroll-display'
+import { layout } from '@/lib/layout-classes'
 
 const TOPICS = [
   { id: 'add', icon: '➕', name: 'Сложение',   level: 1, dungeon: 'Пещера сложения' },
@@ -313,22 +314,22 @@ export default function TrainingPage() {
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
 
-      <nav style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', position: 'sticky', top: 0, zIndex: 100 }}>
+      <nav className={layout.navBar} style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ fontFamily: 'monospace', fontSize: '16px', color: '#e0bc6a', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '26px', height: '26px', border: '1.5px solid #c9a84c', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✦</div>
           LoreForge
         </div>
-        <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>
+        <div className="lf-nav-subtitle" style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>
           Тренировочный лагерь · Без потерь
         </div>
       </nav>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 280px' }}>
+      <div className={layout.threeCol}>
 
        <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
 
         {/* ЦЕНТР */}
-        <div style={{ padding: '1.75rem 2rem', background: '#0b0c10' }}>
+        <div className={`${layout.main} lf-main`} style={{ background: '#0b0c10' }}>
 
           {phase === 'setup' && <>
             <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -352,7 +353,7 @@ export default function TrainingPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>
               <span>Как отвечать</span><div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1.5rem' }}>
+            <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1.5rem' }}>
               {ANSWER_FORMATS.map(f => (
                 <div key={f.id} onClick={() => setAnswerFormat(f.id as 'choice' | 'typed')}
                   style={{ background: answerFormat === f.id ? 'rgba(123,108,255,0.08)' : '#1c1f2a', border: `1px solid ${answerFormat === f.id ? 'rgba(123,108,255,0.45)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '12px', padding: '1rem 1.25rem', cursor: 'pointer', transition: 'all 0.15s' }}>
@@ -367,7 +368,7 @@ export default function TrainingPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>
               <span>Режим тренировки</span><div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '1.5rem' }}>
+            <div className={layout.stack3} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '1.5rem' }}>
               {MODES.map(m => (
                 <div key={m.id} onClick={() => setSelectedMode(m.id)}
                   style={{ background: selectedMode === m.id ? `rgba(${m.color === '#3db87a' ? '61,184,122' : m.color === '#a99fff' ? '123,108,255' : '224,188,106'},0.08)` : '#1c1f2a', border: `1px solid ${selectedMode === m.id ? m.color + '80' : 'rgba(255,255,255,0.07)'}`, borderRadius: '12px', padding: '1.25rem', cursor: 'pointer', position: 'relative', overflow: 'hidden', transition: 'all 0.15s' }}>
@@ -401,7 +402,7 @@ export default function TrainingPage() {
             </div>
 
             {setupSource === 'topics' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '1.5rem' }}>
+              <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '1.5rem' }}>
                 {TOPICS.map(t => {
                   const locked = t.level > level || !t.dungeon
                   const sel = selectedTopics.includes(t.id)
@@ -436,7 +437,7 @@ export default function TrainingPage() {
                   </div>
                 ) : (
                   <>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                    <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
                       {ownedScrolls.map(s => {
                         const sel = selectedScrollId === s.id
                         const tag = resolveScrollTrainingTag(s)
@@ -528,7 +529,7 @@ export default function TrainingPage() {
                 <span style={{ color: '#5a5670' }}> — Варг</span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div onClick={() => startTraining()} style={{ padding: '14px', background: 'rgba(61,184,122,0.12)', border: '1px solid rgba(61,184,122,0.4)', borderRadius: '12px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#3db87a', cursor: 'pointer' }}>
                   🔄 Ещё раунд
                 </div>
@@ -644,7 +645,7 @@ export default function TrainingPage() {
 
                 {/* Ответы */}
                 {!showHint && answerFormat === 'choice' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
+                  <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
                     {q.answers.map((ans: string, idx: number) => {
                       let bg = '#1c1f2a', border = 'rgba(255,255,255,0.07)', color = '#e6e2f0'
                       if (selected !== null) {

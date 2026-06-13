@@ -16,6 +16,7 @@ import {
   type Lecture,
 } from '@/lib/college-lectures'
 import { canTakeExam, isV1Graduate, V1_COMPLETE_DESC, V1_COMPLETE_TITLE } from '@/lib/v1-cap'
+import { layout } from '@/lib/layout-classes'
 
 const LEVEL_SPELLS: Record<number, [string, string, string][]> = {
   1: [['➕', 'Сложение', '#3db87a'], ['➖', 'Вычитание', '#3db87a']],
@@ -151,23 +152,23 @@ export default function CollegePage() {
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
 
-      <nav style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', position: 'sticky', top: 0, zIndex: 100 }}>
+      <nav className={layout.navBar} style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ fontFamily: 'monospace', fontSize: '16px', color: '#e0bc6a', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '26px', height: '26px', border: '1.5px solid #c9a84c', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✦</div>
           LoreForge
         </div>
-        <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>
+        <div className="lf-nav-subtitle" style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>
           Коллегия магов · Математика · Ур. {level}
         </div>
       </nav>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr' }}>
+      <div className={layout.college}>
 
         <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', minHeight: 'calc(100vh - 56px)' }}>
+        <div className={layout.collegeMain}>
 
-          <div style={{ padding: '2rem', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="lf-college-content lf-main">
 
             <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '8px' }}>
@@ -268,7 +269,7 @@ export default function CollegePage() {
 
           </div>
 
-          <div style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className={layout.sidebarR} style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
             <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '4px' }}>Лекции</div>
             {lectureList.map(l => (

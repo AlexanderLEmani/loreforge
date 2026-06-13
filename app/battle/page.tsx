@@ -42,6 +42,7 @@ import { loadEquipped } from '@/lib/equipment-storage'
 import { answersMatch, sanitizeAnswerInput } from '@/lib/scroll-display'
 import { shuffleQuestions } from '@/lib/shuffle-question'
 import { isHintHighlighted, pickHintPair } from '@/lib/hint-pair'
+import { layout } from '@/lib/layout-classes'
 
 type Phase = 'choose_attack' | 'player_attack' | 'monster_attack' | 'result_flash'
 
@@ -534,10 +535,10 @@ function BattleContent() {
   const spellAttacks = availableAttacks.filter(a => a.kind === 'spell')
 
   return (
-    <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif', display: 'grid', gridTemplateColumns: '240px 1fr' }}>
+    <div className={layout.twoCol}>
       <style>{`@keyframes fadeUp { 0% { opacity:1; transform:translateY(0); } 100% { opacity:0; transform:translateY(-30px); } }`}</style>
 
-      <div style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div className={layout.sidebarL} style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div style={{ background: 'rgba(224,85,85,0.11)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '8px', padding: '10px 12px' }}>
           <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e05555' }}>{dungeonName}</div>
           <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#8a849c', marginTop: '2px' }}>РАУНД {roundCount + 1}</div>
@@ -635,8 +636,8 @@ function BattleContent() {
         )}
       </div>
 
-      <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', justifyContent: 'center', minHeight: '100vh' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 40px 1fr', gap: '1rem', alignItems: 'center' }}>
+      <div className={`${layout.main} lf-main lf-pad-main`} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', justifyContent: 'center', minHeight: '100vh' }}>
+        <div className="lf-battle-vs" style={{ display: 'grid', gridTemplateColumns: '1fr 40px 1fr', gap: '1rem', alignItems: 'center' }}>
           <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', position: 'relative' }}>
             {damageFlash?.target === 'player' && (
               <div style={{ position: 'absolute', top: '-10px', left: '20px', fontFamily: 'monospace', fontSize: '30px', color: '#e05555', fontWeight: 'bold', animation: 'fadeUp 1.2s ease-out forwards', zIndex: 10 }}>
@@ -652,7 +653,7 @@ function BattleContent() {
               <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#8a849c' }}>{playerHP} / 100 HP</div>
             </div>
           </div>
-          <div style={{ fontFamily: 'serif', fontSize: '20px', color: '#5a5670', textAlign: 'center' }}>⚔️</div>
+          <div className="lf-battle-vs-mid" style={{ fontFamily: 'serif', fontSize: '20px', color: '#5a5670', textAlign: 'center' }}>⚔️</div>
           <div style={{ background: 'rgba(224,85,85,0.04)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', flexDirection: 'row-reverse', position: 'relative' }}>
             {damageFlash?.target === 'enemy' && (
               <div style={{ position: 'absolute', top: '-10px', right: '20px', fontFamily: 'monospace', fontSize: '30px', color: '#e05555', fontWeight: 'bold', animation: 'fadeUp 1.2s ease-out forwards', zIndex: 10 }}>
@@ -679,7 +680,7 @@ function BattleContent() {
         {phase === 'choose_attack' && (
           <div>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '10px' }}>▸ Базовые атаки</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '1.25rem' }}>
+            <div className="lf-stack-attacks">
               {basicAttacks.map(atk => {
                 const cd = cooldowns[atk.id] ?? 0
                 const locked = cd > 0
@@ -817,7 +818,7 @@ function BattleContent() {
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
+              <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
                 {currentQ.answers.map((ans: string, idx: number) => {
                   const isHint = isHintHighlighted(attackHintIndices, idx)
                   let bg = '#1c1f2a', border = 'rgba(255,255,255,0.06)', color = '#e6e2f0'
@@ -851,7 +852,7 @@ function BattleContent() {
               <div style={{ fontFamily: 'serif', fontSize: '42px', color: '#e6e2f0', lineHeight: 1.1 }}>{monsterQ.question}</div>
               <div style={{ fontSize: '12px', color: '#8a849c', marginTop: '8px' }}>Верный ответ блокирует · ошибка −{monster.attackDmg} HP</div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
+            <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
               {monsterQ.answers.map((ans: string, idx: number) => {
                 const isHint = isHintHighlighted(defenseHintIndices, idx)
                 const bg = isHint ? 'rgba(201,168,76,0.1)' : '#1c1f2a'

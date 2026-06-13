@@ -10,6 +10,7 @@ import { syncQuestRewards, withGuildClaimed } from '@/lib/quest-rewards'
 import { spendGlory } from '@/lib/glory-wallet'
 import { GUILD_RANKS, guildRankProgress } from '@/lib/guild-ranks'
 import { fetchSpellKills, fetchUserRow } from '@/lib/user-profile'
+import { layout } from '@/lib/layout-classes'
 
 const DUNGEONS = [
   { id: 'add',   icon: '➕', name: 'Пещера сложения',   tag: 'Ур.1', desc: 'Сложение до 1000. Базовый данж. Бесплатно.', cost: 0,   color: '#c9a84c', rarity: null,    level: 1, route: 'Пещера сложения' },
@@ -132,17 +133,17 @@ export default function GuildPage() {
         </div>
       )}
 
-      <nav style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', position: 'sticky', top: 0, zIndex: 100 }}>
+      <nav className={layout.navBar} style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ fontFamily: 'monospace', fontSize: '16px', color: '#e0bc6a', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '26px', height: '26px', border: '1.5px solid #c9a84c', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✦</div>
           LoreForge
         </div>
-        <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>
+        <div className="lf-nav-subtitle" style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>
           Гильдия Авантюристов · {rank.name}
         </div>
       </nav>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 280px' }}>
+      <div className={layout.threeCol}>
 
         <Sidebar
           level={level}
@@ -154,7 +155,7 @@ export default function GuildPage() {
         />
 
         {/* ЦЕНТР */}
-        <div style={{ padding: '1.75rem 2rem', background: '#0b0c10' }}>
+        <div className={`${layout.main} lf-main`} style={{ background: '#0b0c10' }}>
 
           <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Гильдия Авантюристов</div>
@@ -186,7 +187,7 @@ export default function GuildPage() {
             <span>Бесплатные данжи</span>
             <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }}></div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '1.5rem' }}>
+          <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '1.5rem' }}>
             {DUNGEONS.filter(d => d.cost === 0).map(d => (
               <div key={d.id} onClick={() => router.push(`/prepare?dungeon=${encodeURIComponent(d.route)}`)}
                 style={{ background: 'rgba(61,184,122,0.06)', border: '1px solid rgba(61,184,122,0.25)', borderRadius: '10px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', transition: 'all 0.15s' }}
@@ -232,7 +233,7 @@ export default function GuildPage() {
           </div>
 
           <div style={{ background: '#1a1610', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.5rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               {DUNGEONS.filter(d => d.cost > 0).map(d => {
                 const locked = d.level > level
                 const canAfford = gloryWallet >= d.cost
@@ -301,7 +302,7 @@ export default function GuildPage() {
         </div>
 
         {/* ПРАВЫЙ САЙДБАР */}
-        <div style={{ background: '#111318', borderLeft: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}>
+        <div className={layout.sidebarR} style={{ background: '#111318', borderLeft: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}>
 
           <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>Слава</div>
           <div style={{ background: 'rgba(123,108,255,0.1)', border: '1px solid rgba(123,108,255,0.25)', borderRadius: '10px', padding: '14px 16px', marginBottom: '10px' }}>

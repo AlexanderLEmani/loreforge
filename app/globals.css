@@ -7,12 +7,156 @@ body {
 }
 
 @keyframes fadeUp {
-  0%   { opacity: 1; transform: translateY(0px); }
-  60%  { opacity: 1; transform: translateY(-22px); }
-  100% { opacity: 0; transform: translateY(-38px); }
-}
-
-@keyframes fadeUp {
   0% { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+
+/* --- LoreForge responsive layouts --- */
+
+.lf-page-shell {
+  background: #0b0c10;
+  min-height: 100vh;
+  font-family: serif;
+}
+
+.lf-layout-2col {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+}
+
+.lf-layout-3col {
+  display: grid;
+  grid-template-columns: 240px 1fr 280px;
+}
+
+.lf-layout-hub {
+  display: grid;
+  grid-template-columns: 260px 1fr 280px;
+}
+
+.lf-layout-college {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+}
+
+.lf-layout-college-main {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  min-height: calc(100vh - 56px);
+}
+
+.lf-layout-character {
+  display: grid;
+  grid-template-columns: 260px 1fr 300px;
+  min-height: calc(100vh - 56px);
+}
+
+.lf-layout-skills-inner {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.lf-layout-create-char {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem;
+  gap: 2rem;
+}
+
+.lf-nav-bar {
+  padding: 0 2rem;
+}
+
+.lf-pad-main {
+  padding: 1.75rem 2rem;
+}
+
+.lf-sidebar-l {
+  min-width: 0;
+}
+
+.lf-sidebar-r {
+  min-width: 0;
+}
+
+.lf-main {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .lf-layout-2col,
+  .lf-layout-3col,
+  .lf-layout-hub,
+  .lf-layout-college,
+  .lf-layout-college-main,
+  .lf-layout-character,
+  .lf-layout-skills-inner,
+  .lf-layout-create-char {
+    grid-template-columns: 1fr;
+  }
+
+  .lf-layout-create-char {
+    padding: 1rem;
+    gap: 1.25rem;
+  }
+
+  .lf-pad-main {
+    padding: 1rem !important;
+  }
+
+  .lf-nav-bar {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .lf-sidebar-l {
+    border-right: none !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .lf-sidebar-r {
+    border-left: none !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .lf-stack-2-mobile {
+    grid-template-columns: 1fr !important;
+  }
+
+  .lf-stack-3-mobile {
+    grid-template-columns: 1fr !important;
+  }
+
+  .lf-stack-attacks {
+    grid-template-columns: 1fr !important;
+  }
+
+  .lf-battle-vs {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .lf-battle-vs-mid {
+    display: none;
+  }
+
+  .lf-college-content {
+    border-right: none !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 1rem !important;
+  }
+
+  .lf-nav-subtitle {
+    display: none;
+  }
+}
+
+.lf-college-content {
+  padding: 2rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
 }

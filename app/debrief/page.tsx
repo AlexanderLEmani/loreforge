@@ -8,6 +8,7 @@ import { syncQuestRewards } from '@/lib/quest-rewards'
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
+import { layout } from '@/lib/layout-classes'
 
 function DebriefContent() {
   const router = useRouter()
@@ -181,7 +182,7 @@ function DebriefContent() {
         </div>
 
         {/* Результат + ошибки */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.5rem' }}>
+        <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.5rem' }}>
 
           {/* Результат */}
           <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '12px', padding: '1.5rem', position: 'relative', overflow: 'hidden' }}>

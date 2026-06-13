@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { ensureGuestUserRow } from '@/lib/quick-start-auth'
 import PixelCharacter from '@/components/PixelCharacter'
+import { layout } from '@/lib/layout-classes'
 
 const RACES = [
   { id: 'human',  icon: '🧙', label: 'Человек',  desc: '+10% XP за всё' },
@@ -78,7 +79,7 @@ export default function CreateCharacter() {
         <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic', marginTop: '4px' }}>Имя и раса — навсегда. Внешность можно менять.</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', maxWidth: '1000px', margin: '0 auto', padding: '2rem', gap: '2rem' }}>
+      <div className={layout.createChar}>
 
         {/* ПРЕВЬЮ ПЕРСОНАЖА */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>

@@ -19,6 +19,7 @@ import {
 } from '@/lib/equipment'
 import { loadEquipped, loadOwnedIds, saveEquipped } from '@/lib/equipment-storage'
 import { navUnlockFromUser } from '@/lib/nav-unlock'
+import { layout } from '@/lib/layout-classes'
 
 const RACE_ICONS: Record<string, string> = {
   human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀',
@@ -145,7 +146,7 @@ export default function CharacterPage() {
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
-      <nav style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.11)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', position: 'sticky', top: 0, zIndex: 100 }}>
+      <nav className={layout.navBar} style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.11)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ fontFamily: 'monospace', fontSize: '18px', color: '#e0bc6a', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '28px', height: '28px', border: '1.5px solid #c9a84c', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px' }}>✦</div>
           LoreForge
@@ -158,8 +159,8 @@ export default function CharacterPage() {
         </div>
       </nav>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr 300px', minHeight: 'calc(100vh - 56px)' }}>
-        <div style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}>
+      <div className={layout.character}>
+        <div className={layout.sidebarL} style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}>
           <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>Персонаж</div>
           <div style={{ marginBottom: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', marginBottom: '4px' }}>
@@ -186,13 +187,13 @@ export default function CharacterPage() {
           <AppNav step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
         </div>
 
-        <div style={{ padding: '2rem', background: '#0b0c10', overflowY: 'auto' }}>
+        <div className={`${layout.main} lf-main lf-pad-main`} style={{ background: '#0b0c10', overflowY: 'auto' }}>
           <div style={{ marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Снаряжение и внешность</div>
             <div style={{ fontFamily: 'monospace', fontSize: '26px', color: '#e0bc6a' }}>Твой персонаж</div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+          <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
             <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{ fontFamily: 'monospace', fontSize: '18px', color: '#e0bc6a', marginBottom: '4px' }}>{character?.name}</div>
               <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#a99fff', letterSpacing: '0.15em', marginBottom: '1rem' }}>
@@ -256,7 +257,7 @@ export default function CharacterPage() {
           </div>
         </div>
 
-        <div style={{ background: '#111318', borderLeft: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem', overflowY: 'auto' }}>
+        <div className={layout.sidebarR} style={{ background: '#111318', borderLeft: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem', overflowY: 'auto' }}>
           <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '10px' }}>
             Сумка · {ownedItems.length} предм.
           </div>
