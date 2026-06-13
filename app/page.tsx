@@ -100,7 +100,7 @@ export default function Home() {
             borderRadius: '10px',
           }}
         >
-          {guestLoadingMsg ?? 'Я Иоанн и у меня нет гугл почты'}
+          {guestLoadingMsg ?? 'Войти без почты'}
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
