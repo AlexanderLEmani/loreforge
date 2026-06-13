@@ -13,6 +13,7 @@ import { GUILD_DUNGEONS, effectiveDungeonCost, type GuildDungeon } from '@/lib/g
 import { syncGuildRankRewards } from '@/lib/guild-rank-rewards'
 import { fetchSpellKills, fetchUserRow } from '@/lib/user-profile'
 import { layout } from '@/lib/layout-classes'
+import { LoadingScreen } from '@/components/LoadingScreen'
 import { xpProgress } from '@/lib/economy'
 
 export default function GuildPage() {
@@ -112,11 +113,7 @@ export default function GuildPage() {
     router.push(`/prepare?dungeon=${encodeURIComponent(dungeon.route)}`)
   }
 
-  if (loading) return (
-    <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
-      Загрузка...
-    </div>
-  )
+  if (loading) return <LoadingScreen />
 
   const level = userData?.level || 1
   const gloryWallet = userData?.glory || 0

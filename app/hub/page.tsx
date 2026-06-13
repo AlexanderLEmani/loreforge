@@ -24,6 +24,7 @@ import { canTakeExam, isV1Graduate, V1_COMPLETE_DESC, V1_COMPLETE_TITLE } from '
 import { layout } from '@/lib/layout-classes'
 import { xpProgress } from '@/lib/economy'
 import { totalConsumables } from '@/lib/hub-resources'
+import { LoadingScreen } from '@/components/LoadingScreen'
 
 export default function Hub() {
   const supabase = createClient()
@@ -121,11 +122,7 @@ export default function Hub() {
     router.push('/')
   }
 
-  if (!user) return (
-    <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
-      Загрузка...
-    </div>
-  )
+  if (!user) return <LoadingScreen />
 
   const level = userData?.level || 1
   const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)

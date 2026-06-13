@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Suspense } from 'react'
+import { LoadingScreen } from '@/components/LoadingScreen'
 import {
   type BattleAttack,
   type Monster,
@@ -23,10 +24,17 @@ import {
 } from '@/lib/battle-config'
 import {
   BATTLE_CONSUMABLES,
+  CONSUMABLE_EFFECTS,
   EMPTY_CONSUMABLES,
+  parseConsumables,
   type ConsumableInventory,
 } from '@/lib/battle-consumables'
-import { readBattleLoadout, loadoutToInventory } from '@/lib/battle-loadout'
+import {
+  addInventory,
+  clearBattleLoadout,
+  readBattleLoadout,
+  loadoutToInventory,
+} from '@/lib/battle-loadout'
 import {
   computeBattleBonuses,
   defaultSkillNodes,
@@ -98,6 +106,12 @@ function BattleContent() {
   })
   const [bossEnraged, setBossEnraged] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const consumablesRef = useRef<ConsumableInventory>(EMPTY_CONSUMABLES)
+  const consumablesRestoredRef = useRef(false)
+
+  useEffect(() => {
+    consumablesRef.current = consumables
+  }, [consumables])
 
   const unlockedTopics = useMemo(() => getUnlockedTopics(userLevel), [userLevel])
   const availableAttacks = useMemo(
@@ -524,7 +538,30 @@ function BattleContent() {
     }
   }
 
-  function endBattle(result: 'win' | 'lose', finalMistakes: string[], spellKill = false) {
+  async function restoreUnusedConsumables() {
+    if (consumablesRestoredRef.current) return
+    consumablesRestoredRef.current = true
+    clearBattleLoadout()
+
+    const remaining = consumablesRef.current
+    const hasAny = CONSUMABLE_EFFECTS.some(k => remaining[k] > 0)
+    if (!hasAny) return
+
+    let userId = currentUser?.id
+    if (!userId) {
+      const { data: { user } } = await supabase.auth.getUser()
+      userId = user?.id
+    }
+    if (!userId) return
+
+    const { data } = await supabase.from('users').select('consumables').eq('id', userId).single()
+    const dbInv = parseConsumables(data?.consumables)
+    const newInv = addInventory(dbInv, remaining)
+    await supabase.from('users').update({ consumables: newInv }).eq('id', userId)
+  }
+
+  async function endBattle(result: 'win' | 'lose', finalMistakes: string[], spellKill = false) {
+    await restoreUnusedConsumables()
     const score = roundCount + 1 - finalMistakes.length
     const spellParam = result === 'win' && spellKill ? '&spell=1' : ''
     router.push(
@@ -532,13 +569,12 @@ function BattleContent() {
     )
   }
 
-  if (loading) {
-    return (
-      <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
-        Загрузка данжа...
-      </div>
-    )
+  async function fleeDungeon() {
+    await restoreUnusedConsumables()
+    router.push('/guild')
   }
+
+  if (loading) return <LoadingScreen flavor="dungeon" />
 
   if (dungeonQuestions().length === 0) {
     return (
@@ -689,7 +725,7 @@ function BattleContent() {
               <div style={{ fontFamily: 'serif', fontSize: '20px', color: '#e6e2f0', marginBottom: '20px' }}>Сбежать из данжа?</div>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div onClick={() => setConfirmEscape(false)} style={{ flex: 1, padding: '10px', background: '#111318', borderRadius: '8px', cursor: 'pointer', color: '#9590a8' }}>Остаться</div>
-                <div onClick={() => router.push('/guild')} style={{ flex: 1, padding: '10px', background: 'rgba(224,85,85,0.1)', borderRadius: '8px', cursor: 'pointer', color: '#e05555' }}>Бежать</div>
+                <div onClick={() => fleeDungeon()} style={{ flex: 1, padding: '10px', background: 'rgba(224,85,85,0.1)', borderRadius: '8px', cursor: 'pointer', color: '#e05555' }}>Бежать</div>
               </div>
             </div>
           </div>
@@ -938,7 +974,7 @@ function BattleContent() {
 
 export default function Battle() {
   return (
-    <Suspense>
+    <Suspense fallback={<LoadingScreen flavor="dungeon" />}>
       <BattleContent />
     </Suspense>
   )

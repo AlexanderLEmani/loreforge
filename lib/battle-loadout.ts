@@ -49,6 +49,17 @@ export function subtractInventory(
   return out
 }
 
+export function addInventory(
+  inv: ConsumableInventory,
+  delta: Partial<ConsumableInventory>,
+): ConsumableInventory {
+  const out = { ...inv }
+  for (const k of CONSUMABLE_EFFECTS) {
+    out[k] = out[k] + (delta[k] ?? 0)
+  }
+  return out
+}
+
 export function slotsToLoadout(slots: ScrollBattleEffect[]): Partial<ConsumableInventory> {
   const loadout: Partial<ConsumableInventory> = {}
   for (const s of slots) {

@@ -22,6 +22,7 @@ import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
 import { SKILL_TREE_PATH_HINT } from '@/lib/onboarding-quest'
 import { layout } from '@/lib/layout-classes'
 import { xpProgress } from '@/lib/economy'
+import { LoadingScreen } from '@/components/LoadingScreen'
 
 export default function SkillsPage() {
   const router = useRouter()
@@ -157,13 +158,7 @@ export default function SkillsPage() {
     setUnlocking(false)
   }
 
-  if (loading) {
-    return (
-      <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
-        Загрузка...
-      </div>
-    )
-  }
+  if (loading) return <LoadingScreen />
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>

@@ -15,6 +15,7 @@ import {
 } from '@/lib/battle-consumables'
 import { layout } from '@/lib/layout-classes'
 import { xpProgress } from '@/lib/economy'
+import { LoadingScreen } from '@/components/LoadingScreen'
 
 const levelColors: Record<number, { border: string; accent: string; bg: string; tag: string }> = {
   1: { border: '#5a3e2b', accent: '#c9a45a', bg: '#1a1008', tag: '#3d2a14' },
@@ -100,11 +101,7 @@ export default function ShopPage() {
     setTimeout(() => setToast(null), 2500)
   }
 
-  if (loading) return (
-    <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
-      Загрузка...
-    </div>
-  )
+  if (loading) return <LoadingScreen />
 
   const level = userData?.level || 1
   const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)

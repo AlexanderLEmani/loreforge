@@ -8,6 +8,7 @@ import { shuffleQuestions } from '@/lib/shuffle-question'
 import Sidebar from '@/components/Sidebar'
 import { navUnlockFromUser } from '@/lib/nav-unlock'
 import { trainingGoldPerCorrect, trainingXpPerCorrect, xpProgress } from '@/lib/economy'
+import { LoadingScreen } from '@/components/LoadingScreen'
 import { mergeWithFallback } from '@/lib/fallback-questions'
 import {
   type ScrollRecord,
@@ -298,11 +299,7 @@ export default function TrainingPage() {
     advanceQuestion()
   }
 
-  if (loading) return (
-    <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
-      Загрузка...
-    </div>
-  )
+  if (loading) return <LoadingScreen />
 
   const level = userData?.level || 1
   const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)

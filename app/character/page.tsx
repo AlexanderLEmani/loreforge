@@ -21,6 +21,7 @@ import { loadEquipped, loadOwnedIds, saveEquipped } from '@/lib/equipment-storag
 import { navUnlockFromUser } from '@/lib/nav-unlock'
 import { layout } from '@/lib/layout-classes'
 import { xpProgress } from '@/lib/economy'
+import { LoadingScreen } from '@/components/LoadingScreen'
 
 const RACE_ICONS: Record<string, string> = {
   human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀',
@@ -104,11 +105,7 @@ export default function CharacterPage() {
     setTimeout(() => setToast(null), 2000)
   }
 
-  if (loading) return (
-    <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
-      Загрузка...
-    </div>
-  )
+  if (loading) return <LoadingScreen />
 
   const level = userData?.level || 1
   const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)

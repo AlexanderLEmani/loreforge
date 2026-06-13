@@ -15,6 +15,7 @@ import {
   V1_MAX_EXAM_LEVEL,
 } from '@/lib/v1-cap'
 import { XP_THRESHOLDS } from '@/lib/economy'
+import { LoadingScreen } from '@/components/LoadingScreen'
 
 function ExamContent() {
   const router = useRouter()
@@ -134,11 +135,7 @@ function ExamContent() {
     }
   }
 
-  if (loading) return (
-    <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
-      Готовим экзамен...
-    </div>
-  )
+  if (loading) return <LoadingScreen flavor="exam" />
 
   if (!examAllowed) return v1BlockedScreen()
 

@@ -18,6 +18,8 @@ import {
 import { canTakeExam, isV1Graduate, V1_COMPLETE_DESC, V1_COMPLETE_TITLE } from '@/lib/v1-cap'
 import { layout } from '@/lib/layout-classes'
 import { xpProgress } from '@/lib/economy'
+import { pickLoadingMessage } from '@/lib/loading-flavor'
+import { LoadingScreen } from '@/components/LoadingScreen'
 
 const LEVEL_SPELLS: Record<number, [string, string, string][]> = {
   1: [['➕', 'Сложение', '#3db87a'], ['➖', 'Вычитание', '#3db87a']],
@@ -44,6 +46,11 @@ export default function CollegePage() {
   const [showWelcome, setShowWelcome] = useState(false)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [lectureLoadingMsg, setLectureLoadingMsg] = useState('')
+
+  useEffect(() => {
+    if (lectureLoading) setLectureLoadingMsg(pickLoadingMessage('lecture'))
+  }, [lectureLoading])
 
   async function ensureLectureInCache(levelNum: number): Promise<Lecture> {
     if (lectureCache[levelNum]) return lectureCache[levelNum]
@@ -134,11 +141,7 @@ export default function CollegePage() {
   const canGoPrev = selectedLectureLevel > 1 && isLectureUnlocked(selectedLectureLevel - 1, level)
   const canGoNext = selectedLectureLevel < 4 && isLectureUnlocked(selectedLectureLevel + 1, level)
 
-  if (loading) return (
-    <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
-      Загрузка...
-    </div>
-  )
+  if (loading) return <LoadingScreen />
 
   if (loadError && !lecture) return (
     <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#e8a0a0', fontFamily: 'serif', fontSize: '16px', padding: '2rem', textAlign: 'center' }}>
@@ -197,7 +200,7 @@ export default function CollegePage() {
                 </div>
               </div>
               <div className="lf-page-title">
-                {lectureLoading ? 'Загрузка...' : lecture?.title}
+                {lectureLoading ? lectureLoadingMsg : lecture?.title}
               </div>
               <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff' }}>Профессор Горус · Архимаг Арифметики</div>
               {viewingArchive && (

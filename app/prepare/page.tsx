@@ -16,6 +16,8 @@ import {
   slotsToLoadout,
   subtractInventory,
 } from '@/lib/battle-loadout'
+import { pickLoadingMessage } from '@/lib/loading-flavor'
+import { LoadingScreen } from '@/components/LoadingScreen'
 import { layout } from '@/lib/layout-classes'
 
 function PrepareContent() {
@@ -29,6 +31,7 @@ function PrepareContent() {
   const [slots, setSlots] = useState<ScrollBattleEffect[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [entering, setEntering] = useState(false)
+  const [enteringMsg, setEnteringMsg] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -60,6 +63,7 @@ function PrepareContent() {
   async function enterDungeon() {
     if (!userId || entering) return
     setEntering(true)
+    setEnteringMsg(pickLoadingMessage('entering'))
     setError('')
     const loadout = slotsToLoadout(slots)
     const newInv = subtractInventory(inventory, loadout)
@@ -76,13 +80,7 @@ function PrepareContent() {
     router.push(`/battle?dungeon=${encodeURIComponent(dungeonName)}`)
   }
 
-  if (loading) {
-    return (
-      <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif' }}>
-        Загрузка...
-      </div>
-    )
-  }
+  if (loading) return <LoadingScreen />
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif', color: '#e6e2f0' }}>
@@ -184,10 +182,10 @@ function PrepareContent() {
             fontSize: '18px', cursor: entering ? 'default' : 'pointer',
           }}
         >
-          {entering ? 'Входим...' : `Войти в данж → (${slots.length}/${MAX_BATTLE_LOADOUT} в рюкзаке)`}
+          {entering ? enteringMsg : `Войти в данж → (${slots.length}/${MAX_BATTLE_LOADOUT} в рюкзаке)`}
         </div>
         <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '11px', color: '#5a5670', fontStyle: 'italic' }}>
-          Взятые предметы списываются из запаса при входе
+          Неиспользованные расходники вернутся в запас после боя или при побеге
         </div>
       </div>
     </div>
@@ -196,11 +194,7 @@ function PrepareContent() {
 
 export default function PreparePage() {
   return (
-    <Suspense fallback={
-      <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif' }}>
-        Загрузка...
-      </div>
-    }>
+    <Suspense fallback={<LoadingScreen />}>
       <PrepareContent />
     </Suspense>
   )
