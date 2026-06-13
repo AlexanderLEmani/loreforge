@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { pickLoadingMessage, type LoadingFlavor } from '@/lib/loading-flavor'
 
@@ -18,7 +18,29 @@ const shellStyle: CSSProperties = {
   lineHeight: 1.5,
 }
 
+/** Стабильный placeholder для SSR — случайный текст только после mount (без hydration mismatch). */
+const SSR_PLACEHOLDER = '· · ·'
+
 export function LoadingScreen({ flavor = 'default' }: { flavor?: LoadingFlavor }) {
-  const message = useMemo(() => pickLoadingMessage(flavor), [flavor])
+  const [message, setMessage] = useState(SSR_PLACEHOLDER)
+
+  useEffect(() => {
+    setMessage(pickLoadingMessage(flavor))
+  }, [flavor])
+
   return <div style={shellStyle}>{message}</div>
+}
+
+export function useLoadingMessage(flavor: LoadingFlavor, active = true): string {
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    if (!active) {
+      setMessage('')
+      return
+    }
+    setMessage(pickLoadingMessage(flavor))
+  }, [flavor, active])
+
+  return message
 }

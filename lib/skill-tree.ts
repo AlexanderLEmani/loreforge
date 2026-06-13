@@ -1,4 +1,5 @@
 import { ALL_SKILL_TREE_NODES } from '@/lib/skill-tree-nodes-data'
+import { isBranchMasterNode } from '@/lib/skill-tree-layout'
 
 export type SkillBranch = 'add' | 'sub' | 'mul' | 'div' | 'frac' | 'pct'
 export type SkillNodeType = 'attack' | 'defense' | 'passive'
@@ -105,6 +106,10 @@ export function getLockReason(
   }
   if (node.requires !== null && !unlockedIds.has(node.requires)) {
     const parent = allNodes.find(n => n.id === node.requires)
+    if (parent && isBranchMasterNode(parent.id)) {
+      const meta = BRANCHES.find(b => b.id === node.branch)
+      return `Сначала «${parent.name}» — ключ к теме «${meta?.name ?? node.branch}»`
+    }
     return parent ? `Сначала: ${parent.name}` : 'Сначала открой предыдущий узел'
   }
   if (skillPoints < node.cost) return 'Недостаточно очков способностей'

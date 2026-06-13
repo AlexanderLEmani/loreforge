@@ -1,10 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { ensureGuestUserRow, guestLandingPath, signInAsGuest } from '@/lib/quick-start-auth'
-import { pickLoadingMessage } from '@/lib/loading-flavor'
+import { useLoadingMessage } from '@/components/LoadingScreen'
 
 export default function Home() {
   const supabase = createClient()
@@ -49,14 +49,8 @@ export default function Home() {
   }
 
   const busy = loading !== null
-  const guestLoadingMsg = useMemo(
-    () => (loading === 'guest' ? pickLoadingMessage('auth') : null),
-    [loading],
-  )
-  const googleLoadingMsg = useMemo(
-    () => (loading === 'google' ? pickLoadingMessage('authGoogle') : null),
-    [loading],
-  )
+  const guestLoadingMsg = useLoadingMessage('auth', loading === 'guest')
+  const googleLoadingMsg = useLoadingMessage('authGoogle', loading === 'google')
 
   return (
     <main
@@ -100,7 +94,7 @@ export default function Home() {
             borderRadius: '10px',
           }}
         >
-          {guestLoadingMsg ?? 'Войти без почты'}
+          {guestLoadingMsg || 'Войти без почты'}
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '4px 0' }}>
@@ -124,7 +118,7 @@ export default function Home() {
             borderRadius: '10px',
           }}
         >
-          {googleLoadingMsg ?? 'Войти через Google'}
+          {googleLoadingMsg || 'Войти через Google'}
         </button>
       </div>
 

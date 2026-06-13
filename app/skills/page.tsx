@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
@@ -21,6 +21,7 @@ import { SKILL_TREE_PATH_HINT } from '@/lib/onboarding-quest'
 import { layout } from '@/lib/layout-classes'
 import { xpProgress } from '@/lib/economy'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { applyRadialSkillLayout, visibleSkillNodes } from '@/lib/skill-tree-layout'
 
 export default function SkillsPage() {
   const router = useRouter()
@@ -36,6 +37,15 @@ export default function SkillsPage() {
   const [dbError, setDbError] = useState<string | null>(null)
   const [demoMode, setDemoMode] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 900px)')
+    const apply = () => setIsMobile(mq.matches)
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -84,7 +94,7 @@ export default function SkillsPage() {
 
       if (useDemo) {
         const demo = loadDemoSkillState()
-        setUnlockedIds(new Set(demo.unlocked))
+        setUnlockedIds(new Set([0, ...demo.unlocked]))
         if (data) {
           setUserData({
             ...data,
@@ -97,7 +107,7 @@ export default function SkillsPage() {
           .from('user_skills')
           .select('node_id')
           .eq('user_id', user.id)
-        setUnlockedIds(new Set((skills || []).map(s => s.node_id)))
+        setUnlockedIds(new Set([0, ...(skills || []).map(s => s.node_id)]))
       }
 
       setLoading(false)
@@ -105,14 +115,30 @@ export default function SkillsPage() {
     load()
   }, [])
 
+  useEffect(() => {
+    if (isMobile) setSelectedId(null)
+  }, [branchFilter, isMobile])
+
+  const treeNodes = useMemo(() => {
+    const mode = isMobile
+      ? (branchFilter ? 'compact-detail' : 'compact-overview')
+      : 'full'
+    return applyRadialSkillLayout(nodes, mode, branchFilter)
+  }, [nodes, isMobile, branchFilter])
+
+  const canvasNodes = useMemo(
+    () => visibleSkillNodes(treeNodes, isMobile, branchFilter),
+    [treeNodes, isMobile, branchFilter],
+  )
+
   const level = userData?.level || 1
   const skillPoints = userData?.skill_points ?? 0
   const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)
 
-  const selectedNode = selectedId != null ? nodes.find(n => n.id === selectedId) ?? null : null
+  const selectedNode = selectedId != null ? treeNodes.find(n => n.id === selectedId) ?? null : null
 
   async function unlockNode(node: SkillTreeNode) {
-    if (!userData || unlocking) return
+    if (!userData || unlocking || node.id === 0) return
     const state = getNodeState(node, unlockedIds, level, skillPoints)
     if (state !== 'available') return
 
@@ -155,7 +181,7 @@ export default function SkillsPage() {
 
   const detailProps = {
     node: selectedNode,
-    nodes,
+    nodes: treeNodes,
     unlockedIds,
     level,
     skillPoints,
@@ -214,6 +240,14 @@ export default function SkillsPage() {
             {SKILL_TREE_PATH_HINT}
           </div>
 
+          {isMobile && (
+            <p className="lf-skills-mobile-hint">
+              {branchFilter
+                ? 'Ветка темы — тап на узел для описания. «Всё древо» — обзор.'
+                : 'Обзор пути: тап на тему сверху — открыть ветку. Тап на ◎ или корень — описание.'}
+            </p>
+          )}
+
           <SkillBranchChips
             nodes={nodes}
             unlockedIds={unlockedIds}
@@ -222,18 +256,21 @@ export default function SkillsPage() {
             onSelectBranch={id => setBranchFilter(id as SkillBranch | null)}
           />
 
-          <div className={layout.skillsInner}>
-            <div className="lf-skill-tree-col">
+          <div className={`${layout.skillsInner}${isMobile ? ' lf-skills-inner--mobile' : ''}`}>
+            <div className={`lf-skill-tree-col${selectedNode && isMobile ? ' lf-skill-tree-col--split' : ''}`}>
               <div className="lf-skill-tree-frame lf-poe-frame">
-                {nodes.length > 0 ? (
+                {canvasNodes.length > 0 ? (
                   <SkillTreeCanvas
-                    nodes={nodes}
+                    nodes={canvasNodes}
+                    allNodes={treeNodes}
                     unlockedIds={unlockedIds}
                     userLevel={level}
                     skillPoints={skillPoints}
                     selectedId={selectedId}
                     onSelect={setSelectedId}
-                    highlightBranch={branchFilter}
+                    highlightBranch={isMobile ? null : branchFilter}
+                    fitAll={isMobile}
+                    compact={isMobile}
                   />
                 ) : (
                   <div className="lf-skill-tree-empty">Узлы не загружены</div>
@@ -241,35 +278,28 @@ export default function SkillsPage() {
               </div>
             </div>
 
-            <aside className="lf-skill-detail-desktop lf-poe-panel">
-              <SkillNodeDetail {...detailProps} />
-            </aside>
+            {isMobile && selectedNode && (
+              <div className="lf-skill-detail-mobile lf-poe-panel">
+                <button
+                  type="button"
+                  className="lf-skill-detail-mobile-close"
+                  onClick={() => setSelectedId(null)}
+                  aria-label="Закрыть"
+                >
+                  ✕
+                </button>
+                <SkillNodeDetail {...detailProps} compact />
+              </div>
+            )}
+
+            {!isMobile && (
+              <aside className="lf-skill-detail-desktop lf-poe-panel">
+                <SkillNodeDetail {...detailProps} />
+              </aside>
+            )}
           </div>
         </div>
       </div>
-
-      {selectedNode && (
-        <div className="lf-skill-sheet" role="dialog" aria-modal="true">
-          <button
-            type="button"
-            className="lf-skill-sheet-backdrop"
-            aria-label="Закрыть"
-            onClick={() => setSelectedId(null)}
-          />
-          <div className="lf-skill-sheet-panel lf-poe-panel">
-            <div className="lf-skill-sheet-handle" />
-            <button
-              type="button"
-              className="lf-skill-sheet-close"
-              onClick={() => setSelectedId(null)}
-              aria-label="Закрыть"
-            >
-              ✕
-            </button>
-            <SkillNodeDetail {...detailProps} compact />
-          </div>
-        </div>
-      )}
 
       {toast && (
         <div className="lf-skills-toast">{toast}</div>
@@ -290,8 +320,8 @@ export default function SkillsPage() {
                 <span className="lf-help-purple"> защиты</span> — щит,
                 <span className="lf-help-green"> «Мастер…»</span> — мост к следующей теме.
               </p>
-              <p className="lf-skills-help-mobile-only">На телефоне: тяни древо, зум двумя пальцами или кнопки +/−. Описание узла — снизу.</p>
-              <p className="lf-skills-help-desktop-only">На компьютере: перетаскивание и колёсико мыши.</p>
+              <p className="lf-skills-help-mobile-only">На телефоне древо вписано в экран — тап на узел, описание снизу. Крестик закрывает.</p>
+              <p className="lf-skills-help-desktop-only">На компьютере: перетаскивание и колёсико. Центр ◎ — единство, от него лучи тем.</p>
             </div>
             <button type="button" className="lf-skill-detail-cta lf-skill-detail-cta--unlock" onClick={() => setShowHelp(false)}>
               Понял →

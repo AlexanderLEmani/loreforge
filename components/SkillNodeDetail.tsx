@@ -8,6 +8,7 @@ import {
   getNodeState,
   type SkillTreeNode,
 } from '@/lib/skill-tree'
+import { isBranchMasterNode, nextBranchAfterMaster } from '@/lib/skill-tree-layout'
 
 type Props = {
   node: SkillTreeNode | null
@@ -47,6 +48,8 @@ export default function SkillNodeDetail({
   const branch = branchMeta(node.branch)
   const state = getNodeState(node, unlockedIds, level, skillPoints)
   const typeColor = TYPE_COLORS[node.type]
+  const nextBranch = isBranchMasterNode(node.id) ? nextBranchAfterMaster(node.id) : null
+  const nextMeta = nextBranch ? branchMeta(nextBranch) : null
 
   return (
     <div className={`lf-skill-detail${compact ? ' lf-skill-detail--compact' : ''}`}>
@@ -63,6 +66,15 @@ export default function SkillNodeDetail({
         <div className="lf-skill-detail-effect">
           <span className="lf-skill-detail-effect-label">Эффект в бою</span>
           {node.effect.detail}
+        </div>
+      )}
+
+      {nextMeta && (
+        <div className="lf-skill-detail-bridge">
+          <span className="lf-skill-detail-bridge-label">Мост к следующей теме</span>
+          {state === 'unlocked'
+            ? `Открыт путь: ${nextMeta.icon} ${nextMeta.name}`
+            : `Прокачай этот узел → откроется ${nextMeta.icon} ${nextMeta.name}`}
         </div>
       )}
 
