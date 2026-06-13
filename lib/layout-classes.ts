@@ -16,4 +16,6 @@ export const layout = {
   navBar: 'lf-nav-bar',
   stack2: 'lf-stack-2-mobile',
   stack3: 'lf-stack-3-mobile',
+  battleHud: 'lf-battle-hud',
+  battleShell: 'lf-battle-shell',
 } as const

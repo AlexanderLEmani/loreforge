@@ -170,6 +170,88 @@ body {
     display: none;
   }
 
+  .lf-battle-sidebar {
+    display: none !important;
+  }
+
+  .lf-battle-hud {
+    display: flex !important;
+  }
+
+  .lf-battle-shell {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: unset !important;
+  }
+
+  .lf-battle-main {
+    padding: 0.5rem 0.75rem 0.75rem !important;
+    gap: 0.5rem !important;
+    min-height: 0 !important;
+  }
+
+  .lf-battle-vs {
+    padding: 0 !important;
+  }
+
+  .lf-battle-vs-card {
+    padding: 0.5rem 0.65rem !important;
+  }
+
+  .lf-battle-vs-card .lf-battle-avatar {
+    font-size: 22px !important;
+  }
+
+  .lf-battle-question {
+    font-size: clamp(22px, 6vw, 32px) !important;
+  }
+
+  .lf-battle-attack-card {
+    padding: 0.55rem 0.4rem !important;
+  }
+
+  .lf-battle-attack-card .lf-battle-attack-icon {
+    font-size: 22px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .lf-battle-attack-desc {
+    display: none !important;
+  }
+
+  .lf-battle-spells-scroll {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    gap: 8px !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .lf-battle-spells-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .lf-battle-spell-card {
+    flex: 0 0 108px !important;
+    min-width: 108px !important;
+    padding: 0.5rem !important;
+  }
+
+  .lf-stack-attacks {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .lf-debrief-shell {
+    padding: 0.75rem;
+  }
+
+  .lf-debrief-mistakes {
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
   .lf-college-content {
     border-right: none !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -542,4 +624,179 @@ body {
   width: 100%;
   max-height: min(90vh, 720px);
   overflow-y: auto;
+}
+
+/* --- Battle: один экран --- */
+
+.lf-battle-shell {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+}
+
+.lf-battle-hud {
+  display: none;
+}
+
+.lf-battle-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.lf-battle-stage {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lf-battle-sidebar {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.lf-battle-shell .lf-battle-sidebar.lf-sidebar-panel {
+  min-height: auto !important;
+  height: 100%;
+}
+
+.lf-battle-hud-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.lf-battle-hud-streak {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #1c1f2a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 13px;
+  color: #9590a8;
+  flex-shrink: 0;
+}
+
+.lf-battle-hud-streak--crit {
+  color: #e0bc6a;
+  border-color: rgba(201, 168, 76, 0.35);
+}
+
+.lf-battle-hud-items {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.lf-battle-hud-item {
+  flex: 1;
+  min-width: 44px;
+  max-width: 56px;
+  padding: 6px 4px;
+  background: #1c1f2a;
+  border: 1px solid rgba(169, 159, 255, 0.2);
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.lf-battle-hud-item--disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.lf-battle-hud-item-qty {
+  font-family: monospace;
+  font-size: 9px;
+  color: #a99fff;
+  margin-top: 2px;
+}
+
+.lf-battle-hud-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #1c1f2a;
+  color: #8a849c;
+}
+
+.lf-battle-hud-btn--hard-on {
+  border-color: rgba(201, 168, 76, 0.45);
+  color: #e0bc6a;
+  background: rgba(201, 168, 76, 0.1);
+}
+
+.lf-battle-hud-btn--escape {
+  color: #e05555;
+  border-color: rgba(224, 85, 85, 0.25);
+}
+
+.lf-battle-question {
+  font-family: serif;
+  font-size: clamp(28px, 5vw, 42px);
+  color: #e6e2f0;
+  line-height: 1.1;
+}
+
+.lf-battle-vs-card {
+  /* marker class for mobile compact */
+}
+
+.lf-battle-attack-card {
+  /* marker */
+}
+
+.lf-battle-attack-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.lf-battle-attack-desc {
+  font-size: 11px;
+  color: #8a849c;
+  margin-bottom: 8px;
+}
+
+.lf-debrief-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lf-debrief-panel {
+  max-width: 520px;
+  width: 100%;
+}
+
+.lf-debrief-cta {
+  width: 100%;
+  padding: 16px 20px;
+  border-radius: 10px;
+  font-family: serif;
+  font-size: 17px;
+  cursor: pointer;
+  border: 1px solid rgba(201, 168, 76, 0.45);
+  background: rgba(201, 168, 76, 0.14);
+  color: #e0bc6a;
+  margin-top: 1.25rem;
 }

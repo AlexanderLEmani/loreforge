@@ -552,10 +552,53 @@ function BattleContent() {
   const spellAttacks = availableAttacks.filter(a => a.kind === 'spell')
 
   return (
-    <div className={layout.twoCol}>
+    <div className={layout.battleShell}>
+
+      <div className={layout.battleHud} style={{ flexDirection: 'column', gap: '6px', padding: '0.5rem 0.75rem', background: '#111318', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="lf-battle-hud-row">
+          <div className={`lf-battle-hud-streak${correctStreak >= STREAK_CRIT_THRESHOLD ? ' lf-battle-hud-streak--crit' : ''}`}>
+            🔥 {correctStreak}{correctStreak >= STREAK_CRIT_THRESHOLD ? ' ⚡' : ''}
+          </div>
+          <div className="lf-battle-hud-items">
+            {BATTLE_CONSUMABLES.map(c => {
+              const meta = SCROLL_EFFECT_LABELS[c.effect]
+              const qty = consumables[c.effect]
+              const canUse = canUseConsumable(c.effect)
+              if (qty === 0) return null
+              return (
+                <div
+                  key={c.effect}
+                  className={`lf-battle-hud-item${canUse ? '' : ' lf-battle-hud-item--disabled'}`}
+                  onClick={() => canUse && applyConsumable(c.effect)}
+                  title={c.name}
+                >
+                  {meta.icon}
+                  <div className="lf-battle-hud-item-qty">×{qty}</div>
+                </div>
+              )
+            })}
+          </div>
+          <div
+            className={`lf-battle-hud-btn${hardMode ? ' lf-battle-hud-btn--hard-on' : ''}`}
+            onClick={() => setHardMode(!hardMode)}
+          >
+            {hardMode ? '2× XP' : '1×'}
+          </div>
+          <div className="lf-battle-hud-btn lf-battle-hud-btn--escape" onClick={() => setConfirmEscape(true)}>🏃</div>
+        </div>
+        {(powerBuff || shieldActive) && (
+          <div style={{ fontSize: '10px', color: '#a99fff', fontFamily: 'monospace' }}>
+            {powerBuff ? '⚡ ×2 урон ' : ''}{shieldActive ? '🛡 щит' : ''}
+          </div>
+        )}
+        {itemToast && (
+          <div style={{ fontSize: '10px', color: '#e0bc6a', fontFamily: 'monospace' }}>{itemToast}</div>
+        )}
+      </div>
+
       <style>{`@keyframes fadeUp { 0% { opacity:1; transform:translateY(0); } 100% { opacity:0; transform:translateY(-30px); } }`}</style>
 
-      <div className={layout.sidebarL} style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div className={`${layout.sidebarL} lf-battle-sidebar lf-sidebar-panel`} style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         <div style={{ background: 'rgba(224,85,85,0.11)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '8px', padding: '10px 12px' }}>
           <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e05555' }}>{dungeonName}</div>
           <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#8a849c', marginTop: '2px' }}>РАУНД {roundCount + 1}</div>
@@ -646,22 +689,22 @@ function BattleContent() {
               <div style={{ fontFamily: 'serif', fontSize: '20px', color: '#e6e2f0', marginBottom: '20px' }}>Сбежать из данжа?</div>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div onClick={() => setConfirmEscape(false)} style={{ flex: 1, padding: '10px', background: '#111318', borderRadius: '8px', cursor: 'pointer', color: '#9590a8' }}>Остаться</div>
-                <div onClick={() => router.push('/hub')} style={{ flex: 1, padding: '10px', background: 'rgba(224,85,85,0.1)', borderRadius: '8px', cursor: 'pointer', color: '#e05555' }}>Бежать</div>
+                <div onClick={() => router.push('/guild')} style={{ flex: 1, padding: '10px', background: 'rgba(224,85,85,0.1)', borderRadius: '8px', cursor: 'pointer', color: '#e05555' }}>Бежать</div>
               </div>
             </div>
           </div>
         )}
       </div>
 
-      <div className={`${layout.main} lf-main lf-pad-main`} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', justifyContent: 'center', minHeight: '100vh' }}>
-        <div className="lf-battle-vs" style={{ display: 'grid', gridTemplateColumns: '1fr 40px 1fr', gap: '1rem', alignItems: 'center' }}>
-          <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', position: 'relative' }}>
+      <div className={`${layout.main} lf-battle-main`}>
+        <div className="lf-battle-vs" style={{ display: 'grid', gridTemplateColumns: '1fr 40px 1fr', gap: '0.65rem', alignItems: 'center', flexShrink: 0 }}>
+          <div className="lf-battle-vs-card" style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '0.65rem 0.75rem', display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
             {damageFlash?.target === 'player' && (
               <div style={{ position: 'absolute', top: '-10px', left: '20px', fontFamily: 'monospace', fontSize: '30px', color: '#e05555', fontWeight: 'bold', animation: 'fadeUp 1.2s ease-out forwards', zIndex: 10 }}>
                 -{damageFlash.amount}
               </div>
             )}
-            <div style={{ fontSize: '32px' }}>🧙</div>
+            <div className="lf-battle-avatar" style={{ fontSize: '32px' }}>🧙</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e6e2f0', marginBottom: '5px' }}>Аркан</div>
               <div style={{ height: '5px', background: '#171920', borderRadius: '3px', overflow: 'hidden', marginBottom: '3px' }}>
@@ -671,13 +714,13 @@ function BattleContent() {
             </div>
           </div>
           <div className="lf-battle-vs-mid" style={{ fontFamily: 'serif', fontSize: '20px', color: '#5a5670', textAlign: 'center' }}>⚔️</div>
-          <div style={{ background: 'rgba(224,85,85,0.04)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', flexDirection: 'row-reverse', position: 'relative' }}>
+          <div className="lf-battle-vs-card" style={{ background: 'rgba(224,85,85,0.04)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '10px', padding: '0.65rem 0.75rem', display: 'flex', alignItems: 'center', gap: '10px', flexDirection: 'row-reverse', position: 'relative' }}>
             {damageFlash?.target === 'enemy' && (
               <div style={{ position: 'absolute', top: '-10px', right: '20px', fontFamily: 'monospace', fontSize: '30px', color: '#e05555', fontWeight: 'bold', animation: 'fadeUp 1.2s ease-out forwards', zIndex: 10 }}>
                 -{damageFlash.amount}
               </div>
             )}
-            <div style={{ fontSize: '32px' }}>{monster?.icon ?? '👹'}</div>
+            <div className="lf-battle-avatar" style={{ fontSize: '32px' }}>{monster?.icon ?? '👹'}</div>
             <div style={{ flex: 1, textAlign: 'right' }}>
               <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e05555', marginBottom: '5px' }}>{monster?.name ?? 'Демон'}</div>
               <div style={{ height: '5px', background: '#171920', borderRadius: '3px', overflow: 'hidden', marginBottom: '3px' }}>
@@ -688,26 +731,28 @@ function BattleContent() {
           </div>
         </div>
 
+        <div className="lf-battle-stage">
         {phase === 'result_flash' && (
-          <div style={{ background: '#1c1f2a', border: `1px solid ${flashColor}`, borderRadius: '12px', padding: '2rem', textAlign: 'center', fontFamily: 'serif', fontSize: '28px', color: flashColor }}>
+          <div style={{ background: '#1c1f2a', border: `1px solid ${flashColor}`, borderRadius: '10px', padding: '1rem', textAlign: 'center', fontFamily: 'serif', fontSize: '22px', color: flashColor }}>
             {flashMsg}
           </div>
         )}
 
         {phase === 'choose_attack' && (
           <div>
-            <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '10px' }}>▸ Базовые атаки</div>
-            <div className="lf-stack-attacks">
+            <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.15em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '6px' }}>▸ Атаки</div>
+            <div className="lf-stack-attacks" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '8px' }}>
               {basicAttacks.map(atk => {
                 const cd = cooldowns[atk.id] ?? 0
                 const locked = cd > 0
                 return (
                   <div key={atk.id} onClick={() => !locked && chooseAttack(atk)}
-                    style={{ background: locked ? '#161820' : '#1c1f2a', border: `1px solid ${locked ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '12px', padding: '1.25rem 1rem', textAlign: 'center', cursor: locked ? 'not-allowed' : 'pointer', opacity: locked ? 0.5 : 1 }}>
-                    <div style={{ fontSize: '32px', marginBottom: '8px' }}>{atk.icon}</div>
-                    <div style={{ fontSize: '15px', color: '#e6e2f0', marginBottom: '4px' }}>{atk.label}</div>
-                    <div style={{ fontSize: '11px', color: '#8a849c', marginBottom: '8px' }}>{atk.desc}</div>
-                    <div style={{ fontFamily: 'monospace', fontSize: '18px', color: atk.color }}>+{atk.dmg}</div>
+                    className="lf-battle-attack-card"
+                    style={{ background: locked ? '#161820' : '#1c1f2a', border: `1px solid ${locked ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '10px', padding: '0.75rem 0.5rem', textAlign: 'center', cursor: locked ? 'not-allowed' : 'pointer', opacity: locked ? 0.5 : 1 }}>
+                    <div className="lf-battle-attack-icon" style={{ fontSize: '32px', marginBottom: '8px' }}>{atk.icon}</div>
+                    <div style={{ fontSize: '13px', color: '#e6e2f0', marginBottom: '2px' }}>{atk.label}</div>
+                    <div className="lf-battle-attack-desc" style={{ fontSize: '11px', color: '#8a849c', marginBottom: '8px' }}>{atk.desc}</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: '16px', color: atk.color }}>+{atk.dmg}</div>
                     {locked && <div style={{ fontSize: '10px', color: '#e05555', marginTop: '4px' }}>⏳ {cd}</div>}
                   </div>
                 )
@@ -716,18 +761,18 @@ function BattleContent() {
 
             {spellAttacks.length > 0 && (
               <>
-                <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '10px' }}>▸ Заклинания · комбо-темы</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '10px' }}>
+                <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.15em', color: '#8a849c', textTransform: 'uppercase', margin: '8px 0 6px' }}>▸ Заклинания</div>
+                <div className="lf-battle-spells-scroll" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px' }}>
                   {spellAttacks.map(atk => {
                     const cd = cooldowns[atk.id] ?? 0
                     const locked = cd > 0
                     return (
                       <div key={atk.id} onClick={() => !locked && chooseAttack(atk)}
-                        style={{ background: locked ? '#161820' : 'rgba(123,108,255,0.08)', border: `1px solid ${locked ? 'rgba(255,255,255,0.04)' : 'rgba(169,159,255,0.35)'}`, borderRadius: '12px', padding: '1rem', textAlign: 'center', cursor: locked ? 'not-allowed' : 'pointer', opacity: locked ? 0.5 : 1 }}>
-                        <div style={{ fontSize: '28px', marginBottom: '6px' }}>{atk.icon}</div>
-                        <div style={{ fontSize: '14px', color: '#e6e2f0', marginBottom: '4px' }}>{atk.label}</div>
-                        <div style={{ fontSize: '10px', color: '#8a849c', marginBottom: '6px', lineHeight: 1.4 }}>{atk.desc}</div>
-                        <div style={{ fontFamily: 'monospace', fontSize: '16px', color: atk.color }}>+{atk.dmg}</div>
+                        className="lf-battle-spell-card"
+                        style={{ background: locked ? '#161820' : 'rgba(123,108,255,0.08)', border: `1px solid ${locked ? 'rgba(255,255,255,0.04)' : 'rgba(169,159,255,0.35)'}`, borderRadius: '10px', padding: '0.65rem', textAlign: 'center', cursor: locked ? 'not-allowed' : 'pointer', opacity: locked ? 0.5 : 1 }}>
+                        <div style={{ fontSize: '24px', marginBottom: '4px' }}>{atk.icon}</div>
+                        <div style={{ fontSize: '12px', color: '#e6e2f0', marginBottom: '2px' }}>{atk.label}</div>
+                        <div style={{ fontFamily: 'monospace', fontSize: '14px', color: atk.color }}>+{atk.dmg}</div>
                         {locked && <div style={{ fontSize: '10px', color: '#e05555' }}>⏳ {cd}</div>}
                       </div>
                     )
@@ -752,7 +797,7 @@ function BattleContent() {
                   <div style={{ fontFamily: 'monospace', fontSize: '18px', color: timer > 4 ? '#e0bc6a' : '#e05555' }}>{timer}s</div>
                 </div>
               )}
-              <div style={{ fontFamily: 'serif', fontSize: '42px', color: '#e6e2f0', lineHeight: 1.1 }}>{currentQ.question}</div>
+              <div className="lf-battle-question" style={{ fontFamily: 'serif', fontSize: '42px', color: '#e6e2f0', lineHeight: 1.1 }}>{currentQ.question}</div>
             </div>
             {chosenAttack.id === 'heavy' ? (
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -866,7 +911,7 @@ function BattleContent() {
               <div style={{ fontFamily: 'monospace', fontSize: '20px', fontWeight: 'bold', color: timer > monster.defendTimer / 2 ? '#3db87a' : '#e05555' }}>{timer}s</div>
             </div>
             <div style={{ background: 'rgba(224,85,85,0.04)', border: '1px solid rgba(224,85,85,0.3)', borderRadius: '12px', padding: '1.5rem', marginBottom: '1rem' }}>
-              <div style={{ fontFamily: 'serif', fontSize: '42px', color: '#e6e2f0', lineHeight: 1.1 }}>{monsterQ.question}</div>
+              <div className="lf-battle-question" style={{ fontFamily: 'serif', fontSize: '42px', color: '#e6e2f0', lineHeight: 1.1 }}>{monsterQ.question}</div>
               <div style={{ fontSize: '12px', color: '#8a849c', marginTop: '8px' }}>Верный ответ блокирует · ошибка −{monster.attackDmg} HP</div>
             </div>
             <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
@@ -885,6 +930,7 @@ function BattleContent() {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   )
