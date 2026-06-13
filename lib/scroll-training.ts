@@ -10,6 +10,24 @@ export type ScrollTrainingTag =
   | 'sub_medium'
   | 'sub_chain'
   | 'sub_hard'
+  | 'mul_table_low'
+  | 'mul_table_high'
+  | 'mul_two_digit'
+  | 'div_exact'
+  | 'div_tens'
+  | 'mul_div_pair'
+  | 'div_chain'
+  | 'frac_lcd'
+  | 'frac_add'
+  | 'frac_sub'
+  | 'frac_mul'
+  | 'frac_div'
+  | 'frac_mixed'
+  | 'pct_of'
+  | 'pct_discount'
+  | 'pct_markup'
+  | 'pct_share'
+  | 'pct_find_whole'
 
 export type ScrollRecord = {
   id: number
@@ -36,10 +54,18 @@ type QuestionRow = ScrollQuestion
 
 export type ScrollTrainingProfile = {
   tag: ScrollTrainingTag
-  topicId: 'add' | 'sub'
+  topicId: 'add' | 'sub' | 'mul' | 'div' | 'frac' | 'pct'
   dungeon: string
+  dungeons?: string[]
   label: string
   matches: (q: QuestionRow) => boolean
+}
+
+export const SCROLL_LEVEL_LABELS: Record<number, string> = {
+  1: 'I',
+  2: 'II',
+  3: 'III',
+  4: 'IV',
 }
 
 /** Все числа из строки примера (до «=») */
@@ -54,6 +80,120 @@ function plusCount(question: string): number {
 
 function minusCount(question: string): number {
   return (question.match(/−/g) || []).length
+}
+
+function isFractionQuestion(question: string): boolean {
+  return /[½⅓¼⅕⅙⅐⅑⅒⅔⅖⅗⅘⅚⅜⅝⅞]|\d+\/\d+/.test(question)
+}
+
+function mulFactors(question: string): [number, number] | null {
+  const m = question.match(/^(\d+)\s×\s(\d+)\s*=/)
+  if (!m) return null
+  return [Number(m[1]), Number(m[2])]
+}
+
+function divOperands(question: string): [number, number] | null {
+  const m = question.match(/^(\d+)\s÷\s(\d+)\s*=/)
+  if (!m) return null
+  return [Number(m[1]), Number(m[2])]
+}
+
+function isSingleMul(q: QuestionRow): boolean {
+  return q.question.includes('×') && !q.question.includes('+') && !q.question.includes('−') && !q.question.includes('÷')
+}
+
+function isSingleDiv(q: QuestionRow): boolean {
+  return q.question.includes('÷') && !q.question.includes('×') && !q.question.includes('+') && !q.question.includes('−')
+}
+
+function matchesMulTableLow(q: QuestionRow): boolean {
+  if (!isSingleMul(q)) return false
+  const f = mulFactors(q.question)
+  if (!f) return false
+  const [a, b] = f
+  return a >= 2 && b >= 2 && a <= 5 && b <= 5
+}
+
+function matchesMulTableHigh(q: QuestionRow): boolean {
+  if (!isSingleMul(q)) return false
+  const f = mulFactors(q.question)
+  if (!f) return false
+  const [a, b] = f
+  return a >= 6 && b >= 6 && a <= 11 && b <= 11
+}
+
+function matchesMulTwoDigit(q: QuestionRow): boolean {
+  if (!isSingleMul(q)) return false
+  const f = mulFactors(q.question)
+  if (!f) return false
+  const [a, b] = f
+  return a >= 10 && a <= 19 && b >= 2 && b <= 9
+}
+
+function matchesDivExact(q: QuestionRow): boolean {
+  return isSingleDiv(q)
+}
+
+function matchesDivTens(q: QuestionRow): boolean {
+  if (!isSingleDiv(q)) return false
+  const ops = divOperands(q.question)
+  if (!ops) return false
+  const [a, b] = ops
+  return a % 10 === 0 && b >= 2 && b <= 12
+}
+
+function matchesMulDivPair(q: QuestionRow): boolean {
+  if (q.dungeon_name === 'Башня умножения' && isSingleMul(q) && q.difficulty === 'easy') return true
+  if (q.dungeon_name === 'Пещера деления' && isSingleDiv(q) && q.difficulty === 'easy') return true
+  return false
+}
+
+function matchesDivChain(q: QuestionRow): boolean {
+  return q.question.includes('÷') && q.question.includes('−') && !q.question.includes('×')
+}
+
+function matchesFracMixed(q: QuestionRow): boolean {
+  return isFractionQuestion(q.question) && /^1\s−/.test(q.question)
+}
+
+function matchesFracAdd(q: QuestionRow): boolean {
+  return isFractionQuestion(q.question) && q.question.includes('+') && !q.question.includes('×') && !q.question.includes('÷') && !matchesFracMixed(q) && q.difficulty === 'easy'
+}
+
+function matchesFracSub(q: QuestionRow): boolean {
+  return isFractionQuestion(q.question) && q.question.includes('−') && !q.question.includes('×') && !q.question.includes('÷') && !matchesFracMixed(q) && q.difficulty === 'easy'
+}
+
+function matchesFracLcd(q: QuestionRow): boolean {
+  return isFractionQuestion(q.question) && q.question.includes('+') && !q.question.includes('×') && !q.question.includes('÷') && q.difficulty === 'medium'
+}
+
+function matchesFracMul(q: QuestionRow): boolean {
+  return isFractionQuestion(q.question) && q.question.includes('×')
+}
+
+function matchesFracDiv(q: QuestionRow): boolean {
+  return isFractionQuestion(q.question) && q.question.includes('÷')
+}
+
+function matchesPctOf(q: QuestionRow): boolean {
+  return /% от \d+ =/.test(q.question) && !q.question.includes('от ?')
+}
+
+function matchesPctDiscount(q: QuestionRow): boolean {
+  return q.question.includes('Скидка') || /\d+\s−\s\d+%/.test(q.question)
+}
+
+function matchesPctMarkup(q: QuestionRow): boolean {
+  return /\+\s*\d+%/.test(q.question) && !q.question.includes('Скидка')
+}
+
+function matchesPctShare(q: QuestionRow): boolean {
+  return /из \d+ = ?%/.test(q.question)
+}
+
+function matchesPctFindWhole(q: QuestionRow): boolean {
+  return /% от \? =/.test(q.question)
 }
 
 /** Сложение до 20: два числа ≤20, сумма ≤20, без скобок */
@@ -188,6 +328,133 @@ export const SCROLL_TRAINING_PROFILES: Record<ScrollTrainingTag, ScrollTrainingP
     label: 'Большие разности',
     matches: matchesSubHard,
   },
+  mul_table_low: {
+    tag: 'mul_table_low',
+    topicId: 'mul',
+    dungeon: 'Башня умножения',
+    label: 'Таблица 2–5',
+    matches: matchesMulTableLow,
+  },
+  mul_table_high: {
+    tag: 'mul_table_high',
+    topicId: 'mul',
+    dungeon: 'Башня умножения',
+    label: 'Таблица 6–10',
+    matches: matchesMulTableHigh,
+  },
+  mul_two_digit: {
+    tag: 'mul_two_digit',
+    topicId: 'mul',
+    dungeon: 'Башня умножения',
+    label: 'Двузначное × однозначное',
+    matches: matchesMulTwoDigit,
+  },
+  div_exact: {
+    tag: 'div_exact',
+    topicId: 'div',
+    dungeon: 'Пещера деления',
+    label: 'Деление без остатка',
+    matches: matchesDivExact,
+  },
+  div_tens: {
+    tag: 'div_tens',
+    topicId: 'div',
+    dungeon: 'Пещера деления',
+    label: 'Деление десятками',
+    matches: matchesDivTens,
+  },
+  mul_div_pair: {
+    tag: 'mul_div_pair',
+    topicId: 'mul',
+    dungeon: 'Башня умножения',
+    dungeons: ['Башня умножения', 'Пещера деления'],
+    label: 'Связь × и ÷',
+    matches: matchesMulDivPair,
+  },
+  div_chain: {
+    tag: 'div_chain',
+    topicId: 'div',
+    dungeon: 'Пещера деления',
+    label: 'Цепочки с делением',
+    matches: matchesDivChain,
+  },
+  frac_lcd: {
+    tag: 'frac_lcd',
+    topicId: 'frac',
+    dungeon: 'Храм дробей',
+    label: 'Общий знаменатель',
+    matches: matchesFracLcd,
+  },
+  frac_add: {
+    tag: 'frac_add',
+    topicId: 'frac',
+    dungeon: 'Храм дробей',
+    label: 'Сложение дробей',
+    matches: matchesFracAdd,
+  },
+  frac_sub: {
+    tag: 'frac_sub',
+    topicId: 'frac',
+    dungeon: 'Храм дробей',
+    label: 'Вычитание дробей',
+    matches: matchesFracSub,
+  },
+  frac_mul: {
+    tag: 'frac_mul',
+    topicId: 'frac',
+    dungeon: 'Храм дробей',
+    label: 'Умножение дробей',
+    matches: matchesFracMul,
+  },
+  frac_div: {
+    tag: 'frac_div',
+    topicId: 'frac',
+    dungeon: 'Храм дробей',
+    label: 'Деление дробей',
+    matches: matchesFracDiv,
+  },
+  frac_mixed: {
+    tag: 'frac_mixed',
+    topicId: 'frac',
+    dungeon: 'Храм дробей',
+    label: 'Смешанные числа',
+    matches: matchesFracMixed,
+  },
+  pct_of: {
+    tag: 'pct_of',
+    topicId: 'pct',
+    dungeon: 'Рынок процентов',
+    label: 'Процент от числа',
+    matches: matchesPctOf,
+  },
+  pct_discount: {
+    tag: 'pct_discount',
+    topicId: 'pct',
+    dungeon: 'Рынок процентов',
+    label: 'Скидки',
+    matches: matchesPctDiscount,
+  },
+  pct_markup: {
+    tag: 'pct_markup',
+    topicId: 'pct',
+    dungeon: 'Рынок процентов',
+    label: 'Наценки',
+    matches: matchesPctMarkup,
+  },
+  pct_share: {
+    tag: 'pct_share',
+    topicId: 'pct',
+    dungeon: 'Рынок процентов',
+    label: 'Пропорции (из N)',
+    matches: matchesPctShare,
+  },
+  pct_find_whole: {
+    tag: 'pct_find_whole',
+    topicId: 'pct',
+    dungeon: 'Рынок процентов',
+    label: 'Найти целое',
+    matches: matchesPctFindWhole,
+  },
 }
 
 const TITLE_TAG_HINTS: Array<{ pattern: RegExp; tag: ScrollTrainingTag }> = [
@@ -200,6 +467,24 @@ const TITLE_TAG_HINTS: Array<{ pattern: RegExp; tag: ScrollTrainingTag }> = [
   { pattern: /цепочк.*выч|скобк.*выч/i, tag: 'sub_chain' },
   { pattern: /больш.*выч|вычит.*100/i, tag: 'sub_hard' },
   { pattern: /разност/i, tag: 'sub_medium' },
+  { pattern: /таблица\s*2|2.?5|маленьк/i, tag: 'mul_table_low' },
+  { pattern: /таблица\s*6|6.?10|больш.*множ/i, tag: 'mul_table_high' },
+  { pattern: /двузначн.*умнож/i, tag: 'mul_two_digit' },
+  { pattern: /делен.*без\s*остат/i, tag: 'div_exact' },
+  { pattern: /делен.*десят/i, tag: 'div_tens' },
+  { pattern: /связь.*×|×.*÷|умнож.*делен/i, tag: 'mul_div_pair' },
+  { pattern: /цепочк.*делен/i, tag: 'div_chain' },
+  { pattern: /общий\s*знамен/i, tag: 'frac_lcd' },
+  { pattern: /сложен.*дроб/i, tag: 'frac_add' },
+  { pattern: /вычит.*дроб/i, tag: 'frac_sub' },
+  { pattern: /умножен.*дроб/i, tag: 'frac_mul' },
+  { pattern: /делен.*дроб/i, tag: 'frac_div' },
+  { pattern: /смешанн/i, tag: 'frac_mixed' },
+  { pattern: /процент\s*от\s*числа|10%.*25%/i, tag: 'pct_of' },
+  { pattern: /скидк/i, tag: 'pct_discount' },
+  { pattern: /наценк/i, tag: 'pct_markup' },
+  { pattern: /пропорц/i, tag: 'pct_share' },
+  { pattern: /найти\s*целое/i, tag: 'pct_find_whole' },
 ]
 
 export function resolveScrollTrainingTag(scroll: ScrollRecord): ScrollTrainingTag | null {
@@ -213,7 +498,7 @@ export function resolveScrollTrainingTag(scroll: ScrollRecord): ScrollTrainingTa
 }
 
 export function scrollSupportsTraining(scroll: ScrollRecord): boolean {
-  return scroll.level === 1 && resolveScrollTrainingTag(scroll) !== null
+  return scroll.level >= 1 && scroll.level <= 4 && resolveScrollTrainingTag(scroll) !== null
 }
 
 function nearInt(n: number, spread = 3): string[] {
@@ -369,6 +654,95 @@ function generateForTag(tag: ScrollTrainingTag, count: number): ScrollQuestion[]
         }
         break
       }
+      case 'mul_table_low': {
+        const a = 2 + Math.floor(Math.random() * 4)
+        const b = 2 + Math.floor(Math.random() * 4)
+        row = makeRow(profile.dungeon, `${a} × ${b} = ?`, a * b, 'easy', 2)
+        break
+      }
+      case 'mul_table_high': {
+        const a = 6 + Math.floor(Math.random() * 6)
+        const b = 6 + Math.floor(Math.random() * 6)
+        row = makeRow(profile.dungeon, `${a} × ${b} = ?`, a * b, 'easy', 3)
+        break
+      }
+      case 'mul_two_digit': {
+        const a = 10 + Math.floor(Math.random() * 10)
+        const b = 2 + Math.floor(Math.random() * 8)
+        row = makeRow(profile.dungeon, `${a} × ${b} = ?`, a * b, 'medium', 4)
+        break
+      }
+      case 'div_exact': {
+        const b = 2 + Math.floor(Math.random() * 9)
+        const ans = 2 + Math.floor(Math.random() * 11)
+        const a = b * ans
+        row = makeRow(profile.dungeon, `${a} ÷ ${b} = ?`, ans, 'easy', 2)
+        break
+      }
+      case 'div_tens': {
+        const b = 2 + Math.floor(Math.random() * 9)
+        const ans = (1 + Math.floor(Math.random() * 9)) * 10
+        const a = b * ans
+        row = makeRow(profile.dungeon, `${a} ÷ ${b} = ?`, ans, 'easy', 3)
+        break
+      }
+      case 'mul_div_pair': {
+        if (Math.random() < 0.5) {
+          const a = 2 + Math.floor(Math.random() * 9)
+          const b = 2 + Math.floor(Math.random() * 9)
+          row = makeRow('Башня умножения', `${a} × ${b} = ?`, a * b, 'easy', 2)
+        } else {
+          const b = 2 + Math.floor(Math.random() * 9)
+          const ans = 2 + Math.floor(Math.random() * 11)
+          const a = b * ans
+          row = makeRow('Пещера деления', `${a} ÷ ${b} = ?`, ans, 'easy', 2)
+        }
+        break
+      }
+      case 'div_chain': {
+        const b = 2 + Math.floor(Math.random() * 9)
+        const divAns = 2 + Math.floor(Math.random() * 8)
+        const a = b * divAns
+        const c = 1 + Math.floor(Math.random() * 5)
+        const ans = divAns - c
+        if (ans < 0) continue
+        row = makeRow(profile.dungeon, `${a} ÷ ${b} − ${c} = ?`, ans, 'hard', 3)
+        break
+      }
+      case 'pct_of': {
+        const pct = [10, 20, 25, 50][Math.floor(Math.random() * 4)]
+        const n = 20 + Math.floor(Math.random() * 8) * 10
+        const ans = Math.round(n * pct / 100)
+        row = makeRow(profile.dungeon, `${pct}% от ${n} = ?`, ans, 'easy', 2)
+        break
+      }
+      case 'pct_discount': {
+        const price = 40 + Math.floor(Math.random() * 8) * 20
+        const pct = [10, 15, 20, 25][Math.floor(Math.random() * 4)]
+        row = makeRow(profile.dungeon, `Скидка ${pct}% на ${price} = ?`, Math.round(price * pct / 100), 'medium', 3)
+        break
+      }
+      case 'pct_markup': {
+        const price = 40 + Math.floor(Math.random() * 8) * 20
+        const pct = [10, 15, 20, 30][Math.floor(Math.random() * 4)]
+        const part = Math.round(price * pct / 100)
+        row = makeRow(profile.dungeon, `${price} + ${pct}% = ?`, price + part, 'medium', 4)
+        break
+      }
+      case 'pct_share': {
+        const whole = 20 + Math.floor(Math.random() * 30)
+        const part = 1 + Math.floor(Math.random() * Math.min(9, whole - 1))
+        const ans = Math.round((part / whole) * 100)
+        row = makeRow(profile.dungeon, `${part} из ${whole} = ?%`, ans, 'hard', 3)
+        break
+      }
+      case 'pct_find_whole': {
+        const pct = [10, 20, 25, 50][Math.floor(Math.random() * 4)]
+        const part = 2 + Math.floor(Math.random() * 18) * (pct === 10 ? 1 : 2)
+        const ans = Math.round(part * 100 / pct)
+        row = makeRow(profile.dungeon, `${pct}% от ? = ${part}`, ans, 'hard', 5)
+        break
+      }
     }
 
     if (!row || seen.has(row.question)) continue
@@ -387,16 +761,23 @@ export async function loadScrollTrainingQuestions(
   tag: ScrollTrainingTag,
 ): Promise<ScrollQuestion[]> {
   const profile = SCROLL_TRAINING_PROFILES[tag]
-  const { data } = await supabase
-    .from('questions')
-    .select('*')
-    .eq('dungeon_name', profile.dungeon)
-    .limit(120)
-  const merged = mergeWithFallback(profile.dungeon, data || [])
-  const filtered = merged.filter(profile.matches)
+  const dungeonList = profile.dungeons ?? [profile.dungeon]
+  const pool: ScrollQuestion[] = []
+  const seen = new Set<string>()
 
-  const pool: ScrollQuestion[] = [...filtered]
-  const seen = new Set(pool.map(q => q.question))
+  for (const dungeon of dungeonList) {
+    const { data } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('dungeon_name', dungeon)
+      .limit(120)
+    const merged = mergeWithFallback(dungeon, data || [])
+    for (const row of merged) {
+      if (!profile.matches(row) || seen.has(row.question)) continue
+      seen.add(row.question)
+      pool.push(row)
+    }
+  }
 
   if (pool.length < MIN_POOL) {
     const generated = generateForTag(tag, MIN_POOL + 10)

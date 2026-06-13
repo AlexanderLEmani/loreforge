@@ -16,6 +16,7 @@ import {
   resolveScrollTrainingTag,
   scrollSupportsTraining,
   SCROLL_TRAINING_PROFILES,
+  SCROLL_LEVEL_LABELS,
 } from '@/lib/scroll-training'
 import { answersMatch, sanitizeAnswerInput } from '@/lib/scroll-display'
 import { layout } from '@/lib/layout-classes'
@@ -431,7 +432,7 @@ export default function TrainingPage() {
                   <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '1.5rem', textAlign: 'center' }}>
                     <div style={{ fontSize: '32px', marginBottom: '8px' }}>📜</div>
                     <div style={{ fontSize: '14px', color: '#9590a8', marginBottom: '8px' }}>Нет свитков для тренировки</div>
-                    <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic', marginBottom: '1rem' }}>Купи учебный свиток в Лавке (уровень I) — тренировка подстроится под его тему.</div>
+                    <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic', marginBottom: '1rem' }}>Купи учебный свиток в Лавке (уровни I–IV) — тренировка подстроится под его тему.</div>
                     <div onClick={() => router.push('/shop')} style={{ display: 'inline-block', padding: '8px 18px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '8px', fontFamily: 'monospace', fontSize: '11px', color: '#e0bc6a', cursor: 'pointer' }}>
                       🛒 Открыть Лавку
                     </div>
@@ -446,7 +447,7 @@ export default function TrainingPage() {
                         return (
                           <div key={s.id} onClick={() => setSelectedScrollId(s.id)}
                             style={{ background: sel ? 'rgba(201,168,76,0.08)' : '#1c1f2a', border: `1px solid ${sel ? 'rgba(201,168,76,0.45)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '9px', padding: '10px 14px', cursor: 'pointer', transition: 'all 0.15s' }}>
-                            <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#c9a45a', letterSpacing: '0.1em', marginBottom: '4px' }}>УР.I · {profile?.label ?? 'Свиток'}</div>
+                            <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#c9a45a', letterSpacing: '0.1em', marginBottom: '4px' }}>УР.{SCROLL_LEVEL_LABELS[s.level] ?? s.level} · {profile?.label ?? 'Свиток'}</div>
                             <div style={{ fontSize: '13px', color: '#e6e2f0', marginBottom: '2px' }}>{s.title}</div>
                             <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic' }}>{s.subtitle}</div>
                           </div>
