@@ -13,6 +13,7 @@ import { GUILD_DUNGEONS, effectiveDungeonCost, type GuildDungeon } from '@/lib/g
 import { syncGuildRankRewards } from '@/lib/guild-rank-rewards'
 import { fetchSpellKills, fetchUserRow } from '@/lib/user-profile'
 import { layout } from '@/lib/layout-classes'
+import { xpProgress } from '@/lib/economy'
 
 export default function GuildPage() {
   const router = useRouter()
@@ -120,11 +121,7 @@ export default function GuildPage() {
   const level = userData?.level || 1
   const gloryWallet = userData?.glory || 0
   const reputation = userData?.glory_total ?? gloryWallet
-  const xpThresholds = [0, 100, 250, 500, 900, 1400]
-  const xpToNext = [100, 150, 250, 400, 500, 600]
-  const xpBase = xpThresholds[level - 1] || 0
-  const xpNext = xpToNext[level - 1] || 100
-  const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
+  const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)
 
   const { rank, next: nextRank, pct: rankPct, idx: rankIdx } = guildRankProgress(reputation)
 

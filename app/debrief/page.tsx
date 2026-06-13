@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase'
 import { tryGrantDungeonLoot, type LootDrop } from '@/lib/dungeon-loot'
 import { battleDebriefRewards } from '@/lib/economy'
+import { applyRaceXp } from '@/lib/race-bonuses'
 import { grantGlory } from '@/lib/glory-wallet'
 import { syncQuestRewards } from '@/lib/quest-rewards'
 import { syncGuildRankRewards } from '@/lib/guild-rank-rewards'
@@ -18,6 +19,7 @@ function DebriefContent() {
   const [saved, setSaved] = useState(false)
   const [characterName, setCharacterName] = useState('Аркан')
   const [lootDrop, setLootDrop] = useState<LootDrop | null>(null)
+  const [playerRace, setPlayerRace] = useState('human')
   const result = params.get('result') // 'win' or 'lose'
   const score = params.get('score') || '0'
   const total = params.get('total') || '5'
@@ -30,14 +32,18 @@ function DebriefContent() {
   const scoreNum = parseInt(score)
   const won = result === 'win'
   const rewards = battleDebriefRewards(scoreNum, won, isHard, dungeonName)
+  const xpDisplay = applyRaceXp(rewards.xpGained, playerRace, spellKill && won ? 'spell' : 'all')
   useEffect(() => {
     async function saveRun() {
   if (saved) return
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
-  const { data: ch } = await supabase.from('characters').select('name').eq('user_id', user.id).single()
-  if (ch) setCharacterName(ch.name)
+  const { data: ch } = await supabase.from('characters').select('name, race').eq('user_id', user.id).single()
+  if (ch) {
+    setCharacterName(ch.name)
+    if (ch.race) setPlayerRace(ch.race)
+  }
   
   // Сохраняем прохождение
   await supabase.from('dungeon_runs').insert({
@@ -49,7 +55,9 @@ function DebriefContent() {
     mistakes: mistakes,
   })
 
-  const { xpGained, goldGained, gloryGained } = rewards
+  const { xpGained: baseXp, goldGained, gloryGained } = rewards
+  const race = ch?.race ?? 'human'
+  const xpGained = applyRaceXp(baseXp, race, spellKill && won ? 'spell' : 'all')
 
   const lootKey = `loot:${user.id}:${dungeonName}:${score}:${total}:${result}:${isHard}`
   let loot: LootDrop | null = null
@@ -77,11 +85,7 @@ function DebriefContent() {
   }
 
   if (userData) {
-    const thresholds = [0, 100, 250, 500, 900, 1400, 2000, 2700, 3500, 4400, 5400, 6500]
-    const level = userData.level || 1
-    const currentThreshold = thresholds[level - 1] || 0
-    const xpInLevel = (userData.xp ?? 0) - currentThreshold
-    const newXP = currentThreshold + xpInLevel + xpGained
+    const newXP = (userData.xp ?? 0) + xpGained
     const lootGold = loot?.kind === 'gold' ? loot.gold ?? 0 : 0
     const newGold = (userData.gold ?? 0) + goldGained + lootGold
 
@@ -137,7 +141,7 @@ function DebriefContent() {
   {result === 'win' ? (
     <>
       <div style={{ background: 'rgba(61,184,122,0.08)', border: '1px solid rgba(61,184,122,0.3)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
-        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#3db87a' }}>+{rewards.xpGained}</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#3db87a' }}>+{xpDisplay}</div>
         <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>XP</div>
       </div>
       <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
@@ -167,7 +171,7 @@ function DebriefContent() {
   ) : (
     <>
       <div style={{ background: 'rgba(224,85,85,0.06)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>
-        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#e05555' }}>+{rewards.xpGained}</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '22px', color: '#e05555' }}>+{xpDisplay}</div>
         <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '3px' }}>XP (урезано)</div>
       </div>
       <div style={{ background: 'rgba(224,85,85,0.06)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '10px', padding: '12px 20px', textAlign: 'center', minWidth: '100px' }}>

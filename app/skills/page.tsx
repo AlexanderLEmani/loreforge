@@ -21,6 +21,7 @@ import { SKILL_POINTS_PER_LEVEL } from '@/lib/skill-points'
 import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
 import { SKILL_TREE_PATH_HINT } from '@/lib/onboarding-quest'
 import { layout } from '@/lib/layout-classes'
+import { xpProgress } from '@/lib/economy'
 
 export default function SkillsPage() {
   const router = useRouter()
@@ -106,11 +107,7 @@ export default function SkillsPage() {
 
   const level = userData?.level || 1
   const skillPoints = userData?.skill_points ?? 0
-  const xpThresholds = [0, 100, 250, 500, 900, 1400]
-  const xpToNext = [100, 150, 250, 400, 500, 600]
-  const xpBase = xpThresholds[level - 1] || 0
-  const xpNext = xpToNext[level - 1] || 100
-  const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
+  const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)
 
   const selectedNode = selectedId
     ? nodes.find(n => n.id === selectedId)

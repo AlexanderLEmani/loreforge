@@ -17,6 +17,7 @@ import {
 } from '@/lib/college-lectures'
 import { canTakeExam, isV1Graduate, V1_COMPLETE_DESC, V1_COMPLETE_TITLE } from '@/lib/v1-cap'
 import { layout } from '@/lib/layout-classes'
+import { xpProgress } from '@/lib/economy'
 
 const LEVEL_SPELLS: Record<number, [string, string, string][]> = {
   1: [['➕', 'Сложение', '#3db87a'], ['➖', 'Вычитание', '#3db87a']],
@@ -125,11 +126,7 @@ export default function CollegePage() {
   const lectureList = getLectureList(level, selectedLectureLevel)
   const viewingArchive = selectedLectureLevel !== currentLectureLevel
 
-  const xpThresholds = [0, 100, 250, 500, 900, 1400, 2000, 2700, 3500, 4400, 5400]
-  const xpToNext = [100, 150, 250, 400, 500, 600, 700, 800, 900, 1000, 1100]
-  const xpBase = xpThresholds[level - 1] || 0
-  const xpNext = xpToNext[level - 1] || 100
-  const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
+  const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)
   const examReady = xpCurrent >= xpNext
   const v1Done = isV1Graduate(level)
   const showExamCta = canTakeExam(level, examReady)

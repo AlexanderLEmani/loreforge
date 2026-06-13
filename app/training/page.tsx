@@ -7,7 +7,7 @@ import { loadTrainingStats, loadTopicProgress, recordTrainingAttempt, type Train
 import { shuffleQuestions } from '@/lib/shuffle-question'
 import Sidebar from '@/components/Sidebar'
 import { navUnlockFromUser } from '@/lib/nav-unlock'
-import { trainingGoldPerCorrect, trainingXpPerCorrect } from '@/lib/economy'
+import { trainingGoldPerCorrect, trainingXpPerCorrect, xpProgress } from '@/lib/economy'
 import { mergeWithFallback } from '@/lib/fallback-questions'
 import {
   type ScrollRecord,
@@ -19,6 +19,7 @@ import {
 } from '@/lib/scroll-training'
 import { answersMatch, sanitizeAnswerInput } from '@/lib/scroll-display'
 import { layout } from '@/lib/layout-classes'
+import { applyRaceXp } from '@/lib/race-bonuses'
 
 const TOPICS = [
   { id: 'add', icon: '➕', name: 'Сложение',   level: 1, dungeon: 'Пещера сложения' },
@@ -81,6 +82,7 @@ export default function TrainingPage() {
   const [activeScroll, setActiveScroll] = useState<ScrollRecord | null>(null)
   const [answerFormat, setAnswerFormat] = useState<'choice' | 'typed'>('choice')
   const [inputAnswer, setInputAnswer] = useState('')
+  const [playerRace, setPlayerRace] = useState('human')
   const answerInputRef = useRef<HTMLInputElement>(null)
 
   async function refreshStats(userId: string) {
@@ -98,6 +100,9 @@ export default function TrainingPage() {
       if (!user) { router.push('/'); return }
       const { data } = await supabase.from('users').select('xp, level, gold, glory, streak, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills, quest_first_dungeon').eq('id', user.id).single()
       setUserData({ ...data, id: user.id })
+
+      const { data: ch } = await supabase.from('characters').select('race').eq('user_id', user.id).maybeSingle()
+      if (ch?.race) setPlayerRace(ch.race)
       await refreshStats(user.id)
 
       const { data: us } = await supabase
@@ -236,7 +241,7 @@ export default function TrainingPage() {
     if (isCorrect) {
       setCorrect(c => c + 1)
       const mode = selectedMode as 'guided' | 'clean' | 'speed'
-      const xpPerAnswer = trainingXpPerCorrect(mode)
+      const xpPerAnswer = applyRaceXp(trainingXpPerCorrect(mode), playerRace, 'all')
       const goldPerAnswer = trainingGoldPerCorrect(mode)
       if (userData?.id && (xpPerAnswer > 0 || goldPerAnswer > 0)) {
         const { data: ud } = await supabase.from('users').select('xp, gold').eq('id', userData.id).single()
@@ -299,11 +304,7 @@ export default function TrainingPage() {
   )
 
   const level = userData?.level || 1
-  const xpThresholds = [0, 100, 250, 500, 900, 1400]
-  const xpToNext = [100, 150, 250, 400, 500, 600]
-  const xpBase = xpThresholds[level - 1] || 0
-  const xpNext = xpToNext[level - 1] || 100
-  const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
+  const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)
   const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0
   const canStart = setupSource === 'topics' ? selectedTopics.length > 0 : selectedScrollId !== null
   const selectedScroll = ownedScrolls.find(s => s.id === selectedScrollId)

@@ -72,6 +72,30 @@ export const EXTENDED_ONBOARDING_STEPS: OnboardingStep[] = [
     icon: '✦',
     check: c => c.visited_skills && c.level >= 2,
   },
+  {
+    id: 7,
+    title: 'Экзамен на уровень 3',
+    desc: 'Накопи XP в хабе и пройди экзамен II.',
+    href: '/exam?level=2',
+    icon: '🎓',
+    check: c => c.level >= 3,
+  },
+  {
+    id: 8,
+    title: 'Экзамен на уровень 4',
+    desc: 'Дроби в Коллегии → тренировка → экзамен III.',
+    href: '/exam?level=3',
+    icon: '🎓',
+    check: c => c.level >= 4,
+  },
+  {
+    id: 9,
+    title: 'Финальный экзамен IV',
+    desc: 'Проценты → Рынок → экзамен IV → выпускник.',
+    href: '/exam?level=4',
+    icon: '🏁',
+    check: c => c.level >= 5,
+  },
 ]
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [

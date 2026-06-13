@@ -43,6 +43,11 @@ import { answersMatch, sanitizeAnswerInput } from '@/lib/scroll-display'
 import { shuffleQuestions } from '@/lib/shuffle-question'
 import { isHintHighlighted, pickHintPair } from '@/lib/hint-pair'
 import { layout } from '@/lib/layout-classes'
+import {
+  raceBasicDamageBonus,
+  raceDefendTimerBonus,
+  raceSpellCooldownReduction,
+} from '@/lib/race-bonuses'
 
 type Phase = 'choose_attack' | 'player_attack' | 'monster_attack' | 'result_flash'
 
@@ -57,6 +62,7 @@ function BattleContent() {
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [userLevel, setUserLevel] = useState(1)
+  const [playerRace, setPlayerRace] = useState('human')
   const [monster, setMonster] = useState<Monster | null>(null)
   const [phase, setPhase] = useState<Phase>('choose_attack')
   const [chosenAttack, setChosenAttack] = useState<BattleAttack | null>(null)
@@ -171,6 +177,9 @@ function BattleContent() {
         const lvl = ud?.level || 1
         setUserLevel(lvl)
 
+        const { data: ch } = await supabase.from('characters').select('race').eq('user_id', user.id).maybeSingle()
+        if (ch?.race) setPlayerRace(ch.race)
+
         const allNodes = defaultSkillNodes()
         const { data: dbNodes } = await supabase.from('skill_tree_nodes').select('*')
         const nodes = (dbNodes?.length ? dbNodes.map(n => ({
@@ -206,7 +215,9 @@ function BattleContent() {
       if (timerRef.current) clearInterval(timerRef.current)
       return
     }
-    const maxT = phase === 'player_attack' ? 60 : (monster?.defendTimer ?? 15) + (equipBonuses.defendTimerSec || 0)
+    const maxT = phase === 'player_attack'
+      ? 60
+      : (monster?.defendTimer ?? 15) + (equipBonuses.defendTimerSec || 0) + raceDefendTimerBonus(playerRace)
     setTimer(maxT)
     timerRef.current = setInterval(() => {
       setTimer(t => {
@@ -251,7 +262,11 @@ function BattleContent() {
   function chooseAttack(atk: BattleAttack) {
     if ((cooldowns[atk.id] ?? 0) > 0) return
     if (atk.id === 'heavy') playSound('dark')
-    if (atk.cooldown) setCooldowns(prev => ({ ...prev, [atk.id]: atk.cooldown! }))
+    if (atk.cooldown) {
+      let cd = atk.cooldown
+      if (atk.kind === 'spell') cd = Math.max(0, cd - raceSpellCooldownReduction(playerRace))
+      setCooldowns(prev => ({ ...prev, [atk.id]: cd }))
+    }
 
     const pool = poolForAttack(atk, questionBank)
     const fallback = dungeonQuestions()
@@ -290,7 +305,7 @@ function BattleContent() {
     return phase === 'choose_attack'
   }
 
-  async function useConsumable(effect: ScrollBattleEffect) {
+  async function applyConsumable(effect: ScrollBattleEffect) {
     if (!canUseConsumable(effect)) return
 
     const newInv = { ...consumables, [effect]: consumables[effect] - 1 }
@@ -315,7 +330,9 @@ function BattleContent() {
   }
 
   function calcDamage(base: number, isCrit: boolean, isSpell = false) {
-    let dmg = base * (1 + skillBonuses.damagePct / 100 + (equipBonuses.damagePct || 0) / 100)
+    let baseDmg = base
+    if (!isSpell) baseDmg += raceBasicDamageBonus(playerRace)
+    let dmg = baseDmg * (1 + skillBonuses.damagePct / 100 + (equipBonuses.damagePct || 0) / 100)
     if (isSpell) dmg *= 1 + (equipBonuses.spellDamagePct || 0) / 100
     if (powerBuff) dmg *= 2
     if (isCrit) dmg *= STREAK_CRIT_MULT
@@ -592,7 +609,7 @@ function BattleContent() {
             return (
               <div
                 key={c.effect}
-                onClick={() => canUse && useConsumable(c.effect)}
+                onClick={() => canUse && applyConsumable(c.effect)}
                 style={{
                   padding: '8px 10px', marginBottom: '4px', background: canUse ? '#1c1f2a' : '#161820',
                   border: `1px solid ${canUse ? 'rgba(169,159,255,0.25)' : 'rgba(255,255,255,0.04)'}`,

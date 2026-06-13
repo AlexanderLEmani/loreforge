@@ -22,6 +22,8 @@ import { todayIso } from '@/lib/guild-quests'
 import { syncQuestRewards, withHubClaimed } from '@/lib/quest-rewards'
 import { canTakeExam, isV1Graduate, V1_COMPLETE_DESC, V1_COMPLETE_TITLE } from '@/lib/v1-cap'
 import { layout } from '@/lib/layout-classes'
+import { xpProgress } from '@/lib/economy'
+import { totalConsumables } from '@/lib/hub-resources'
 
 export default function Hub() {
   const supabase = createClient()
@@ -31,6 +33,8 @@ export default function Hub() {
   const [character, setCharacter] = useState<any>(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
+  const [scrollCount, setScrollCount] = useState(0)
+  const [potionCount, setPotionCount] = useState(0)
   const [dailyQuests, setDailyQuests] = useState<DailyQuest[]>([])
   const RACE_ICONS: Record<string, string> = {
     human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀'
@@ -54,10 +58,17 @@ export default function Hub() {
 
       const { data: ud } = await supabase
         .from('users')
-        .select('xp, level, gold, glory, streak, last_visit, quest_first_dungeon, total_answers, onboarding_done, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills')
+        .select('xp, level, gold, glory, streak, last_visit, quest_first_dungeon, total_answers, onboarding_done, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills, consumables')
         .eq('id', user.id)
         .single()
       setUserData(ud)
+
+      const { count: scrollsOwned } = await supabase
+        .from('user_scrolls')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+      setScrollCount(scrollsOwned ?? 0)
+      setPotionCount(totalConsumables(ud?.consumables))
 
       if (ud && !ud.onboarding_done) setShowOnboarding(true)
 
@@ -117,11 +128,7 @@ export default function Hub() {
   )
 
   const level = userData?.level || 1
-  const xpThresholds = [0, 100, 250, 500, 900, 1400, 2000, 2700, 3500, 4400, 5400]
-  const xpToNext = [100, 150, 250, 400, 500, 600, 700, 800, 900, 1000, 1100]
-  const xpBase = xpThresholds[level - 1] || 0
-  const xpNext = xpToNext[level - 1] || 100
-  const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
+  const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)
   const examReady = xpCurrent >= xpNext
   const v1Done = isV1Graduate(level)
   const showExamCta = canTakeExam(level, examReady)
@@ -177,7 +184,7 @@ export default function Hub() {
         <div style={{ fontSize: '10px', color: '#5a5670', fontStyle: 'italic', marginBottom: '10px', lineHeight: 1.5 }}>
           ⭐ слава — данжи (кошелёк) · репутация — ранг · 💰 золото — лавка
         </div>
-        {[['💰', 'Золото', userData?.gold || '0'], ['📜', 'Свитки', '0'], ['🧪', 'Зелья', '0'], ['⭐', 'Слава', userData?.glory || '0']].map(([icon, name, val]) => (
+        {[['💰', 'Золото', userData?.gold || '0'], ['📜', 'Свитки', scrollCount], ['🧪', 'Зелья', potionCount], ['⭐', 'Слава', userData?.glory || '0']].map(([icon, name, val]) => (
           <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '13px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9590a8' }}><span>{icon}</span>{name}</div>
             <div style={{ fontFamily: 'monospace', fontSize: '12px', color: '#e0bc6a' }}>{val}</div>
@@ -297,6 +304,16 @@ export default function Hub() {
               <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic' }}>Достаточно опыта для перехода на уровень {level + 1}</div>
             </div>
             <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#e0bc6a' }}>→</div>
+          </div>
+        )}
+
+        {!v1Done && !showExamCta && level >= 2 && level <= 4 && (
+          <div style={{ background: 'rgba(123,108,255,0.06)', border: '1px solid rgba(123,108,255,0.25)', borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
+            <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#a99fff', letterSpacing: '0.12em', marginBottom: '6px' }}>ЭКЗАМЕН {level}</div>
+            <div style={{ fontSize: '13px', color: '#c8c0d8', lineHeight: 1.65 }}>
+              До экзамена: <span style={{ color: '#e0bc6a' }}>{xpCurrent} / {xpNext} XP</span>.
+              {level >= 3 ? ' Коллегия и тренировка по теме — потом экзамен в хабе.' : ' Тренировка и данжи пополняют XP.'}
+            </div>
           </div>
         )}
 

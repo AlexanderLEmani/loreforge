@@ -20,6 +20,7 @@ import {
 import { loadEquipped, loadOwnedIds, saveEquipped } from '@/lib/equipment-storage'
 import { navUnlockFromUser } from '@/lib/nav-unlock'
 import { layout } from '@/lib/layout-classes'
+import { xpProgress } from '@/lib/economy'
 
 const RACE_ICONS: Record<string, string> = {
   human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀',
@@ -28,9 +29,6 @@ const RACE_ICONS: Record<string, string> = {
 const RACE_LABELS: Record<string, string> = {
   human: 'Странствующий маг', elf: 'Архивист', dwarf: 'Рунный кузнец', orc: 'Боевой учёный', undead: 'Некромант знаний',
 }
-
-const XP_THRESHOLDS = [0, 100, 250, 500, 900, 1400, 2000, 2700, 3500, 4400, 5400]
-const XP_TO_NEXT = [100, 150, 250, 400, 500, 600, 700, 800, 900, 1000, 1100]
 
 export default function CharacterPage() {
   const router = useRouter()
@@ -113,10 +111,7 @@ export default function CharacterPage() {
   )
 
   const level = userData?.level || 1
-  const xp = userData?.xp || 0
-  const xpBase = XP_THRESHOLDS[level - 1] || 0
-  const xpNext = XP_TO_NEXT[level - 1] || 100
-  const xpCurrent = Math.max(0, xp - xpBase)
+  const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)
   const xpPct = Math.min((xpCurrent / xpNext) * 100, 100)
   const consumables = parseConsumables(userData?.consumables)
   const race = character?.race || 'human'

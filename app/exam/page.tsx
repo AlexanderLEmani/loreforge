@@ -14,8 +14,7 @@ import {
   V1_GRADUATE_PLAYER_LEVEL,
   V1_MAX_EXAM_LEVEL,
 } from '@/lib/v1-cap'
-
-const XP_THRESHOLDS = [0, 100, 250, 500, 900, 1400, 2000, 2700, 3500, 4400, 5400]
+import { XP_THRESHOLDS } from '@/lib/economy'
 
 function ExamContent() {
   const router = useRouter()

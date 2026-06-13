@@ -14,6 +14,7 @@ import {
   type ConsumableInventory,
 } from '@/lib/battle-consumables'
 import { layout } from '@/lib/layout-classes'
+import { xpProgress } from '@/lib/economy'
 
 const levelColors: Record<number, { border: string; accent: string; bg: string; tag: string }> = {
   1: { border: '#5a3e2b', accent: '#c9a45a', bg: '#1a1008', tag: '#3d2a14' },
@@ -106,11 +107,7 @@ export default function ShopPage() {
   )
 
   const level = userData?.level || 1
-  const xpThresholds = [0, 100, 250, 500, 900, 1400]
-  const xpToNext = [100, 150, 250, 400, 500, 600]
-  const xpBase = xpThresholds[level - 1] || 0
-  const xpNext = xpToNext[level - 1] || 100
-  const xpCurrent = Math.max(0, (userData?.xp || 0) - xpBase)
+  const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)
 
   const filtered = scrolls.filter(s => s.level === filterLevel)
   const availableLevels = [...new Set(scrolls.map(s => s.level))].sort()

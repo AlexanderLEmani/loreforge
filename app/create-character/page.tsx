@@ -6,14 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { ensureGuestUserRow } from '@/lib/quick-start-auth'
 import PixelCharacter from '@/components/PixelCharacter'
 import { layout } from '@/lib/layout-classes'
-
-const RACES = [
-  { id: 'human',  icon: '🧙', label: 'Человек',  desc: '+10% XP за всё' },
-  { id: 'elf',    icon: '🧝', label: 'Эльф',     desc: '+20% XP за магию' },
-  { id: 'dwarf',  icon: '⛏️', label: 'Дварф',    desc: 'Таймер защиты +5с' },
-  { id: 'orc',    icon: '👹', label: 'Орк',       desc: 'Кулак +5 урона' },
-  { id: 'undead', icon: '💀', label: 'Нежить',   desc: 'Кулдаун магии -1' },
-]
+import { RACE_OPTIONS } from '@/lib/race-bonuses'
 
 const HAIR_STYLES = ['a1', 'a2', 'a3', 'a4', 'a5']
 const HAIR_LABELS: Record<string, string> = { a1: 'Короткие', a2: 'Длинные', a3: 'Хвост', a4: 'Бритый', a5: 'Дикие' }
@@ -97,7 +90,7 @@ export default function CreateCharacter() {
             </div>
             <div style={{ fontFamily: 'serif', fontSize: '18px', color: '#e0bc6a' }}>{name || 'Имя персонажа'}</div>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#a99fff', marginTop: '4px' }}>
-              {RACES.find(r => r.id === race)?.label.toUpperCase()} · УР. 1
+              {RACE_OPTIONS.find(r => r.id === race)?.label.toUpperCase()} · УР. 1
             </div>
           </div>
         </div>
@@ -116,7 +109,7 @@ export default function CreateCharacter() {
           <div>
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '8px' }}>Раса</div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              {RACES.map(r => (
+              {RACE_OPTIONS.map(r => (
                 <div key={r.id} onClick={() => setRace(r.id)}
                   style={{ flex: 1, background: race === r.id ? 'rgba(201,168,76,0.1)' : '#1c1f2a', border: `1px solid ${race === r.id ? 'rgba(201,168,76,0.6)' : 'rgba(255,255,255,0.07)'}`, borderRadius: '10px', padding: '10px 6px', textAlign: 'center', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
                   {race === r.id && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: '#c9a84c' }}></div>}
