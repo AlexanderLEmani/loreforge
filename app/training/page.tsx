@@ -37,10 +37,13 @@ const TOPIC_COLORS: Record<string, string> = {
   pct: '#e0bc6a',
 }
 
+const TRAINING_SESSION_QUESTIONS = 20
+const TRAINING_SPEED_SECONDS = 180
+
 const MODES = [
-  { id: 'guided', icon: '📖', name: 'С подсказками',  desc: 'После каждой ошибки — объяснение. Для изучения новой темы.', color: '#3db87a', xpMod: '+3 XP · +1 💰' },
-  { id: 'clean',  icon: '⚡', name: 'Без подсказок',  desc: 'Как настоящий бой, но без потери HP и ресурсов.', color: '#a99fff', xpMod: '+5 XP · +2 💰' },
-  { id: 'speed',  icon: '⏱️', name: 'Спидран',        desc: 'Максимум задач за 3 минуты. Только скорость.', color: '#e0bc6a', xpMod: '+1 💰 за ответ' },
+  { id: 'guided', icon: '📖', name: 'С подсказками',  desc: '20 задач — после каждой ошибки подсказка. Потом итог сессии.', color: '#3db87a', xpMod: '+3 XP · +1 💰', sessionLabel: '20 задач' },
+  { id: 'clean',  icon: '⚡', name: 'Без подсказок',  desc: '20 задач как в бою, но без HP. Потом итог — не бесконечно.', color: '#a99fff', xpMod: '+5 XP · +2 💰', sessionLabel: '20 задач' },
+  { id: 'speed',  icon: '⏱️', name: 'Спидран',        desc: '3 минуты — сколько задач успеешь. На 0:00 — стоп и итог.', color: '#e0bc6a', xpMod: '+1 💰 за ответ', sessionLabel: '3 минуты' },
 ]
 
 const ANSWER_FORMATS = [
@@ -57,12 +60,12 @@ export default function TrainingPage() {
   const [selectedTopics, setSelectedTopics] = useState<string[]>(['add'])
   const [questions, setQuestions] = useState<any[]>([])
   const [current, setCurrent] = useState(0)
-  const [phase, setPhase] = useState<'setup' | 'battle'>('setup')
+  const [phase, setPhase] = useState<'setup' | 'battle' | 'done'>('setup')
   const [selected, setSelected] = useState<number | null>(null)
   const [showHint, setShowHint] = useState(false)
   const [correct, setCorrect] = useState(0)
   const [total, setTotal] = useState(0)
-  const [timer, setTimer] = useState(180)
+  const [timer, setTimer] = useState(TRAINING_SPEED_SECONDS)
   const [timerActive, setTimerActive] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
   const [xpEarned, setXpEarned] = useState(0)
@@ -130,7 +133,16 @@ export default function TrainingPage() {
     setTimerActive(false)
     setActiveScroll(null)
     setInputAnswer('')
+    setQuestions([])
+    setCurrent(0)
+    setCorrect(0)
+    setTotal(0)
     if (userData?.id) await refreshStats(userData.id)
+  }
+
+  function finishSession() {
+    setTimerActive(false)
+    setPhase('done')
   }
 
   // Автофокус в поле ввода — не нужно кликать мышкой
@@ -143,7 +155,7 @@ export default function TrainingPage() {
   // Таймер спидрана
   useEffect(() => {
     if (!timerActive) return
-    if (timer <= 0) { exitTraining(); return }
+    if (timer <= 0) { finishSession(); return }
     const t = setTimeout(() => setTimer(v => v - 1), 1000)
     return () => clearTimeout(t)
   }, [timer, timerActive])
@@ -181,7 +193,7 @@ export default function TrainingPage() {
       }
     }
 
-    const shuffled = shuffleQuestions(allQ).sort(() => Math.random() - 0.5).slice(0, 20)
+    const shuffled = shuffleQuestions(allQ).sort(() => Math.random() - 0.5).slice(0, TRAINING_SESSION_QUESTIONS)
     setActiveScroll(scrollSession)
     setSessionId(crypto.randomUUID())
     setQuestions(shuffled)
@@ -194,16 +206,24 @@ export default function TrainingPage() {
     setShowHint(false)
     setInputAnswer('')
     setPhase('battle')
-    if (selectedMode === 'speed') { setTimer(180); setTimerActive(true) }
+    if (selectedMode === 'speed') { setTimer(TRAINING_SPEED_SECONDS); setTimerActive(true) }
   }
 
   function advanceQuestion() {
     setSelected(null)
     setShowHint(false)
     setInputAnswer('')
+    if (selectedMode === 'speed') {
+      if (current + 1 >= questions.length) {
+        setQuestions(q => shuffleQuestions([...q]).sort(() => Math.random() - 0.5))
+        setCurrent(0)
+      } else {
+        setCurrent(c => c + 1)
+      }
+      return
+    }
     if (current + 1 >= questions.length) {
-      setQuestions(q => shuffleQuestions([...q]).sort(() => Math.random() - 0.5))
-      setCurrent(0)
+      finishSession()
     } else {
       setCurrent(c => c + 1)
     }
@@ -323,7 +343,7 @@ export default function TrainingPage() {
               <div>
                 <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#3db87a', letterSpacing: '0.1em', marginBottom: '6px' }}>СЕРЖАНТ ВАРГ · МАСТЕР ТРЕНИРОВОК</div>
                 <div style={{ fontSize: '14px', color: '#c8c0d8', fontStyle: 'italic', lineHeight: 1.6 }}>
-                  "Данжи — не место для учёбы. Там учёба заканчивается и начинается выживание. Здесь ты можешь ошибаться сколько угодно. Никто не смотрит. Выбирай режим."
+                  "Данжи — не место для учёбы. Здесь ошибаться можно — но сессия не вечная: <span style={{ color: '#e0bc6a' }}>20 задач</span> или <span style={{ color: '#e0bc6a' }}>3 минуты</span> в спидране. Потом итог. Хочешь ещё — жми «ещё раунд»."
                 </div>
               </div>
             </div>
@@ -355,7 +375,10 @@ export default function TrainingPage() {
                   <div style={{ fontSize: '26px', marginBottom: '8px' }}>{m.icon}</div>
                   <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0', marginBottom: '4px' }}>{m.name}</div>
                   <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic', lineHeight: 1.4, marginBottom: '8px' }}>{m.desc}</div>
-                  <span style={{ fontFamily: 'monospace', fontSize: '9px', padding: '2px 7px', borderRadius: '3px', border: '1px solid rgba(255,255,255,0.08)', color: '#5a5670' }}>{m.xpMod}</span>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: '9px', padding: '2px 7px', borderRadius: '3px', border: '1px solid rgba(255,255,255,0.08)', color: '#e0bc6a' }}>{m.sessionLabel}</span>
+                    <span style={{ fontFamily: 'monospace', fontSize: '9px', padding: '2px 7px', borderRadius: '3px', border: '1px solid rgba(255,255,255,0.08)', color: '#5a5670' }}>{m.xpMod}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -452,21 +475,77 @@ export default function TrainingPage() {
               </div>
             )}
 
+            <div style={{ background: 'rgba(123,108,255,0.06)', border: '1px solid rgba(123,108,255,0.2)', borderRadius: '10px', padding: '12px 16px', marginBottom: '1rem' }}>
+              <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#a99fff', letterSpacing: '0.12em', marginBottom: '8px' }}>КОГДА ЗАКОНЧИТСЯ?</div>
+              <div style={{ fontSize: '13px', color: '#c8c0d8', lineHeight: 1.65 }}>
+                <strong style={{ color: '#e6e2f0' }}>С подсказками / Без подсказок</strong> — {TRAINING_SESSION_QUESTIONS} задач, потом экран итога.
+                <br />
+                <strong style={{ color: '#e6e2f0' }}>Спидран</strong> — 3 минуты, потом экран итога.
+                <br />
+                <span style={{ color: '#5a5670' }}>Выйти раньше: «← Выйти» в шапке во время сессии.</span>
+              </div>
+            </div>
+
             <div onClick={() => canStart && startTraining()} style={{ width: '100%', padding: '16px', background: canStart ? 'rgba(61,184,122,0.12)' : 'rgba(255,255,255,0.03)', border: `1px solid ${canStart ? 'rgba(61,184,122,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '12px', textAlign: 'center', fontFamily: 'serif', fontSize: '20px', color: canStart ? '#3db87a' : '#3a3650', cursor: canStart ? 'pointer' : 'default', marginBottom: '8px' }}>
               {setupSource === 'scroll' ? '📜 Тренировать по свитку →' : '🏋️ Начать тренировку →'}
             </div>
             <div style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '11px', color: '#5a5670', fontStyle: 'italic' }}>
-              Ошибки не отнимают HP и славу — стипендия Коллегии капает на золото
+              {MODES.find(m => m.id === selectedMode)?.sessionLabel ?? '20 задач'} · ошибки не отнимают HP
             </div>
           </>}
+
+          {phase === 'done' && (
+            <div style={{ maxWidth: '520px', margin: '0 auto', paddingTop: '1rem' }}>
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <div style={{ fontSize: '48px', marginBottom: '12px' }}>🏁</div>
+                <div style={{ fontFamily: 'serif', fontSize: '28px', color: '#e0bc6a', marginBottom: '8px' }}>Сессия завершена</div>
+                <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>
+                  {MODES.find(m => m.id === selectedMode)?.name} · {MODES.find(m => m.id === selectedMode)?.sessionLabel}
+                </div>
+              </div>
+
+              <div style={{ background: '#1c1f2a', border: '1px solid rgba(61,184,122,0.25)', borderRadius: '14px', padding: '1.5rem', marginBottom: '1.25rem' }}>
+                {[
+                  ['✓', 'Правильных', correct, '#3db87a'],
+                  ['📝', 'Всего задач', total, '#e0bc6a'],
+                  ['🎯', 'Точность', `${accuracy}%`, accuracy >= 80 ? '#3db87a' : accuracy >= 60 ? '#e0bc6a' : '#e05555'],
+                  ...(xpEarned > 0 ? [['✨', 'XP за сессию', `+${xpEarned}`, '#a99fff']] as const : []),
+                  ...(goldEarned > 0 ? [['💰', 'Золото', `+${goldEarned}`, '#e0bc6a']] as const : []),
+                ].map(([icon, label, val, color]) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '15px' }}>
+                    <span style={{ color: '#9590a8' }}>{icon} {label}</span>
+                    <span style={{ fontFamily: 'monospace', color: color as string, fontSize: '16px' }}>{String(val)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '10px', padding: '12px 16px', marginBottom: '1.5rem', fontSize: '13px', color: '#b8b0c8', fontStyle: 'italic', lineHeight: 1.65 }}>
+                {accuracy >= 80
+                  ? '«Неплохо. Гильдия ждёт — там уже без подсказок и с таймером.»'
+                  : accuracy >= 60
+                  ? '«Сойдёт для зала. Ещё раунд или в данж — как чувствуешь.»'
+                  : '«Зал для ошибок. Ещё раунд с подсказками — или лекция в Коллегии.»'}
+                <span style={{ color: '#5a5670' }}> — Варг</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div onClick={() => startTraining()} style={{ padding: '14px', background: 'rgba(61,184,122,0.12)', border: '1px solid rgba(61,184,122,0.4)', borderRadius: '12px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#3db87a', cursor: 'pointer' }}>
+                  🔄 Ещё раунд
+                </div>
+                <div onClick={() => exitTraining()} style={{ padding: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#9590a8', cursor: 'pointer' }}>
+                  ← В зал
+                </div>
+              </div>
+            </div>
+          )}
 
           {phase === 'battle' && questions.length > 0 && (() => {
             const q = questions[current]
             return (
               <div>
                 {/* Шапка боя */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                  <div onClick={exitTraining} style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670', cursor: 'pointer' }}>← Выйти</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <div onClick={exitTraining} style={{ fontFamily: 'monospace', fontSize: '11px', color: '#9590a8', cursor: 'pointer', padding: '6px 10px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px' }}>← Выйти</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontFamily: 'monospace', fontSize: '11px' }}>
                     <span style={{ color: '#3db87a' }}>✓ {correct}</span>
                     <span style={{ color: '#5a5670' }}>/{total}</span>
@@ -481,16 +560,33 @@ export default function TrainingPage() {
                         )}
                       </span>
                     )}
-                    {selectedMode === 'speed' && (
-                      <span style={{ color: timer > 60 ? '#3db87a' : timer > 30 ? '#e0bc6a' : '#e05555', fontSize: '14px', fontWeight: 'bold' }}>
-                        ⏱ {Math.floor(timer / 60)}:{String(timer % 60).padStart(2, '0')}
-                      </span>
-                    )}
                   </div>
                   <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>
                     {accuracy}% точность
                   </div>
                 </div>
+
+                {/* Прогресс сессии */}
+                {selectedMode !== 'speed' ? (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'monospace', fontSize: '11px', marginBottom: '6px' }}>
+                      <span style={{ color: '#e0bc6a' }}>Задача {current + 1} из {questions.length}</span>
+                      <span style={{ color: '#5a5670' }}>после {questions.length} — итог</span>
+                    </div>
+                    <div style={{ height: '5px', background: '#171920', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', background: 'linear-gradient(90deg, #3db87a, #2a9d65)', width: `${Math.min((current / questions.length) * 100, 100)}%`, transition: 'width 0.35s ease' }} />
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: '1rem', background: 'rgba(224,188,106,0.08)', border: '1px solid rgba(224,188,106,0.25)', borderRadius: '10px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#c8c0d8' }}>
+                      ⏱ Спидран — когда <span style={{ color: '#e0bc6a' }}>0:00</span>, сессия закончится
+                    </div>
+                    <div style={{ fontFamily: 'monospace', fontSize: '18px', fontWeight: 'bold', color: timer > 60 ? '#3db87a' : timer > 30 ? '#e0bc6a' : '#e05555' }}>
+                      {Math.floor(timer / 60)}:{String(timer % 60).padStart(2, '0')}
+                    </div>
+                  </div>
+                )}
 
                 {/* Режим-бейдж */}
                 <div style={{ marginBottom: '1rem', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -634,7 +730,7 @@ export default function TrainingPage() {
             Статистика
           </div>
 
-          {phase === 'battle' ? (
+          {phase === 'battle' || phase === 'done' ? (
             <>
               {[
                 ['✅', 'Точность', `${accuracy}%`, accuracy >= 80 ? '#3db87a' : accuracy >= 60 ? '#e0bc6a' : '#e05555'],
@@ -700,10 +796,9 @@ export default function TrainingPage() {
             <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
               Здесь ты можешь практиковаться <span style={{ color: '#3db87a' }}>без риска</span> — ошибки не убивают и не забирают ресурсы.
               <br/><br/>
-              Выбирай <span style={{ color: '#3db87a' }}>тему</span> и <span style={{ color: '#3db87a' }}>режим</span>:
-              <br/>• <span style={{ color: '#e6e2f0' }}>С подсказками</span> — для изучения нового
-              <br/>• <span style={{ color: '#e6e2f0' }}>Без подсказок</span> — для повторения
-              <br/>• <span style={{ color: '#e6e2f0' }}>Спидран</span> — на скорость
+              <strong style={{ color: '#e6e2f0' }}>Сессия не бесконечная:</strong>
+              <br/>• <span style={{ color: '#e6e2f0' }}>С подсказками / Без подсказок</span> — {TRAINING_SESSION_QUESTIONS} задач, потом итог
+              <br/>• <span style={{ color: '#e6e2f0' }}>Спидран</span> — 3 минуты, потом итог
               <br/><br/>
               Когда будешь готов — иди в Гильдию. Там уже по-настоящему.
             </div>
