@@ -1,5 +1,6 @@
 import { HUB_QUEST_REWARDS, formatQuestReward } from '@/lib/economy'
 import { todayIso } from '@/lib/guild-quests'
+import { DAILY_STUDY_TARGET_SECONDS } from '@/lib/daily-study'
 
 export type DailyQuest = {
   id: string
@@ -16,21 +17,20 @@ type RunRow = { result: string; created_at?: string }
 export function buildHubDailyQuests(
   answersToday: number,
   runsToday: RunRow[],
-  lastVisit?: string,
+  studySecondsToday: number,
 ): DailyQuest[] {
   const winsToday = runsToday.filter(r => r.result === 'win').length
-  const playedToday = runsToday.length > 0
-  const today = todayIso()
-  const loginDone = lastVisit === today || playedToday
+  const studyMinutes = Math.floor(DAILY_STUDY_TARGET_SECONDS / 60)
+  const studyDone = studySecondsToday >= DAILY_STUDY_TARGET_SECONDS
 
   return [
     {
-      id: 'login',
-      title: 'Войти в игру',
-      prog: loginDone ? 1 : 0,
-      total: 1,
+      id: 'study',
+      title: `${studyMinutes} минут практики сегодня`,
+      prog: Math.min(studySecondsToday, DAILY_STUDY_TARGET_SECONDS),
+      total: DAILY_STUDY_TARGET_SECONDS,
       reward: formatQuestReward(HUB_QUEST_REWARDS.login.xp, HUB_QUEST_REWARDS.login.gold),
-      done: loginDone,
+      done: studyDone,
     },
     {
       id: 'answers',

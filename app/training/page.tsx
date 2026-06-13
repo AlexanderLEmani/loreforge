@@ -22,6 +22,8 @@ import {
 import { answersMatch, sanitizeAnswerInput } from '@/lib/scroll-display'
 import { layout } from '@/lib/layout-classes'
 import { applyRaceXp } from '@/lib/race-bonuses'
+import { useStudyTimer } from '@/lib/use-study-timer'
+import StudyProgressChip from '@/components/StudyProgressChip'
 
 const TOPICS = [
   { id: 'add', icon: '➕', name: 'Сложение',   level: 1, dungeon: 'Пещера сложения' },
@@ -86,6 +88,8 @@ export default function TrainingPage() {
   const [inputAnswer, setInputAnswer] = useState('')
   const [playerRace, setPlayerRace] = useState('human')
   const answerInputRef = useRef<HTMLInputElement>(null)
+
+  useStudyTimer(phase === 'battle')
 
   async function refreshStats(userId: string) {
     const [stats, topics] = await Promise.all([
@@ -543,6 +547,7 @@ export default function TrainingPage() {
             const q = questions[current]
             return (
               <div>
+                <StudyProgressChip />
                 {/* Шапка боя */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                   <div onClick={exitTraining} style={{ fontFamily: 'monospace', fontSize: '11px', color: '#9590a8', cursor: 'pointer', padding: '6px 10px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px' }}>← Выйти</div>

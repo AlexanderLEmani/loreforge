@@ -32,6 +32,8 @@ export async function resetUserProgress(supabase: SupabaseClient, userId: string
     quest_claims: {},
     consumables: { hint: 0, power: 0, shield: 0, heal: 0 },
     guild_rank_rewards: 0,
+    daily_study_seconds: 0,
+    daily_study_date: null,
   }).eq('id', userId)
 
   if (userError) errors.push(`users: ${userError.message}`)

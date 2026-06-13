@@ -1570,6 +1570,116 @@ body {
   color: #a99fff;
 }
 
+.lf-study-chip {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(201, 168, 76, 0.22);
+  background: rgba(10, 12, 18, 0.85);
+}
+
+.lf-study-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.lf-study-chip-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.lf-study-chip-label {
+  font-family: monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: #9590a8;
+}
+
+.lf-study-chip-bar {
+  height: 4px;
+  background: #171920;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.lf-study-chip-fill {
+  height: 100%;
+  background: #2dd9b8;
+  border-radius: 2px;
+  transition: width 0.35s ease;
+}
+
+.lf-study-chip-fill--done {
+  background: #c9a84c;
+}
+
+.lf-daily-study {
+  padding: 12px 14px;
+  margin-bottom: 1.25rem;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 168, 76, 0.28);
+  background: rgba(201, 168, 76, 0.07);
+}
+
+.lf-daily-study--compact {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+}
+
+.lf-daily-study-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.lf-daily-study-icon {
+  font-size: 22px;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.lf-daily-study-title {
+  font-family: serif;
+  font-size: 14px;
+  color: #e6e2f0;
+  line-height: 1.2;
+}
+
+.lf-daily-study-time {
+  font-family: monospace;
+  font-size: 11px;
+  color: #9590a8;
+  margin-top: 2px;
+}
+
+.lf-daily-study-bar {
+  height: 6px;
+  background: #171920;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.lf-daily-study-fill {
+  height: 100%;
+  background: #2dd9b8;
+  border-radius: 3px;
+  transition: width 0.35s ease;
+}
+
+.lf-daily-study-fill--done {
+  background: #c9a84c;
+}
+
+.lf-daily-study-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #5a5670;
+  line-height: 1.45;
+}
+
 .lf-help-green {
   color: #3db87a;
 }

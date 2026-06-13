@@ -1,11 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { HUB_QUEST_REWARDS } from '@/lib/economy'
 import { buildHubDailyQuests, type DailyQuest } from '@/lib/daily-quests'
+import { normalizeStudySeconds } from '@/lib/daily-study'
 import { buildGuildQuests, todayIso, type GuildQuest } from '@/lib/guild-quests'
 import { grantGlory } from '@/lib/glory-wallet'
 import { fetchSpellKills, fetchUserRow } from '@/lib/user-profile'
 
-/** Ключи: `guild:wins`, `hub:login`. Дневные — под датой, lifetime — в `lifetime`. */
+/** Ключи: `guild:wins`, `hub:study`. Дневные — под датой, lifetime — в `lifetime`. */
 export type QuestClaims = {
   lifetime?: Record<string, boolean>
 } & Record<string, Record<string, boolean> | undefined>
@@ -63,7 +64,12 @@ export async function syncQuestRewards(
     claimedHub: [],
   }
 
-  const row = await fetchUserRow(supabase, userId, ['quest_claims', 'last_visit'])
+  const row = await fetchUserRow(supabase, userId, [
+    'quest_claims',
+    'last_visit',
+    'daily_study_seconds',
+    'daily_study_date',
+  ])
   if (!row) return result
 
   const hasQuestClaims = row.quest_claims !== undefined
@@ -85,12 +91,14 @@ export async function syncQuestRewards(
 
   const runsToday = (runs || []).filter(r => r.created_at?.startsWith(today))
 
-  const guildQuests = buildGuildQuests(runs || [], answersToday ?? 0, spellKills)
-  const hubQuests = buildHubDailyQuests(
-    answersToday ?? 0,
-    runsToday,
-    row.last_visit as string | undefined,
+  const studySeconds = normalizeStudySeconds(
+    Number(row.daily_study_seconds ?? 0),
+    row.daily_study_date as string | undefined,
+    today,
   )
+
+  const guildQuests = buildGuildQuests(runs || [], answersToday ?? 0, spellKills)
+  const hubQuests = buildHubDailyQuests(answersToday ?? 0, runsToday, studySeconds)
 
   for (const q of guildQuests) {
     if (!q.done || isClaimed(claims, 'guild', q.id, today)) continue

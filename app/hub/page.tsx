@@ -25,6 +25,8 @@ import { layout } from '@/lib/layout-classes'
 import { xpProgress } from '@/lib/economy'
 import { totalConsumables } from '@/lib/hub-resources'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import DailyStudyProgress from '@/components/DailyStudyProgress'
+import { formatStudyMinutes, normalizeStudySeconds } from '@/lib/daily-study'
 
 export default function Hub() {
   const supabase = createClient()
@@ -57,33 +59,42 @@ export default function Hub() {
       if (!ch) { router.push('/create-character'); return }
       setCharacter(ch)
 
-      const { data: ud } = await supabase
+      const { data: ud, error: udError } = await supabase
         .from('users')
-        .select('xp, level, gold, glory, streak, last_visit, quest_first_dungeon, total_answers, onboarding_done, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills, consumables')
+        .select('xp, level, gold, glory, streak, last_visit, daily_study_seconds, daily_study_date, quest_first_dungeon, total_answers, onboarding_done, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills, consumables')
         .eq('id', user.id)
         .single()
-      setUserData(ud)
+
+      let userRow = ud
+      if (udError?.message?.includes('daily_study')) {
+        console.warn('daily_study columns missing — run db:push')
+        const { data: fallback } = await supabase
+          .from('users')
+          .select('xp, level, gold, glory, streak, last_visit, quest_first_dungeon, total_answers, onboarding_done, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills, consumables')
+          .eq('id', user.id)
+          .single()
+        userRow = fallback ? { ...fallback, daily_study_seconds: 0, daily_study_date: null } : null
+      }
+
+      setUserData(userRow)
 
       const { count: scrollsOwned } = await supabase
         .from('user_scrolls')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
       setScrollCount(scrollsOwned ?? 0)
-      setPotionCount(totalConsumables(ud?.consumables))
+      setPotionCount(totalConsumables(userRow?.consumables))
 
-      if (ud && !ud.onboarding_done) setShowOnboarding(true)
+      if (userRow && !userRow.onboarding_done) setShowOnboarding(true)
 
-      if (ud) {
+      if (userRow) {
         const today = todayIso()
-        const lastVisit = ud.last_visit
-        let freshUd = ud
-        if (lastVisit !== today) {
-          const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
-          const newStreak = lastVisit === yesterday ? (ud.streak || 0) + 1 : 1
-          await supabase.from('users').update({ last_visit: today, streak: newStreak }).eq('id', user.id)
-          freshUd = { ...ud, streak: newStreak, last_visit: today }
-          setUserData(freshUd)
-        }
+        const studySeconds = normalizeStudySeconds(
+          userRow.daily_study_seconds ?? 0,
+          userRow.daily_study_date,
+          today,
+        )
+        let freshUd = { ...userRow, daily_study_seconds: studySeconds, daily_study_date: today }
 
         const { data: runsToday } = await supabase
           .from('dungeon_runs')
@@ -97,7 +108,7 @@ export default function Hub() {
           .eq('user_id', user.id)
           .gte('created_at', `${today}T00:00:00`)
 
-        const built = buildHubDailyQuests(answersToday || 0, runsToday || [], freshUd.last_visit)
+        const built = buildHubDailyQuests(answersToday || 0, runsToday || [], studySeconds)
         const rewards = await syncQuestRewards(supabase, user.id)
         if (rewards.xpDelta > 0) {
           freshUd = { ...freshUd, xp: (freshUd.xp ?? 0) + rewards.xpDelta }
@@ -108,9 +119,7 @@ export default function Hub() {
         if (rewards.goldDelta > 0) {
           freshUd = { ...freshUd, gold: (freshUd.gold ?? 0) + rewards.goldDelta }
         }
-        if (rewards.xpDelta > 0 || rewards.gloryDelta > 0 || rewards.goldDelta > 0) {
-          setUserData(freshUd)
-        }
+        setUserData(freshUd)
         setDailyQuests(withHubClaimed(built, rewards.claims))
       }
     }
@@ -229,6 +238,11 @@ export default function Hub() {
             </div>
           </div>
         </div>
+
+        <DailyStudyProgress
+          seconds={userData?.daily_study_seconds}
+          studyDate={userData?.daily_study_date}
+        />
 
         {coreQuestActive && nextCoreStep && (
           <div style={{ background: 'linear-gradient(135deg, rgba(123,108,255,0.12), rgba(201,168,76,0.08))', border: '1px solid rgba(123,108,255,0.35)', borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
@@ -367,13 +381,18 @@ export default function Hub() {
         <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>
           Серия
         </div>
-        <div style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
           <div style={{ fontSize: '28px' }}>🔥</div>
           <div>
-            <div style={{ fontFamily: 'serif', fontSize: '36px', color: '#e0bc6a', lineHeight: 1 }}>{userData?.streak || 0}</div>
-            <div style={{ fontSize: '12px', color: '#5a5670', fontFamily: 'monospace' }}>ДНЕЙ ПОДРЯД</div>
+            <div style={{ fontFamily: 'serif', fontSize: '32px', color: '#e0bc6a', lineHeight: 1 }}>{userData?.streak || 0}</div>
+            <div style={{ fontSize: '11px', color: '#5a5670', fontFamily: 'monospace' }}>дней подряд</div>
           </div>
         </div>
+        <DailyStudyProgress
+          compact
+          seconds={userData?.daily_study_seconds}
+          studyDate={userData?.daily_study_date}
+        />
 
         <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>
           Квесты дня
@@ -389,7 +408,15 @@ export default function Hub() {
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: '10px', color: '#5a5670' }}>
-              <span>{q.claimed ? 'Награда получена' : q.done ? '✓ Выполнено' : `${q.prog} / ${q.total}`}</span>
+              <span>
+                {q.claimed
+                  ? 'Награда получена'
+                  : q.done
+                    ? '✓ Выполнено'
+                    : q.id === 'study'
+                      ? `${formatStudyMinutes(q.prog)} / ${formatStudyMinutes(q.total)}`
+                      : `${q.prog} / ${q.total}`}
+              </span>
               <span style={{ color: '#e0bc6a' }}>{q.claimed ? 'получено' : q.reward}</span>
             </div>
           </div>

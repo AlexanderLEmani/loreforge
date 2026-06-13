@@ -56,6 +56,8 @@ import {
   raceDefendTimerBonus,
   raceSpellCooldownReduction,
 } from '@/lib/race-bonuses'
+import { useStudyTimer } from '@/lib/use-study-timer'
+import StudyProgressChip from '@/components/StudyProgressChip'
 
 type Phase = 'choose_attack' | 'player_attack' | 'monster_attack' | 'result_flash'
 
@@ -108,6 +110,8 @@ function BattleContent() {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const consumablesRef = useRef<ConsumableInventory>(EMPTY_CONSUMABLES)
   const consumablesRestoredRef = useRef(false)
+
+  useStudyTimer(!loading && monster !== null)
 
   useEffect(() => {
     consumablesRef.current = consumables
@@ -731,6 +735,7 @@ function BattleContent() {
       </div>
 
       <div className={`${layout.main} lf-battle-main`}>
+        <StudyProgressChip />
         <div className="lf-battle-vs" style={{ display: 'grid', gridTemplateColumns: '1fr 40px 1fr', gap: '0.65rem', alignItems: 'center', flexShrink: 0 }}>
           <div className="lf-battle-vs-card" style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '0.65rem 0.75rem', display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
             {damageFlash?.target === 'player' && (

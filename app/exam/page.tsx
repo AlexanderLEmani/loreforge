@@ -16,6 +16,8 @@ import {
 } from '@/lib/v1-cap'
 import { XP_THRESHOLDS } from '@/lib/economy'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { useStudyTimer } from '@/lib/use-study-timer'
+import StudyProgressChip from '@/components/StudyProgressChip'
 
 function ExamContent() {
   const router = useRouter()
@@ -37,6 +39,8 @@ function ExamContent() {
 
   const examCfg = examConfigForLevel(examLevel)
   const examAllowed = isValidExamLevel(examLevel) && examCfg
+
+  useStudyTimer(phase === 'exam')
 
   useEffect(() => {
     async function load() {
@@ -268,6 +272,7 @@ function ExamContent() {
       </div>
 
       <div style={{ maxWidth: '600px', margin: '0 auto', padding: '3rem 2rem' }}>
+        <StudyProgressChip />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>
             Вопрос {current + 1} из {questions.length}
