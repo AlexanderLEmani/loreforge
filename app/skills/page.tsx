@@ -271,6 +271,7 @@ export default function SkillsPage() {
                     highlightBranch={isMobile ? null : branchFilter}
                     fitAll={isMobile}
                     compact={isMobile}
+                    spineCurves={isMobile && !branchFilter}
                   />
                 ) : (
                   <div className="lf-skill-tree-empty">Узлы не загружены</div>

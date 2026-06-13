@@ -85,30 +85,28 @@ function layoutCompactOverview(nodes: SkillTreeNode[]): SkillTreeNode[] {
   })
 }
 
-/** Мобилка: одна тема — 7 узлов с большими зазорами, вертикальный веер. */
+/** Мобилка: одна тема — вертикальная лестница, атаки слева, защиты справа. */
 function layoutBranchDetail(nodes: SkillTreeNode[], branch: SkillBranch): SkillTreeNode[] {
   const branchIndex = BRANCH_ORDER.indexOf(branch)
   const baseId = BRANCH_ROOT_IDS[branchIndex]
-  const angle = -Math.PI / 2
-  const fan = 0.32
+  const yBase = CY + 20
 
   const pos: Record<number, { x: number; y: number }> = {
-    [baseId]: polar(angle, 55),
-    [baseId + 6]: polar(angle, 195),
-    [baseId + 1]: polar(angle - fan, 95),
-    [baseId + 2]: polar(angle - fan * 0.55, 135),
-    [baseId + 3]: polar(angle - fan * 0.28, 175),
-    [baseId + 4]: polar(angle + fan * 0.28, 95),
-    [baseId + 5]: polar(angle + fan * 0.55, 135),
+    [baseId]: { x: CX, y: yBase - 70 },
+    [baseId + 6]: { x: CX, y: yBase - 285 },
+    [baseId + 1]: { x: CX - 88, y: yBase - 130 },
+    [baseId + 2]: { x: CX - 100, y: yBase - 175 },
+    [baseId + 3]: { x: CX - 108, y: yBase - 220 },
+    [baseId + 4]: { x: CX + 88, y: yBase - 130 },
+    [baseId + 5]: { x: CX + 100, y: yBase - 175 },
   }
 
   const prevPassiveId = branchIndex > 0 ? BRANCH_PASSIVE_IDS[branchIndex - 1] : null
 
   return nodes.map(n => {
-    if (n.id === 0) return { ...n, position_x: CX, position_y: CY + 70 }
+    if (n.id === 0) return { ...n, position_x: CX, position_y: yBase + 55 }
     if (prevPassiveId !== null && n.id === prevPassiveId) {
-      const p = polar(angle, 125)
-      return { ...n, position_x: p.x, position_y: p.y }
+      return { ...n, position_x: CX, position_y: yBase + 10 }
     }
     const p = pos[n.id]
     if (p) return { ...n, position_x: p.x, position_y: p.y }
@@ -139,7 +137,7 @@ export function applyRadialSkillLayout(
     laid = laid.map(n => (n.id === 1 ? { ...n, requires: 0 } : n))
   }
 
-  return [{ ...SKILL_TREE_CENTER, position_x: CX, position_y: mode === 'compact-detail' ? CY + 70 : CY }, ...laid]
+  return [{ ...SKILL_TREE_CENTER, position_x: CX, position_y: mode === 'compact-detail' ? CY + 75 : CY }, ...laid]
 }
 
 export function visibleSkillNodes(
@@ -167,6 +165,15 @@ export const BRANCH_SPINE_LINKS = BRANCH_PASSIVE_IDS.slice(0, 5).map((fromId, i)
   fromBranch: BRANCH_ORDER[i],
   toBranch: BRANCH_ORDER[i + 1],
 }))
+
+/** Пары мостов — рисуем кривой spine, не дублируем прямой requires-линией */
+export const SPINE_LINK_PAIR_KEYS = new Set(
+  [...BRANCH_SPINE_LINKS.map(l => `${l.fromId}-${l.toId}`), '0-1'],
+)
+
+export function isSpineLinkPair(fromId: number, toId: number): boolean {
+  return SPINE_LINK_PAIR_KEYS.has(`${fromId}-${toId}`)
+}
 
 export function isBranchMasterNode(nodeId: number): boolean {
   return (BRANCH_PASSIVE_IDS as readonly number[]).includes(nodeId)

@@ -12,7 +12,7 @@ import {
   BRANCH_SPINE_LINKS,
   branchWedgeAngles,
   isBranchMasterNode,
-  nextBranchAfterMaster,
+  isSpineLinkPair,
   SKILL_TREE_LAYOUT_RADIUS,
 } from '@/lib/skill-tree-layout'
 
@@ -33,6 +33,8 @@ type Props = {
   allNodes?: SkillTreeNode[]
   fitAll?: boolean
   compact?: boolean
+  /** Кривые мосты между темами — только в обзоре на мобилке */
+  spineCurves?: boolean
 }
 
 function nodeRadius(node: SkillTreeNode): number {
@@ -53,6 +55,7 @@ export default function SkillTreeCanvas({
   allNodes,
   fitAll = false,
   compact = false,
+  spineCurves = false,
 }: Props) {
   const layoutNodes = allNodes ?? nodes
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -75,10 +78,11 @@ export default function SkillTreeCanvas({
 
     const xs = target.map(n => n.position_x)
     const ys = target.map(n => n.position_y)
-    const minX = Math.min(...xs) - 120
-    const maxX = Math.max(...xs) + 120
-    const minY = Math.min(...ys) - 120
-    const maxY = Math.max(...ys) + 120
+    const margin = compact ? 44 : 120
+    const minX = Math.min(...xs) - margin
+    const maxX = Math.max(...xs) + margin
+    const minY = Math.min(...ys) - margin
+    const maxY = Math.max(...ys) + margin
     const w = maxX - minX
     const h = maxY - minY
     const pad = fitAll ? 16 : 40
@@ -216,6 +220,7 @@ export default function SkillTreeCanvas({
     }
 
     for (const link of BRANCH_SPINE_LINKS) {
+      if (!spineCurves) continue
       const from = nodeMap.get(link.fromId)
       const to = nodeMap.get(link.toId)
       if (!from || !to) continue
@@ -232,7 +237,7 @@ export default function SkillTreeCanvas({
 
     const addRoot = nodeMap.get(1)
     const center = nodeMap.get(0)
-    if (center && addRoot && nodes.some(n => n.id === 0 || n.id === 1)) {
+    if (spineCurves && center && addRoot && nodes.some(n => n.id === 0 || n.id === 1)) {
       const lit = unlockedIds.has(1)
       const avail = getNodeState(addRoot, unlockedIds, userLevel, skillPoints) === 'available'
       drawSpineCurve(ctx, center, addRoot, lit, avail && !lit)
@@ -242,6 +247,7 @@ export default function SkillTreeCanvas({
       if (node.requires === null) continue
       const parent = nodeMap.get(node.requires)
       if (!parent) continue
+      if (spineCurves && isSpineLinkPair(parent.id, node.id)) continue
 
       const dim = Math.min(branchDim(node.branch), branchDim(parent.branch))
       const pState = getNodeState(parent, unlockedIds, userLevel, skillPoints)
@@ -339,7 +345,7 @@ export default function SkillTreeCanvas({
     }
 
     ctx.restore()
-  }, [nodes, unlockedIds, userLevel, skillPoints, selectedId, highlightBranch])
+  }, [nodes, unlockedIds, userLevel, skillPoints, selectedId, highlightBranch, compact, spineCurves, layoutNodes])
 
   useEffect(() => {
     fitToNodes()
