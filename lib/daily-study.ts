@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { todayIso } from '@/lib/guild-quests'
+import { checkStudyStreakMastery } from '@/lib/mastery-achievements'
 
 /** Цель дня: 20 минут активной практики */
 export const DAILY_STUDY_TARGET_SECONDS = 20 * 60
@@ -36,6 +37,40 @@ export function studyProgressRatio(seconds: number, target = DAILY_STUDY_TARGET_
 
 function yesterdayIso(): string {
   return new Date(Date.now() - 86400000).toISOString().split('T')[0]
+}
+
+/** Сбрасывает стрик, если последний квалифицированный день был раньше вчера */
+export function reconcileStreak(
+  streak: number,
+  lastVisit: string | null | undefined,
+  today = todayIso(),
+): { streak: number; broken: boolean } {
+  if (!lastVisit || streak <= 0) return { streak: 0, broken: false }
+  const yesterday = yesterdayIso()
+  if (lastVisit === today || lastVisit === yesterday) return { streak, broken: false }
+  return { streak: 0, broken: true }
+}
+
+export async function syncStreakOnVisit(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<number | null> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('streak, last_visit')
+    .eq('id', userId)
+    .single()
+  if (error || !data) return null
+
+  const { streak, broken } = reconcileStreak(data.streak ?? 0, data.last_visit)
+  if (!broken) return streak
+
+  const { error: upErr } = await supabase.from('users').update({ streak: 0 }).eq('id', userId)
+  if (upErr) {
+    console.warn('syncStreakOnVisit:', upErr.message)
+    return data.streak ?? 0
+  }
+  return 0
 }
 
 export async function fetchDailyStudy(
@@ -88,9 +123,10 @@ export async function recordStudyHeartbeat(
   }
 
   const nowQualified = seconds >= DAILY_STUDY_TARGET_SECONDS
+  let newStreak = data.streak ?? 0
   if (nowQualified && !wasQualified) {
     const lastVisit = data.last_visit
-    const newStreak = lastVisit === yesterdayIso() ? (data.streak ?? 0) + 1 : 1
+    newStreak = lastVisit === yesterdayIso() ? (data.streak ?? 0) + 1 : 1
     updates.streak = newStreak
     updates.last_visit = today
   }
@@ -104,11 +140,15 @@ export async function recordStudyHeartbeat(
     return null
   }
 
+  if (nowQualified && !wasQualified && newStreak > 0) {
+    await checkStudyStreakMastery(supabase, userId, newStreak)
+  }
+
   return {
     seconds,
     target: DAILY_STUDY_TARGET_SECONDS,
     date: today,
     qualified: nowQualified || wasQualified,
-    streak: (updates.streak as number | undefined) ?? data.streak ?? 0,
+    streak: (updates.streak as number | undefined) ?? newStreak,
   }
 }

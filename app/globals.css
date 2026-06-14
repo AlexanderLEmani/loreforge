@@ -2053,3 +2053,175 @@ body {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ── Таблица умножения ── */
+
+.lf-mul-table-wrap {
+  --lf-mul-head: rgba(61, 184, 122, 0.28);
+  --lf-mul-cell: rgba(18, 22, 30, 0.95);
+  --lf-mul-square: rgba(210, 120, 50, 0.42);
+  --lf-mul-good: rgba(61, 184, 122, 0.22);
+  --lf-mul-mid: rgba(224, 188, 106, 0.14);
+  --lf-mul-weak: rgba(224, 85, 85, 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.lf-mul-table {
+  width: 100%;
+  max-width: 520px;
+  border-collapse: separate;
+  border-spacing: 3px;
+  table-layout: fixed;
+}
+
+.lf-mul-table-corner {
+  width: 36px;
+  min-width: 36px;
+  background: var(--lf-mul-head);
+  border-radius: 6px;
+  border: none;
+}
+
+.lf-mul-table-head {
+  height: 36px;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #f0ebe0;
+  background: var(--lf-mul-head);
+  border-radius: 6px;
+  border: none;
+  text-align: center;
+  vertical-align: middle;
+  padding: 0;
+}
+
+.lf-mul-table-head--row {
+  width: 36px;
+  min-width: 36px;
+}
+
+.lf-mul-table-cell {
+  height: 36px;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: #d8d0c8;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 5px;
+  text-align: center;
+  vertical-align: middle;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.lf-mul-table-cell--square {
+  color: #f5e6c8;
+  font-weight: 700;
+  border-color: rgba(224, 160, 80, 0.35);
+}
+
+.lf-mul-table-cell--hl {
+  outline: 2px solid rgba(169, 159, 255, 0.55);
+  outline-offset: -1px;
+}
+
+.lf-mul-table-cell--btn {
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  appearance: none;
+  width: 100%;
+  height: 100%;
+  min-height: 34px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lf-mul-table-cell--btn:hover {
+  transform: scale(1.04);
+  border-color: rgba(169, 159, 255, 0.45);
+  color: #fff;
+  z-index: 1;
+}
+
+.lf-mul-table-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px 16px;
+  margin-top: 12px;
+  font-family: monospace;
+  font-size: 10px;
+  color: #6a7080;
+  max-width: 520px;
+}
+
+.lf-mul-legend-square,
+.lf-mul-legend-good,
+.lf-mul-legend-weak {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.lf-mul-legend-square {
+  background: var(--lf-mul-square);
+}
+
+.lf-mul-legend-good {
+  background: var(--lf-mul-good);
+}
+
+.lf-mul-legend-weak {
+  background: var(--lf-mul-weak);
+}
+
+.lf-mul-tip-banner {
+  background: rgba(123, 108, 255, 0.08);
+  border: 1px solid rgba(169, 159, 255, 0.25);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 1rem;
+  font-size: 13px;
+  color: #b8b0d8;
+  line-height: 1.5;
+}
+
+.lf-mul-tip-banner strong {
+  color: #a99fff;
+  font-family: monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+@media (max-width: 600px) {
+  .lf-mul-table {
+    border-spacing: 2px;
+    max-width: 100%;
+  }
+
+  .lf-mul-table-corner,
+  .lf-mul-table-head--row {
+    width: 28px;
+    min-width: 28px;
+  }
+
+  .lf-mul-table-head,
+  .lf-mul-table-cell {
+    height: 30px;
+    font-size: 10px;
+  }
+}

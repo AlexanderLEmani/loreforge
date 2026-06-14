@@ -24,6 +24,7 @@ import { layout } from '@/lib/layout-classes'
 import { applyRaceXp } from '@/lib/race-bonuses'
 import { useStudyTimer } from '@/lib/use-study-timer'
 import StudyProgressChip from '@/components/StudyProgressChip'
+import { checkTrainingMastery, type MasteryDef } from '@/lib/mastery-achievements'
 
 const TOPICS = [
   { id: 'add', icon: '➕', name: 'Сложение',   level: 1, dungeon: 'Пещера сложения' },
@@ -87,7 +88,12 @@ export default function TrainingPage() {
   const [answerFormat, setAnswerFormat] = useState<'choice' | 'typed'>('choice')
   const [inputAnswer, setInputAnswer] = useState('')
   const [playerRace, setPlayerRace] = useState('human')
+  const [newMasteryUnlocks, setNewMasteryUnlocks] = useState<MasteryDef[]>([])
   const answerInputRef = useRef<HTMLInputElement>(null)
+  const sessionStartRef = useRef<number>(0)
+  const correctRef = useRef(0)
+  const totalRef = useRef(0)
+  const timerRef = useRef(TRAINING_SPEED_SECONDS)
 
   useStudyTimer(phase === 'battle')
 
@@ -155,6 +161,27 @@ export default function TrainingPage() {
   function finishSession() {
     setTimerActive(false)
     setPhase('done')
+    void evaluateMasteryUnlocks()
+  }
+
+  async function evaluateMasteryUnlocks() {
+    if (!userData?.id) return
+    const elapsed =
+      selectedMode === 'speed'
+        ? TRAINING_SPEED_SECONDS - timerRef.current
+        : Math.max(1, Math.round((Date.now() - sessionStartRef.current) / 1000))
+
+    const scrollTag = activeScroll ? resolveScrollTrainingTag(activeScroll) : null
+    const granted = await checkTrainingMastery(supabase, userData.id, {
+      mode: selectedMode as 'guided' | 'clean' | 'speed',
+      topics: setupSource === 'scroll' ? (scrollTag ? [scrollTag] : []) : [...selectedTopics],
+      setupSource,
+      scrollTag,
+      correct: correctRef.current,
+      total: totalRef.current,
+      elapsedSeconds: elapsed,
+    })
+    if (granted.length > 0) setNewMasteryUnlocks(granted)
   }
 
   // Автофокус в поле ввода — не нужно кликать мышкой
@@ -164,9 +191,9 @@ export default function TrainingPage() {
     return () => clearTimeout(t)
   }, [phase, answerFormat, showHint, selected, current])
 
-  // Таймер спидрана
   useEffect(() => {
     if (!timerActive) return
+    timerRef.current = timer
     if (timer <= 0) { finishSession(); return }
     const t = setTimeout(() => setTimer(v => v - 1), 1000)
     return () => clearTimeout(t)
@@ -207,6 +234,11 @@ export default function TrainingPage() {
 
     const shuffled = shuffleQuestions(allQ).sort(() => Math.random() - 0.5).slice(0, TRAINING_SESSION_QUESTIONS)
     setActiveScroll(scrollSession)
+    sessionStartRef.current = Date.now()
+    correctRef.current = 0
+    totalRef.current = 0
+    timerRef.current = TRAINING_SPEED_SECONDS
+    setNewMasteryUnlocks([])
     setSessionId(crypto.randomUUID())
     setQuestions(shuffled)
     setCurrent(0)
@@ -243,9 +275,17 @@ export default function TrainingPage() {
 
   async function processAnswer(isCorrect: boolean) {
     const q = questions[current]
-    setTotal(t => t + 1)
+    setTotal(t => {
+      const next = t + 1
+      totalRef.current = next
+      return next
+    })
     if (isCorrect) {
-      setCorrect(c => c + 1)
+      setCorrect(c => {
+        const next = c + 1
+        correctRef.current = next
+        return next
+      })
       const mode = selectedMode as 'guided' | 'clean' | 'speed'
       const xpPerAnswer = applyRaceXp(trainingXpPerCorrect(mode), playerRace, 'all')
       const goldPerAnswer = trainingGoldPerCorrect(mode)
@@ -339,6 +379,30 @@ export default function TrainingPage() {
               <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Тренировочный лагерь</div>
               <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '4px' }}>Зал тренировок</div>
               <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic' }}>Здесь ошибки не убивают. Только учат.</div>
+            </div>
+
+            <div
+              onClick={() => router.push('/training/multiplication')}
+              style={{
+                background: 'linear-gradient(135deg, rgba(123,108,255,0.12), rgba(61,184,122,0.08))',
+                border: '1px solid rgba(169,159,255,0.35)',
+                borderRadius: '12px',
+                padding: '1rem 1.25rem',
+                marginBottom: '1.5rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+              }}
+            >
+              <div style={{ fontSize: '36px' }}>✕</div>
+              <div>
+                <div style={{ fontFamily: 'serif', fontSize: '17px', color: '#e0bc6a', marginBottom: '4px' }}>Таблица умножения</div>
+                <div style={{ fontSize: '12px', color: '#9590a8', lineHeight: 1.5 }}>
+                  Отдельный тренажёр · карта Пифагора · лайфхаки · спринт на ачивку
+                </div>
+              </div>
+              <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff', marginLeft: 'auto' }}>→</div>
             </div>
 
             {/* ТРЕНЕР */}
@@ -522,6 +586,23 @@ export default function TrainingPage() {
                   </div>
                 ))}
               </div>
+
+              {newMasteryUnlocks.length > 0 && (
+                <div style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '12px', padding: '14px 16px', marginBottom: '1.25rem' }}>
+                  <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#e0bc6a', letterSpacing: '0.12em', marginBottom: '8px' }}>
+                    НОВОЕ МАСТЕРСТВО
+                  </div>
+                  {newMasteryUnlocks.map(m => (
+                    <div key={m.id} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '22px' }}>{m.icon}</span>
+                      <div>
+                        <div style={{ fontSize: '14px', color: '#e0bc6a' }}>{m.title}</div>
+                        <div style={{ fontSize: '11px', color: '#9590a8' }}>+{m.glory} репутации</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '10px', padding: '12px 16px', marginBottom: '1.5rem', fontSize: '13px', color: '#b8b0c8', fontStyle: 'italic', lineHeight: 1.65 }}>
                 {accuracy >= 80

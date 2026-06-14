@@ -27,7 +27,9 @@ import { xpProgress } from '@/lib/economy'
 import { totalConsumables } from '@/lib/hub-resources'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import DailyStudyProgress from '@/components/DailyStudyProgress'
-import { formatStudyMinutes, normalizeStudySeconds } from '@/lib/daily-study'
+import MasteryPanel from '@/components/MasteryPanel'
+import { formatStudyMinutes, normalizeStudySeconds, syncStreakOnVisit, DAILY_STUDY_TARGET_SECONDS } from '@/lib/daily-study'
+import { loadMasteryUnlocks, parseMasteryUnlocks, type MasteryUnlocks } from '@/lib/mastery-achievements'
 
 export default function Hub() {
   const supabase = createClient()
@@ -40,6 +42,7 @@ export default function Hub() {
   const [scrollCount, setScrollCount] = useState(0)
   const [potionCount, setPotionCount] = useState(0)
   const [dailyQuests, setDailyQuests] = useState<DailyQuest[]>([])
+  const [masteryUnlocks, setMasteryUnlocks] = useState<MasteryUnlocks>({})
   const RACE_ICONS: Record<string, string> = {
     human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀'
   }
@@ -62,7 +65,7 @@ export default function Hub() {
 
       const { data: ud, error: udError } = await supabase
         .from('users')
-        .select('xp, level, gold, glory, streak, last_visit, daily_study_seconds, daily_study_date, quest_first_dungeon, total_answers, onboarding_done, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills, consumables')
+        .select('xp, level, gold, glory, streak, last_visit, daily_study_seconds, daily_study_date, mastery_unlocks, quest_first_dungeon, total_answers, onboarding_done, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills, consumables')
         .eq('id', user.id)
         .single()
 
@@ -74,7 +77,7 @@ export default function Hub() {
           .select('xp, level, gold, glory, streak, last_visit, quest_first_dungeon, total_answers, onboarding_done, onboarding_step, visited_college, visited_training, visited_guild, visited_grimoire, visited_shop, visited_skills, consumables')
           .eq('id', user.id)
           .single()
-        userRow = fallback ? { ...fallback, daily_study_seconds: 0, daily_study_date: null } : null
+        userRow = fallback ? { ...fallback, daily_study_seconds: 0, daily_study_date: null, mastery_unlocks: {} } : null
       }
 
       setUserData(userRow)
@@ -90,12 +93,22 @@ export default function Hub() {
 
       if (userRow) {
         const today = todayIso()
+        const fixedStreak = await syncStreakOnVisit(supabase, user.id)
+        const mastery = await loadMasteryUnlocks(supabase, user.id)
+        setMasteryUnlocks(mastery)
+
         const studySeconds = normalizeStudySeconds(
           userRow.daily_study_seconds ?? 0,
           userRow.daily_study_date,
           today,
         )
-        let freshUd = { ...userRow, daily_study_seconds: studySeconds, daily_study_date: today }
+        let freshUd = {
+          ...userRow,
+          streak: fixedStreak ?? userRow.streak,
+          daily_study_seconds: studySeconds,
+          daily_study_date: today,
+          mastery_unlocks: Object.keys(mastery).length ? mastery : parseMasteryUnlocks(userRow.mastery_unlocks),
+        }
 
         const { data: runsToday } = await supabase
           .from('dungeon_runs')
@@ -395,6 +408,13 @@ export default function Hub() {
           seconds={userData?.daily_study_seconds}
           studyDate={userData?.daily_study_date}
         />
+        {userData?.streak > 0 && (userData?.daily_study_seconds ?? 0) < DAILY_STUDY_TARGET_SECONDS && (
+          <div style={{ fontSize: '10px', color: '#e05555', fontFamily: 'monospace', marginTop: '6px', lineHeight: 1.45 }}>
+            Стрик только при {formatStudyMinutes(DAILY_STUDY_TARGET_SECONDS)} практики сегодня
+          </div>
+        )}
+
+        <MasteryPanel unlocks={masteryUnlocks} compact />
 
         <div style={{ fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>
           Квесты дня
