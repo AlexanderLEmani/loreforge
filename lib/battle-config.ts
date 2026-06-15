@@ -1,5 +1,5 @@
-import { pickMonsterFromPool } from '@/lib/boss-system'
 import { TOPIC_UNLOCK_LEVEL } from '@/lib/curriculum'
+import { DUNGEON_TO_TOPIC } from '@/lib/dungeon-topics'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
@@ -32,21 +32,10 @@ export type BattleAttack = {
   kind: 'basic' | 'spell'
 }
 
-export const DUNGEON_TO_TOPIC: Record<string, string> = {
-  'Пещера сложения': 'add',
-  'Пещера вычитания': 'sub',
-  'Башня умножения': 'mul',
-  'Пещера деления': 'div',
-  'Храм дробей': 'frac',
-  'Рынок процентов': 'pct',
-}
+export { DUNGEON_TO_TOPIC } from '@/lib/dungeon-topics'
 
-export {
-  BOSS_ENRAGE_HP_RATIO,
-  BOSS_ENRAGE_ATTACK_BONUS,
-  BOSS_ENRAGE_TIMEOUT_BONUS,
-  BOSS_ENRAGE_TIMER_DELTA,
-} from '@/lib/boss-system'
+/** Шанс чемпиона данжа при обычном входе (дублируем boss-system — без импорта оттуда). */
+const BOSS_ENCOUNTER_CHANCE = 0.28
 
 export const STREAK_CRIT_THRESHOLD = 3
 export const STREAK_CRIT_MULT = 1.5
@@ -131,6 +120,19 @@ export function getUnlockedTopics(userLevel: number): string[] {
   return Object.entries(TOPIC_UNLOCK_LEVEL)
     .filter(([, minLv]) => userLevel >= minLv)
     .map(([topic]) => topic)
+}
+
+function pickMonsterFromPool(pool: Monster[]): Monster {
+  const bosses = pool.filter(m => m.isBoss)
+  const normals = pool.filter(m => !m.isBoss)
+
+  if (bosses.length > 0 && Math.random() < BOSS_ENCOUNTER_CHANCE) {
+    return bosses[Math.floor(Math.random() * bosses.length)]
+  }
+  if (normals.length > 0) {
+    return normals[Math.floor(Math.random() * normals.length)]
+  }
+  return pool[Math.floor(Math.random() * pool.length)]
 }
 
 export function pickMonster(dungeonName: string): Monster {

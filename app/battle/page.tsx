@@ -10,10 +10,6 @@ import {
   type BattleAttack,
   type Monster,
   type ScrollBattleEffect,
-  BOSS_ENRAGE_ATTACK_BONUS,
-  BOSS_ENRAGE_TIMEOUT_BONUS,
-  BOSS_ENRAGE_HP_RATIO,
-  BOSS_ENRAGE_TIMER_DELTA,
   getAttacksForBattle,
   getUnlockedTopics,
   pickMonster,
@@ -22,6 +18,12 @@ import {
   STREAK_CRIT_MULT,
   STREAK_CRIT_THRESHOLD,
 } from '@/lib/battle-config'
+import {
+  BOSS_ENRAGE_ATTACK_BONUS,
+  BOSS_ENRAGE_TIMEOUT_BONUS,
+  BOSS_ENRAGE_HP_RATIO,
+  BOSS_ENRAGE_TIMER_DELTA,
+} from '@/lib/boss-system'
 import {
   BATTLE_CONSUMABLES,
   CONSUMABLE_EFFECTS,

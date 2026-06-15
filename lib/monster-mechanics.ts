@@ -1,5 +1,5 @@
 import type { BattleAttack } from '@/lib/battle-config'
-import { DUNGEON_TO_TOPIC } from '@/lib/battle-config'
+import { DUNGEON_TO_TOPIC } from '@/lib/dungeon-topics'
 
 export type MathTopic = 'add' | 'sub' | 'mul' | 'div' | 'frac' | 'pct'
 

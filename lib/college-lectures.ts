@@ -309,22 +309,50 @@ export function getLectureList(userLevel: number, viewingLevel: number) {
   }))
 }
 
-/** Ревизия контента в FALLBACK; БД показывается только при meta.revision === это значение */
+/** Ревизия контента в FALLBACK; явный маркер в БД */
 export const LECTURE_CONTENT_REVISION = 2
 
+function contentSections(sections: LectureSection[]): LectureSection[] {
+  return sections.filter(s => s.type !== 'meta')
+}
+
+/** Кнопки «Куда дальше» из кода, если в БД их нет (длинные лекции без actions). */
+function mergeActionButtons(lecture: Lecture, fallback: Lecture): Lecture {
+  if (lecture.sections.some(s => s.type === 'actions')) return lecture
+  const fallbackActions = fallback.sections.find(s => s.type === 'actions')
+  if (!fallbackActions) return lecture
+
+  const outroIdx = lecture.sections.findIndex(s => s.type === 'outro')
+  const sections = [...lecture.sections]
+  if (outroIdx >= 0) {
+    sections.splice(outroIdx, 0, fallbackActions)
+  } else {
+    sections.push(fallbackActions)
+  }
+  return { ...lecture, sections }
+}
+
 /**
- * Лекции в UI: по умолчанию FALLBACK из кода (то, что в деплое).
- * Supabase не перебивает текст, пока в sections нет meta.revision = LECTURE_CONTENT_REVISION.
+ * Лекции в UI:
+ * - из Supabase, если там больше блоков чем в FALLBACK (длинные лекции) или meta.revision = 2
+ * - иначе FALLBACK из кода (короткий тон + actions)
+ * Кнопки действий из FALLBACK подмешиваются, если в БД их нет.
  */
 export function resolveLecture(levelNum: number, fromDb: Lecture | null | undefined): Lecture {
   const fallback = FALLBACK_LECTURES[levelNum] || FALLBACK_LECTURES[1]
   if (!fromDb?.sections?.length) return fallback
 
+  const dbSections = contentSections(fromDb.sections)
   const meta = fromDb.sections.find(s => s.type === 'meta') as { revision?: number } | undefined
-  if (meta?.revision === LECTURE_CONTENT_REVISION) {
-    const sections = fromDb.sections.filter(s => s.type !== 'meta')
-    return { title: fromDb.title || fallback.title, sections }
-  }
 
-  return fallback
+  const useDb =
+    meta?.revision === LECTURE_CONTENT_REVISION
+    || dbSections.length > fallback.sections.length
+
+  if (!useDb) return fallback
+
+  return mergeActionButtons(
+    { title: fromDb.title || fallback.title, sections: dbSections },
+    fallback,
+  )
 }

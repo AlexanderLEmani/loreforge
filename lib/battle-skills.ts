@@ -1,4 +1,4 @@
-import { DUNGEON_TO_TOPIC } from '@/lib/battle-config'
+import { DUNGEON_TO_TOPIC } from '@/lib/dungeon-topics'
 import { ALL_SKILL_TREE_NODES } from '@/lib/skill-tree-nodes-data'
 import type { SkillEffect, SkillTreeNode } from '@/lib/skill-tree'
 
