@@ -106,6 +106,7 @@ function BattleContent() {
   const [scratchOpen, setScratchOpen] = useState(false)
   const usedIdsRef = useRef<Set<number>>(new Set())
   const usedTextsRef = useRef<Set<string>>(new Set())
+  const defendBusyRef = useRef(false)
   const [cooldowns, setCooldowns] = useState<Record<string, number>>({})
   const [damageFlash, setDamageFlash] = useState<{ target: 'player' | 'enemy'; amount: number } | null>(null)
   const [timer, setTimer] = useState(15)
@@ -513,6 +514,7 @@ function BattleContent() {
       if (!mq) { endBattle('win', newMistakes, chosenAttack.kind === 'spell'); return }
       setMonsterQ(mq)
       setDefenseHintIndices(null)
+      defendBusyRef.current = false
       setPhase('monster_attack')
     }, 800)
   }
@@ -581,9 +583,11 @@ function BattleContent() {
   }
 
   async function handleDefend(idx: number, timeout = false) {
+    if (defendBusyRef.current) return
     if (timerRef.current) clearInterval(timerRef.current)
     if (!monsterQ || !monster) return
 
+    defendBusyRef.current = true
     const correct = !timeout && idx === monsterQ.correct_index
     await recordAnswer(monsterQ, correct)
     const profile = monsterProfile(monster.id)
@@ -594,6 +598,7 @@ function BattleContent() {
       setSkillShieldActive(false)
       playSound('block')
       flash('🛡️ Щит поглотил удар!', '#3db87a', () => {
+        defendBusyRef.current = false
         tickCooldowns()
         setRoundCount(r => r + 1)
         setPhase('choose_attack')
@@ -602,6 +607,7 @@ function BattleContent() {
     }
 
     const finishRound = (newPlayerHP: number, finalMistakes: string[]) => {
+      defendBusyRef.current = false
       if (newPlayerHP <= 0) {
         endBattle('lose', finalMistakes)
         return
@@ -665,6 +671,12 @@ function BattleContent() {
     }
 
     flash('🛡️ Заблокировано!', '#3db87a', () => finishRound(playerHP, mistakes))
+  }
+
+  function handleDodge() {
+    if (!monsterQ || defendBusyRef.current || phase !== 'monster_attack') return
+    const wrongIdx = monsterQ.answers.findIndex((_: string, i: number) => i !== monsterQ.correct_index)
+    if (wrongIdx >= 0) handleDefend(wrongIdx)
   }
 
   async function restoreUnusedConsumables() {
@@ -1138,7 +1150,10 @@ function BattleContent() {
           </div>
         )}
 
-        {phase === 'monster_attack' && monsterQ && monster && (
+        {phase === 'monster_attack' && monsterQ && monster && (() => {
+          const parryMode = currentProfile?.defendBehavior === 'rage_on_block'
+          const rageCharged = bossIntent?.id === 'rage_charge'
+          return (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#e05555', textTransform: 'uppercase' }}>
@@ -1146,30 +1161,74 @@ function BattleContent() {
               </div>
               <div style={{ fontFamily: 'monospace', fontSize: '20px', fontWeight: 'bold', color: timer > monster.defendTimer / 2 ? '#3db87a' : '#e05555' }}>{timer}s</div>
             </div>
+            {parryMode && (
+              <div className={`lf-battle-parry-banner${rageCharged ? ' lf-battle-parry-banner--charged' : ''}`}>
+                <span className="lf-battle-parry-banner-title">Парирование</span>
+                <span className="lf-battle-parry-banner-text">
+                  🛡 верный ответ — блок, но заряжает врага · 💨 уклонение — безопасно
+                </span>
+              </div>
+            )}
             <div style={{ background: 'rgba(224,85,85,0.04)', border: '1px solid rgba(224,85,85,0.3)', borderRadius: '12px', padding: '1.5rem', marginBottom: '1rem' }}>
               <div className="lf-battle-question" style={{ fontFamily: 'serif', fontSize: '42px', color: '#e6e2f0', lineHeight: 1.1 }}>{monsterQ.question}</div>
               <div style={{ fontSize: '12px', color: '#8a849c', marginTop: '8px' }}>
-                {currentProfile?.defendBehavior === 'rage_on_block'
-                  ? 'Уклонение: неверный ответ · блок заряжает врага · таймаут −' + monster.attackDmg + ' HP'
+                {parryMode
+                  ? 'Не блокируй заряженного врага — уклонись'
                   : `Верный ответ блокирует · ошибка −${monster.attackDmg} HP`}
               </div>
             </div>
-            <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
+            {parryMode && (
+              <button
+                type="button"
+                className={`lf-battle-dodge-bar${rageCharged ? ' lf-battle-dodge-bar--pulse' : ''}`}
+                onClick={handleDodge}
+              >
+                <span className="lf-battle-dodge-bar-icon">💨</span>
+                <span className="lf-battle-dodge-bar-label">Уклониться</span>
+                <span className="lf-battle-dodge-bar-sub">враг промахнётся · без урона</span>
+              </button>
+            )}
+            <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px', marginTop: parryMode ? '10px' : 0 }}>
               {monsterQ.answers.map((ans: string, idx: number) => {
                 const isHint = isHintHighlighted(defenseHintIndices, idx)
-                const bg = isHint ? 'rgba(201,168,76,0.1)' : '#1c1f2a'
-                const border = isHint ? 'rgba(201,168,76,0.45)' : 'rgba(224,85,85,0.2)'
-                const color = isHint ? '#e0bc6a' : '#e6e2f0'
+                const isCorrect = idx === monsterQ.correct_index
+                let bg = '#1c1f2a'
+                let border = 'rgba(224,85,85,0.2)'
+                let color = '#e6e2f0'
+                if (parryMode && isCorrect) {
+                  bg = 'rgba(224,188,106,0.08)'
+                  border = 'rgba(224,188,106,0.45)'
+                  color = '#e0bc6a'
+                } else if (parryMode && !isCorrect) {
+                  bg = 'rgba(123,108,255,0.08)'
+                  border = 'rgba(169,159,255,0.35)'
+                  color = '#c8c0ff'
+                } else if (isHint) {
+                  bg = 'rgba(201,168,76,0.1)'
+                  border = 'rgba(201,168,76,0.45)'
+                  color = '#e0bc6a'
+                }
                 return (
-                  <div key={idx} onClick={() => handleDefend(idx)}
-                    style={{ background: bg, border: `1px solid ${border}`, borderRadius: '9px', padding: '14px', textAlign: 'center', fontFamily: 'serif', fontSize: '24px', color, cursor: 'pointer' }}>
-                    {ans}
-                  </div>
+                  <button
+                    key={idx}
+                    type="button"
+                    className={`lf-battle-defend-btn${parryMode && isCorrect ? ' lf-battle-defend-btn--block' : ''}${parryMode && !isCorrect ? ' lf-battle-defend-btn--dodge' : ''}`}
+                    onClick={() => handleDefend(idx)}
+                    style={{ background: bg, border: `1px solid ${border}`, color }}
+                  >
+                    {parryMode && (
+                      <span className="lf-battle-defend-tag">
+                        {isCorrect ? '🛡 Блок' : '💨 Уклон'}
+                      </span>
+                    )}
+                    <span className="lf-battle-defend-ans">{ans}</span>
+                  </button>
                 )
               })}
             </div>
           </div>
-        )}
+          )
+        })()}
         </div>
       </div>
 

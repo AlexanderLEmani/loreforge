@@ -1023,6 +1023,23 @@ body {
   background: rgba(201, 168, 76, 0.1);
 }
 
+.lf-battle-scratch-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  pointer-events: none;
+}
+
+.lf-battle-scratch-panel--floating {
+  position: fixed;
+  z-index: 251;
+  pointer-events: auto;
+  max-width: none;
+  max-height: none;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  border-radius: 12px;
+}
+
 .lf-battle-scratch-overlay {
   position: fixed;
   inset: 0;
@@ -1037,23 +1054,80 @@ body {
 
 .lf-battle-scratch-panel {
   width: 100%;
-  max-width: 520px;
-  max-height: min(72vh, 520px);
   background: #141820;
   border: 1px solid rgba(201, 168, 76, 0.28);
-  border-radius: 14px 14px 12px 12px;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.lf-battle-scratch-drag {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.lf-battle-scratch-drag:active {
+  cursor: grabbing;
+}
+
+.lf-battle-scratch-drag-grip {
+  font-family: monospace;
+  font-size: 14px;
+  color: #5a5670;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.lf-battle-scratch-head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.lf-battle-scratch-tools {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.lf-battle-scratch-tool {
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #1c1f2a;
+  font-size: 16px;
+  cursor: pointer;
+  touch-action: manipulation;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lf-battle-scratch-tool--active {
+  border-color: rgba(201, 168, 76, 0.45);
+  background: rgba(201, 168, 76, 0.12);
+}
+
+.lf-battle-scratch-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 22px;
+  height: 22px;
+  cursor: nwse-resize;
+  touch-action: none;
+  background: linear-gradient(135deg, transparent 50%, rgba(201, 168, 76, 0.35) 50%);
+  border-radius: 0 0 10px 0;
 }
 
 .lf-battle-scratch-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 14px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
 }
@@ -1098,7 +1172,7 @@ body {
 
 .lf-battle-scratch-canvas-wrap {
   flex: 1;
-  min-height: 200px;
+  min-height: 0;
   position: relative;
 }
 
@@ -1106,7 +1180,6 @@ body {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 200px;
   touch-action: none;
   cursor: crosshair;
 }
@@ -1133,6 +1206,132 @@ body {
 }
 
 @media (max-width: 900px) {
+  .lf-battle-scratch-tool {
+    width: 40px;
+    height: 40px;
+  }
+
+  .lf-battle-scratch-btn {
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+}
+
+.lf-battle-parry-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(169, 159, 255, 0.28);
+  background: rgba(123, 108, 255, 0.08);
+}
+
+.lf-battle-parry-banner--charged {
+  border-color: rgba(224, 85, 85, 0.45);
+  background: rgba(224, 85, 85, 0.1);
+  animation: lf-parry-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes lf-parry-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(224, 85, 85, 0); }
+  50% { box-shadow: 0 0 12px rgba(224, 85, 85, 0.25); }
+}
+
+.lf-battle-parry-banner-title {
+  font-family: monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #a99fff;
+}
+
+.lf-battle-parry-banner--charged .lf-battle-parry-banner-title {
+  color: #e05555;
+}
+
+.lf-battle-parry-banner-text {
+  font-size: 12px;
+  color: #b8b0d8;
+  line-height: 1.45;
+}
+
+.lf-battle-dodge-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(169, 159, 255, 0.45);
+  background: linear-gradient(90deg, rgba(123, 108, 255, 0.14), rgba(123, 108, 255, 0.06));
+  color: #e6e2f0;
+  cursor: pointer;
+  touch-action: manipulation;
+  text-align: left;
+}
+
+.lf-battle-dodge-bar--pulse {
+  border-color: rgba(224, 85, 85, 0.55);
+  background: linear-gradient(90deg, rgba(224, 85, 85, 0.16), rgba(123, 108, 255, 0.08));
+  animation: lf-dodge-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes lf-dodge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.01); }
+}
+
+.lf-battle-dodge-bar-icon {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.lf-battle-dodge-bar-label {
+  font-family: serif;
+  font-size: 17px;
+  color: #c8c0ff;
+}
+
+.lf-battle-dodge-bar-sub {
+  font-family: monospace;
+  font-size: 10px;
+  color: #8a849c;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.lf-battle-defend-btn {
+  border-radius: 9px;
+  padding: 12px 10px 10px;
+  text-align: center;
+  font-family: serif;
+  font-size: 24px;
+  cursor: pointer;
+  touch-action: manipulation;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.lf-battle-defend-tag {
+  font-family: monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.lf-battle-defend-ans {
+  line-height: 1.1;
+}
+
+@media (max-width: 900px) {
   .lf-battle-scratch-overlay {
     padding: 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -1150,10 +1349,17 @@ body {
     min-height: 42vh;
   }
 
-  .lf-battle-scratch-btn {
-    min-height: 36px;
-    padding: 8px 12px;
-    font-size: 11px;
+  .lf-battle-dodge-bar-sub {
+    display: none;
+  }
+
+  .lf-battle-dodge-bar {
+    justify-content: center;
+    padding: 14px;
+  }
+
+  .lf-battle-dodge-bar-label {
+    font-size: 18px;
   }
 }
 
@@ -1161,11 +1367,6 @@ body {
   .lf-battle-scratch-panel {
     max-width: min(92vw, 640px);
     max-height: min(68vh, 560px);
-  }
-
-  .lf-battle-scratch-canvas-wrap,
-  .lf-battle-scratch-canvas {
-    min-height: 320px;
   }
 }
 

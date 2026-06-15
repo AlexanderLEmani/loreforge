@@ -1,10 +1,19 @@
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+type Tool = 'pen' | 'eraser'
+
+const MIN_W = 260
+const MIN_H = 200
+
+function clamp(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n))
 }
 
 function drawPaperGrid(ctx: CanvasRenderingContext2D, w: number, h: number) {
@@ -37,6 +46,12 @@ export default function BattleScratchPad({ open, onOpenChange }: Props) {
   const drawing = useRef(false)
   const lastPoint = useRef<{ x: number; y: number } | null>(null)
   const hasInk = useRef(false)
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null)
+  const resizeRef = useRef<{ startX: number; startY: number; origW: number; origH: number } | null>(null)
+
+  const [tool, setTool] = useState<Tool>('pen')
+  const [pos, setPos] = useState({ x: 24, y: 120 })
+  const [size, setSize] = useState({ w: 380, h: 300 })
 
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current
@@ -62,15 +77,22 @@ export default function BattleScratchPad({ open, onOpenChange }: Props) {
 
     if (snapshot) {
       const img = new Image()
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, w, h)
-      }
+      img.onload = () => ctx.drawImage(img, 0, 0, w, h)
       img.src = snapshot
     }
   }, [])
 
   useEffect(() => {
     if (!open) return
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const w = clamp(Math.min(420, vw - 24), MIN_W, vw - 24)
+    const h = clamp(Math.min(340, vh * 0.42), MIN_H, vh - 24)
+    setSize({ w, h })
+    setPos({
+      x: clamp((vw - w) / 2, 8, vw - w - 8),
+      y: clamp(vh - h - 72, 8, vh - h - 8),
+    })
     const t = setTimeout(resizeCanvas, 0)
     return () => clearTimeout(t)
   }, [open, resizeCanvas])
@@ -86,13 +108,29 @@ export default function BattleScratchPad({ open, onOpenChange }: Props) {
 
   function pointerPos(canvas: HTMLCanvasElement, e: React.PointerEvent<HTMLCanvasElement>) {
     const rect = canvas.getBoundingClientRect()
-    return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    }
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top }
   }
 
-  function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
+  function strokeAt(ctx: CanvasRenderingContext2D, from: { x: number; y: number }, to: { x: number; y: number }, activeTool: Tool) {
+    if (activeTool === 'eraser') {
+      ctx.globalCompositeOperation = 'destination-out'
+      ctx.strokeStyle = 'rgba(0,0,0,1)'
+      ctx.lineWidth = 20
+    } else {
+      ctx.globalCompositeOperation = 'source-over'
+      ctx.strokeStyle = '#e8e4f0'
+      ctx.lineWidth = 2.5
+    }
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.beginPath()
+    ctx.moveTo(from.x, from.y)
+    ctx.lineTo(to.x, to.y)
+    ctx.stroke()
+    ctx.globalCompositeOperation = 'source-over'
+  }
+
+  function onCanvasPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current
     if (!canvas) return
     e.preventDefault()
@@ -101,33 +139,71 @@ export default function BattleScratchPad({ open, onOpenChange }: Props) {
     lastPoint.current = pointerPos(canvas, e)
   }
 
-  function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+  function onCanvasPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!drawing.current || !lastPoint.current) return
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-
     const p = pointerPos(canvas, e)
-    ctx.strokeStyle = '#e8e4f0'
-    ctx.lineWidth = 2.5
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    ctx.beginPath()
-    ctx.moveTo(lastPoint.current.x, lastPoint.current.y)
-    ctx.lineTo(p.x, p.y)
-    ctx.stroke()
+    strokeAt(ctx, lastPoint.current, p, tool)
     lastPoint.current = p
     hasInk.current = true
   }
 
-  function onPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+  function onCanvasPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current
-    if (canvas?.hasPointerCapture(e.pointerId)) {
-      canvas.releasePointerCapture(e.pointerId)
-    }
+    if (canvas?.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId)
     drawing.current = false
     lastPoint.current = null
+  }
+
+  function onDragPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if ((e.target as HTMLElement).closest('button')) return
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y }
+    e.currentTarget.setPointerCapture(e.pointerId)
+    e.preventDefault()
+  }
+
+  function onDragPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragRef.current) return
+    const dx = e.clientX - dragRef.current.startX
+    const dy = e.clientY - dragRef.current.startY
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    setPos({
+      x: clamp(dragRef.current.origX + dx, 4, vw - size.w - 4),
+      y: clamp(dragRef.current.origY + dy, 4, vh - size.h - 4),
+    })
+  }
+
+  function onDragPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+    dragRef.current = null
+  }
+
+  function onResizePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    resizeRef.current = { startX: e.clientX, startY: e.clientY, origW: size.w, origH: size.h }
+    e.currentTarget.setPointerCapture(e.pointerId)
+    e.preventDefault()
+  }
+
+  function onResizePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!resizeRef.current) return
+    const dx = e.clientX - resizeRef.current.startX
+    const dy = e.clientY - resizeRef.current.startY
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    setSize({
+      w: clamp(resizeRef.current.origW + dx, MIN_W, vw - pos.x - 8),
+      h: clamp(resizeRef.current.origH + dy, MIN_H, vh - pos.y - 8),
+    })
+  }
+
+  function onResizePointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+    resizeRef.current = null
+    setTimeout(resizeCanvas, 0)
   }
 
   function clearCanvas() {
@@ -148,18 +224,40 @@ export default function BattleScratchPad({ open, onOpenChange }: Props) {
   if (!open) return null
 
   return (
-    <div
-      className="lf-battle-scratch-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Черновик для счёта"
-      onClick={() => onOpenChange(false)}
-    >
-      <div className="lf-battle-scratch-panel" onClick={e => e.stopPropagation()}>
-        <div className="lf-battle-scratch-head">
-          <div>
+    <div className="lf-battle-scratch-layer" role="dialog" aria-modal="false" aria-label="Черновик для счёта">
+      <div
+        className="lf-battle-scratch-panel lf-battle-scratch-panel--floating"
+        style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}
+      >
+        <div
+          className="lf-battle-scratch-head lf-battle-scratch-drag"
+          onPointerDown={onDragPointerDown}
+          onPointerMove={onDragPointerMove}
+          onPointerUp={onDragPointerUp}
+          onPointerCancel={onDragPointerUp}
+        >
+          <div className="lf-battle-scratch-drag-grip">⠿</div>
+          <div className="lf-battle-scratch-head-text">
             <div className="lf-battle-scratch-title">Черновик</div>
-            <div className="lf-battle-scratch-hint">Считай в столбик · таймер не останавливается</div>
+            <div className="lf-battle-scratch-hint">Тяни заголовок · угол — размер · таймер идёт</div>
+          </div>
+          <div className="lf-battle-scratch-tools">
+            <button
+              type="button"
+              className={`lf-battle-scratch-tool${tool === 'pen' ? ' lf-battle-scratch-tool--active' : ''}`}
+              onClick={() => setTool('pen')}
+              aria-label="Карандаш"
+            >
+              ✏️
+            </button>
+            <button
+              type="button"
+              className={`lf-battle-scratch-tool${tool === 'eraser' ? ' lf-battle-scratch-tool--active' : ''}`}
+              onClick={() => setTool('eraser')}
+              aria-label="Губка"
+            >
+              🧽
+            </button>
           </div>
           <div className="lf-battle-scratch-actions">
             <button type="button" className="lf-battle-scratch-btn" onClick={clearCanvas}>
@@ -174,12 +272,20 @@ export default function BattleScratchPad({ open, onOpenChange }: Props) {
           <canvas
             ref={canvasRef}
             className="lf-battle-scratch-canvas"
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
+            onPointerDown={onCanvasPointerDown}
+            onPointerMove={onCanvasPointerMove}
+            onPointerUp={onCanvasPointerUp}
+            onPointerCancel={onCanvasPointerUp}
           />
         </div>
+        <div
+          className="lf-battle-scratch-resize"
+          onPointerDown={onResizePointerDown}
+          onPointerMove={onResizePointerMove}
+          onPointerUp={onResizePointerUp}
+          onPointerCancel={onResizePointerUp}
+          aria-hidden="true"
+        />
       </div>
     </div>
   )
