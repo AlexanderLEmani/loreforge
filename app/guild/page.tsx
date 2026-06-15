@@ -10,6 +10,7 @@ import { syncQuestRewards, withGuildClaimed } from '@/lib/quest-rewards'
 import { spendGlory } from '@/lib/glory-wallet'
 import { GUILD_RANKS, guildRankProgress } from '@/lib/guild-ranks'
 import { GUILD_DUNGEONS, effectiveDungeonCost, type GuildDungeon } from '@/lib/guild-dungeons'
+import { championUnlockProgress, championWinsByDungeon } from '@/lib/champion-unlock'
 import { syncGuildRankRewards } from '@/lib/guild-rank-rewards'
 import { fetchSpellKills, fetchUserRow } from '@/lib/user-profile'
 import { layout } from '@/lib/layout-classes'
@@ -25,6 +26,7 @@ export default function GuildPage() {
   const [showWelcome, setShowWelcome] = useState(false)
   const [quests, setQuests] = useState<ReturnType<typeof buildGuildQuests>>([])
   const [runHistory, setRunHistory] = useState<any[]>([])
+  const [championWinsMap, setChampionWinsMap] = useState<Record<string, number>>({})
   const [rewardToast, setRewardToast] = useState<string | null>(null)
 
   useEffect(() => {
@@ -99,6 +101,13 @@ export default function GuildPage() {
       }
 
       setQuests(withGuildClaimed(built, rewards.claims))
+      const { data: winRows } = await supabase
+        .from('dungeon_runs')
+        .select('dungeon_name')
+        .eq('user_id', user.id)
+        .eq('result', 'win')
+
+      setChampionWinsMap(championWinsByDungeon(winRows ?? []))
       setRunHistory((runs || []).slice(0, 5))
       setLoading(false)
     }
@@ -135,6 +144,13 @@ export default function GuildPage() {
 
   const freeDungeons = GUILD_DUNGEONS.filter(d => effectiveDungeonCost(d.id, rankIdx) === 0)
   const paidDungeons = GUILD_DUNGEONS.filter(d => effectiveDungeonCost(d.id, rankIdx) > 0)
+  const championWins = championWinsMap
+
+  function championLabel(route: string) {
+    const prog = championUnlockProgress(championWins[route] ?? 0)
+    if (prog.unlocked) return '⚔ чемпионы открыты'
+    return `⚔ чемпион: ${prog.wins}/${prog.needed} побед`
+  }
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
@@ -220,6 +236,9 @@ export default function GuildPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0', marginBottom: '2px' }}>{d.name}</div>
                   <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic' }}>Математика · {d.tag} · Бесплатно</div>
+                  <div style={{ fontSize: '10px', color: championUnlockProgress(championWins[d.route] ?? 0).unlocked ? '#e05555' : '#5a5670', marginTop: '4px' }}>
+                    {championLabel(d.route)}
+                  </div>
                 </div>
                 <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#3db87a', padding: '5px 12px', border: '1px solid rgba(61,184,122,0.4)', borderRadius: '6px', background: 'rgba(61,184,122,0.08)', whiteSpace: 'nowrap' }}>{locked ? '🔒' : '▶ Войти'}</div>
               </div>
@@ -281,7 +300,10 @@ export default function GuildPage() {
                       </div>
                     </div>
                     <div style={{ fontFamily: 'serif', fontSize: '14px', color: locked ? '#5a5670' : '#e6e2f0', marginBottom: '4px' }}>{d.name}</div>
-                    <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic', lineHeight: 1.4, marginBottom: '10px' }}>{d.desc}</div>
+                    <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic', lineHeight: 1.4, marginBottom: '6px' }}>{d.desc}</div>
+                    <div style={{ fontSize: '10px', color: championUnlockProgress(championWins[d.route] ?? 0).unlocked ? '#e05555' : '#5a5670', marginBottom: '10px' }}>
+                      {championLabel(d.route)}
+                    </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontFamily: 'monospace', fontSize: '11px', color: locked ? '#3a3650' : canAfford ? '#a99fff' : '#e05555' }}>
                         ⭐ {cost} славы

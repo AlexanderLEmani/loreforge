@@ -25,7 +25,7 @@ import { applyRaceXp } from '@/lib/race-bonuses'
 import { useStudyTimer } from '@/lib/use-study-timer'
 import StudyProgressChip from '@/components/StudyProgressChip'
 import { checkTrainingMastery, type MasteryDef } from '@/lib/mastery-achievements'
-import { refocusInput } from '@/lib/refocus-input'
+import { scheduleInputRefocus } from '@/lib/refocus-input'
 
 const TOPICS = [
   { id: 'add', icon: '➕', name: 'Сложение',   level: 1, dungeon: 'Пещера сложения' },
@@ -275,7 +275,7 @@ export default function TrainingPage() {
         setCurrent(c => c + 1)
       }
       if (answerFormat === 'typed') {
-        requestAnimationFrame(() => refocusInput(answerInputRef.current))
+        scheduleInputRefocus(answerInputRef.current)
       }
       return
     }
@@ -285,7 +285,7 @@ export default function TrainingPage() {
       setCurrent(c => c + 1)
     }
     if (answerFormat === 'typed') {
-      requestAnimationFrame(() => refocusInput(answerInputRef.current))
+      scheduleInputRefocus(answerInputRef.current)
     }
   }
 
@@ -353,6 +353,7 @@ export default function TrainingPage() {
     const q = questions[current]
     const isCorrect = answersMatch(inputAnswer, q.answers[q.correct_index])
     setSelected(isCorrect ? q.correct_index : -1)
+    scheduleInputRefocus(answerInputRef.current)
     await processAnswer(isCorrect)
   }
 
@@ -772,22 +773,24 @@ export default function TrainingPage() {
                   if (typedCorrect) inputBorder = 'rgba(61,184,122,0.55)'
                   if (typedWrong) inputBorder = 'rgba(224,85,85,0.55)'
                   return (
-                    <div>
+                    <form
+                      className="lf-typed-answer-form"
+                      onSubmit={e => {
+                        e.preventDefault()
+                        handleTypedSubmit()
+                      }}
+                    >
                       <input
                         ref={answerInputRef}
                         type="text"
                         inputMode="text"
                         enterKeyHint="go"
                         value={inputAnswer}
-                        onChange={e => setInputAnswer(sanitizeAnswerInput(e.target.value))}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            handleTypedSubmit()
-                          }
+                        onChange={e => {
+                          if (selected !== null) return
+                          setInputAnswer(sanitizeAnswerInput(e.target.value))
                         }}
                         placeholder={fracInput ? '2/3, ½ или 0…' : 'Ответ…'}
-                        disabled={selected !== null}
                         autoComplete="off"
                         autoCorrect="off"
                         spellCheck={false}
@@ -808,7 +811,7 @@ export default function TrainingPage() {
                       <div style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '10px' }}>
                         {selectedMode === 'speed' ? 'На клавиатуре: Готово / Enter — следующий пример' : `Enter — отправить${fracInput ? ' · дроби: 2/3 или ½' : ''}`}
                       </div>
-                    </div>
+                    </form>
                   )
                 })()}
 

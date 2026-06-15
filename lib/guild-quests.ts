@@ -44,7 +44,7 @@ export function buildGuildQuests(
     {
       id: 'champion',
       title: 'Победи чемпиона',
-      desc: 'Победа против чемпиона данжа сегодня. Чемпионы появляются случайно.',
+      desc: 'Победа против чемпиона данжа сегодня. Чемпионы — после 10 побед в данже, шанс ~28%.',
       prog: championWinToday ? 1 : 0,
       total: 1,
       glory: 100,

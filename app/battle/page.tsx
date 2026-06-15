@@ -60,6 +60,7 @@ import {
 } from '@/lib/race-bonuses'
 import { useStudyTimer } from '@/lib/use-study-timer'
 import StudyProgressChip from '@/components/StudyProgressChip'
+import BattleScratchPad from '@/components/BattleScratchPad'
 import {
   isBossMonster,
   resolveBossIntent,
@@ -102,6 +103,7 @@ function BattleContent() {
   const [inputAnswer, setInputAnswer] = useState('')
   const [hardMode, setHardMode] = useState(false)
   const [confirmEscape, setConfirmEscape] = useState(false)
+  const [scratchOpen, setScratchOpen] = useState(false)
   const usedIdsRef = useRef<Set<number>>(new Set())
   const usedTextsRef = useRef<Set<string>>(new Set())
   const [cooldowns, setCooldowns] = useState<Record<string, number>>({})
@@ -221,6 +223,7 @@ function BattleContent() {
 
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUser(user)
+      let dungeonWins = 0
 
       if (user) {
         const { data: ud } = await supabase.from('users').select('level').eq('id', user.id).single()
@@ -248,9 +251,17 @@ function BattleContent() {
 
         const equipped = await loadEquipped(user.id)
         setEquipBonuses(computeEquipBonuses(equipped))
+
+        const { count: winCount } = await supabase
+          .from('dungeon_runs')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('dungeon_name', dungeonName)
+          .eq('result', 'win')
+        dungeonWins = winCount ?? 0
       }
 
-      const m = pickMonster(dungeonName)
+      const m = pickMonster(dungeonName, dungeonWins)
       baseMonsterRef.current = {
         attackDmg: m.attackDmg,
         timeoutDmg: m.timeoutDmg,
@@ -741,6 +752,15 @@ function BattleContent() {
           </div>
           <button
             type="button"
+            className={`lf-battle-hud-btn${scratchOpen ? ' lf-battle-hud-btn--scratch-on' : ''}`}
+            onClick={() => setScratchOpen(o => !o)}
+            aria-label="Черновик для счёта"
+            aria-pressed={scratchOpen}
+          >
+            📝
+          </button>
+          <button
+            type="button"
             className={`lf-battle-hud-btn lf-battle-hud-btn--escape`}
             onClick={() => setConfirmEscape(true)}
             aria-label="Сбежать из данжа"
@@ -863,6 +883,14 @@ function BattleContent() {
         <div onClick={() => setHardMode(!hardMode)} style={{ padding: '7px 10px', background: hardMode ? 'rgba(201,168,76,0.12)' : '#1c1f2a', border: `1px solid ${hardMode ? 'rgba(201,168,76,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '7px', fontFamily: 'monospace', fontSize: '11px', color: hardMode ? '#e0bc6a' : '#8a849c', cursor: 'pointer', textAlign: 'center' }}>
           {hardMode ? '⚡ ХАРД 2x XP' : 'ОБЫЧНЫЙ'}
         </div>
+
+        <button
+          type="button"
+          className={`lf-battle-sidebar-scratch${scratchOpen ? ' lf-battle-sidebar-scratch--open' : ''}`}
+          onClick={() => setScratchOpen(o => !o)}
+        >
+          📝 Черновик · столбик
+        </button>
 
         <div style={{ marginTop: 'auto' }}>
           <button
@@ -1144,6 +1172,8 @@ function BattleContent() {
         )}
         </div>
       </div>
+
+      <BattleScratchPad open={scratchOpen} onOpenChange={setScratchOpen} />
 
       {confirmEscape && (
         <div className="lf-battle-escape-overlay" role="dialog" aria-modal="true" aria-labelledby="lf-battle-escape-title">

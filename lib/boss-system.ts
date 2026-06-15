@@ -7,7 +7,7 @@
  * - Дают «пик» сессии: больше HP, механика, лучший лут (× BOSS_LOOT_MULTIPLIER)
  *
  * ТИРЫ:
- * - champion (isBoss) — усилённый враг данжа, ~25% шанс при входе
+ * - champion (isBoss) — после 10 побед в данже, ~28% шанс при входе
  * - enrage — ниже 40% HP: +урон/таймер, тот же враг (не подмена)
  *
  * НЕ БОСС:
@@ -17,6 +17,7 @@
 
 import type { Monster } from '@/lib/battle-config'
 import type { MonsterProfile } from '@/lib/monster-mechanics'
+import { championUnlockedForDungeon } from '@/lib/champion-unlock'
 import { RAGE_CHARGE_MAX, stanceCap } from '@/lib/monster-mechanics'
 
 /** Шанс чемпиона данжа при обычном входе */
@@ -46,11 +47,12 @@ export function isBossMonster(monster: Monster | null | undefined): boolean {
   return Boolean(monster?.isBoss)
 }
 
-export function pickMonsterFromPool(pool: Monster[]): Monster {
+export function pickMonsterFromPool(pool: Monster[], dungeonWins = 0): Monster {
   const bosses = pool.filter(m => m.isBoss)
   const normals = pool.filter(m => !m.isBoss)
+  const canChampion = championUnlockedForDungeon(dungeonWins)
 
-  if (bosses.length > 0 && Math.random() < BOSS_ENCOUNTER_CHANCE) {
+  if (bosses.length > 0 && canChampion && Math.random() < BOSS_ENCOUNTER_CHANCE) {
     return bosses[Math.floor(Math.random() * bosses.length)]
   }
   if (normals.length > 0) {

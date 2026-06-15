@@ -1,4 +1,5 @@
 import { TOPIC_UNLOCK_LEVEL } from '@/lib/curriculum'
+import { championUnlockedForDungeon } from '@/lib/champion-unlock'
 import { DUNGEON_TO_TOPIC } from '@/lib/dungeon-topics'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
@@ -122,11 +123,12 @@ export function getUnlockedTopics(userLevel: number): string[] {
     .map(([topic]) => topic)
 }
 
-function pickMonsterFromPool(pool: Monster[]): Monster {
+function pickMonsterFromPool(pool: Monster[], dungeonWins = 0): Monster {
   const bosses = pool.filter(m => m.isBoss)
   const normals = pool.filter(m => !m.isBoss)
+  const canChampion = championUnlockedForDungeon(dungeonWins)
 
-  if (bosses.length > 0 && Math.random() < BOSS_ENCOUNTER_CHANCE) {
+  if (bosses.length > 0 && canChampion && Math.random() < BOSS_ENCOUNTER_CHANCE) {
     return bosses[Math.floor(Math.random() * bosses.length)]
   }
   if (normals.length > 0) {
@@ -135,9 +137,9 @@ function pickMonsterFromPool(pool: Monster[]): Monster {
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
-export function pickMonster(dungeonName: string): Monster {
+export function pickMonster(dungeonName: string, dungeonWins = 0): Monster {
   const pool = MONSTERS_BY_DUNGEON[dungeonName] || DEFAULT_MONSTERS
-  return pickMonsterFromPool(pool)
+  return pickMonsterFromPool(pool, dungeonWins)
 }
 
 export function getAttacksForBattle(

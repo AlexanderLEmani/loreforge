@@ -10,7 +10,7 @@ import { layout } from '@/lib/layout-classes'
 import { xpProgress } from '@/lib/economy'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { answersMatch, sanitizeAnswerInput } from '@/lib/scroll-display'
-import { refocusInput, keepInputFocusOnPress } from '@/lib/refocus-input'
+import { keepInputFocusOnPress, scheduleInputRefocus } from '@/lib/refocus-input'
 import { recordTrainingAttempt } from '@/lib/training-stats'
 import { useStudyTimer } from '@/lib/use-study-timer'
 import StudyProgressChip from '@/components/StudyProgressChip'
@@ -172,6 +172,7 @@ export default function MultiplicationTrainerPage() {
 
     const isCorrect = answersMatch(input, String(pair.product))
     setFeedback(isCorrect ? 'ok' : 'bad')
+    scheduleInputRefocus(inputRef.current)
     setTotal(t => {
       const n = t + 1
       totalRef.current = n
@@ -213,7 +214,7 @@ export default function MultiplicationTrainerPage() {
       } else {
         setIndex(i => i + 1)
       }
-      requestAnimationFrame(() => refocusInput(inputRef.current))
+      scheduleInputRefocus(inputRef.current)
     }, delay)
   }
 
@@ -380,8 +381,10 @@ export default function MultiplicationTrainerPage() {
                   inputMode="numeric"
                   enterKeyHint="go"
                   value={input}
-                  onChange={e => setInput(sanitizeAnswerInput(e.target.value))}
-                  disabled={feedback !== null}
+                  onChange={e => {
+                    if (feedback !== null) return
+                    setInput(sanitizeAnswerInput(e.target.value))
+                  }}
                   autoComplete="off"
                   style={{
                     flex: 1,
