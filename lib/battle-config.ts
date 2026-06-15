@@ -41,11 +41,12 @@ export const DUNGEON_TO_TOPIC: Record<string, string> = {
   'Рынок процентов': 'pct',
 }
 
-export const BOSS_ENRAGE_HP_RATIO = 0.4
-/** Бонус к урону и таймеру при ярости — без подмены врага и без «лечения» */
-export const BOSS_ENRAGE_ATTACK_BONUS = 4
-export const BOSS_ENRAGE_TIMEOUT_BONUS = 5
-export const BOSS_ENRAGE_TIMER_DELTA = -3
+export {
+  BOSS_ENRAGE_HP_RATIO,
+  BOSS_ENRAGE_ATTACK_BONUS,
+  BOSS_ENRAGE_TIMEOUT_BONUS,
+  BOSS_ENRAGE_TIMER_DELTA,
+} from '@/lib/boss-system'
 
 export const STREAK_CRIT_THRESHOLD = 3
 export const STREAK_CRIT_MULT = 1.5

@@ -16,12 +16,18 @@
  */
 
 import type { Monster } from '@/lib/battle-config'
-import { BOSS_ENRAGE_HP_RATIO } from '@/lib/battle-config'
 import type { MonsterProfile } from '@/lib/monster-mechanics'
 import { RAGE_CHARGE_MAX, stanceCap } from '@/lib/monster-mechanics'
 
 /** Шанс чемпиона данжа при обычном входе */
 export const BOSS_ENCOUNTER_CHANCE = 0.28
+
+/** Ниже этой доли HP враг входит в ярость (если у профиля enrage) */
+export const BOSS_ENRAGE_HP_RATIO = 0.4
+/** Бонус к урону и таймеру при ярости — без подмены врага и без «лечения» */
+export const BOSS_ENRAGE_ATTACK_BONUS = 4
+export const BOSS_ENRAGE_TIMEOUT_BONUS = 5
+export const BOSS_ENRAGE_TIMER_DELTA = -3
 
 export type BossIntentId =
   | 'attack'

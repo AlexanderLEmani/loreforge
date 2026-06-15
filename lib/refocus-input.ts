@@ -1,3 +1,5 @@
+import type { MouseEvent, TouchEvent } from 'react'
+
 /** Держит фокус в поле ввода — важно для спринта на мобилке */
 export function refocusInput(el: HTMLInputElement | null | undefined) {
   if (!el) return
@@ -9,6 +11,6 @@ export function refocusInput(el: HTMLInputElement | null | undefined) {
 }
 
 /** Кнопка «✓» не крадёт фокус — клавиатура не закрывается */
-export function keepInputFocusOnPress(e: React.MouseEvent | React.TouchEvent) {
+export function keepInputFocusOnPress(e: MouseEvent | TouchEvent) {
   e.preventDefault()
 }
