@@ -1,4 +1,4 @@
--- LoreForge: дерево способностей (migration)
+-- LoreHeim: дерево способностей (migration)
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS skill_points INTEGER NOT NULL DEFAULT 0;
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { ensureGuestUserRow, guestLandingPath, signInAsGuest } from '@/lib/quick-start-auth'
 import { useLoadingMessage } from '@/components/LoadingScreen'
+import { markAuthPending, track, AUTH_PENDING_KEY } from '@/lib/analytics'
 
 export default function Home() {
   const supabase = createClient()
@@ -15,6 +16,8 @@ export default function Home() {
   async function signInWithGoogle() {
     setLoading('google')
     setError('')
+    markAuthPending('google')
+    track('auth_started', { method: 'google' })
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -30,6 +33,8 @@ export default function Home() {
   async function quickStart() {
     setLoading('guest')
     setError('')
+    markAuthPending('guest')
+    track('auth_started', { method: 'guest' })
     const { user, errorMessage } = await signInAsGuest(supabase)
     if (!user) {
       setError(
@@ -43,6 +48,8 @@ export default function Home() {
       return
     }
     await ensureGuestUserRow(supabase, user)
+    track('auth_completed', { method: 'guest' })
+    if (typeof window !== 'undefined') sessionStorage.removeItem(AUTH_PENDING_KEY)
     const path = await guestLandingPath(supabase, user.id)
     router.push(path)
     setLoading(null)
@@ -66,7 +73,7 @@ export default function Home() {
         fontFamily: 'serif',
       }}
     >
-      <h1 style={{ fontSize: '48px', marginBottom: '8px' }}>LoreForge</h1>
+      <h1 style={{ fontSize: '48px', marginBottom: '8px' }}>LoreHeim</h1>
       <p style={{ color: '#9590a8', marginBottom: '12px' }}>Путь мастера: теория → практика → проверка. Для тех, кто учит математику сам.</p>
       <div style={{ maxWidth: '380px', marginBottom: '28px', padding: '12px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', background: 'rgba(255,255,255,0.03)' }}>
         <p style={{ color: '#9590a8', fontSize: '13px', textAlign: 'center', lineHeight: 1.65, margin: 0 }}>

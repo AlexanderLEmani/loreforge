@@ -26,6 +26,9 @@ import { useStudyTimer } from '@/lib/use-study-timer'
 import StudyProgressChip from '@/components/StudyProgressChip'
 import { checkTrainingMastery, type MasteryDef } from '@/lib/mastery-achievements'
 import { scheduleInputRefocus } from '@/lib/refocus-input'
+import { playSound, soundOnAnswerInput, soundOnEnterKey } from '@/lib/sounds'
+import SoundToggle from '@/components/SoundToggle'
+import { track } from '@/lib/analytics'
 
 const TOPICS = [
   { id: 'add', icon: '➕', name: 'Сложение',   level: 1, dungeon: 'Пещера сложения' },
@@ -171,6 +174,17 @@ export default function TrainingPage() {
   function finishSession() {
     setTimerActive(false)
     setPhase('done')
+    const elapsed =
+      selectedMode === 'speed'
+        ? TRAINING_SPEED_SECONDS - timerRef.current
+        : Math.max(1, Math.round((Date.now() - sessionStartRef.current) / 1000))
+    track('training_session_end', {
+      mode: selectedMode,
+      correct: correctRef.current,
+      total: totalRef.current,
+      duration_sec: elapsed,
+      setup: setupSource,
+    })
     void evaluateMasteryUnlocks()
   }
 
@@ -290,6 +304,7 @@ export default function TrainingPage() {
   }
 
   async function processAnswer(isCorrect: boolean) {
+    playSound(isCorrect ? 'correct' : 'wrong')
     const q = questions[current]
     setTotal(t => {
       const next = t + 1
@@ -343,6 +358,7 @@ export default function TrainingPage() {
 
   async function handleChoiceAnswer(idx: number) {
     if (selected !== null) return
+    playSound('tap')
     const q = questions[current]
     setSelected(idx)
     await processAnswer(idx === q.correct_index)
@@ -378,7 +394,7 @@ export default function TrainingPage() {
       <nav className={layout.navBar} style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ fontFamily: 'monospace', fontSize: '16px', color: '#e0bc6a', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '26px', height: '26px', border: '1.5px solid #c9a84c', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✦</div>
-          LoreForge
+          LoreHeim
         </div>
         <div className="lf-nav-subtitle" style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>
           Тренировочный лагерь · Без потерь
@@ -788,8 +804,12 @@ export default function TrainingPage() {
                         value={inputAnswer}
                         onChange={e => {
                           if (selected !== null) return
-                          setInputAnswer(sanitizeAnswerInput(e.target.value))
+                          const raw = e.target.value
+                          const next = sanitizeAnswerInput(raw)
+                          soundOnAnswerInput(inputAnswer, next)
+                          setInputAnswer(next)
                         }}
+                        onKeyDown={soundOnEnterKey}
                         placeholder={fracInput ? '2/3, ½ или 0…' : 'Ответ…'}
                         autoComplete="off"
                         autoCorrect="off"
@@ -825,6 +845,10 @@ export default function TrainingPage() {
 
         {/* ПРАВЫЙ САЙДБАР */}
         <div style={{ background: '#111318', borderLeft: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
+            <SoundToggle />
+          </div>
 
           <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px' }}>
             <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#c9a84c', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>Совет дня</div>

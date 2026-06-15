@@ -1,4 +1,4 @@
-# LoreForge
+# LoreHeim
 
 Математический RPG в браузере: тренировки, данжи, экзамены и гильдия. Next.js + Supabase.
 

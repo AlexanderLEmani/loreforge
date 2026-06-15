@@ -55,7 +55,7 @@ export function branchUnlocked(branch: SkillBranch, userLevel: number): boolean 
 export const PROTOTYPE_NODES: SkillTreeNode[] = ALL_SKILL_TREE_NODES
 
 export const DEMO_SKILL_POINTS = 5
-export const DEMO_STORAGE_KEY = 'loreforge_skill_demo'
+export const DEMO_STORAGE_KEY = 'loreheim_skill_demo'
 
 export type DemoSkillState = { unlocked: number[]; points: number }
 

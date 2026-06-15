@@ -139,7 +139,7 @@ function resolveOne(def: LectureActionDef, ctx: LectureActionContext): ResolvedL
     return {
       label: d.name,
       sub: d.desc.split('.')[0],
-      href: `/prepare?dungeon=${encodeURIComponent(d.route)}`,
+      href: `/prepare?dungeon=${encodeURIComponent(d.id)}`,
       icon: d.icon,
       color: d.color,
       variant: 'dungeon',

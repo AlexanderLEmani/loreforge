@@ -1,4 +1,4 @@
--- LoreForge: полные ветки дерева (вычитание, умножение, деление, дроби, проценты)
+-- LoreHeim: полные ветки дерева (вычитание, умножение, деление, дроби, проценты)
 
 -- SUB
 INSERT INTO skill_tree_nodes (branch, name, type, description, effect, cost, requires, position_x, position_y, icon)

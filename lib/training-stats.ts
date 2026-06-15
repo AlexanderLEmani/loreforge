@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { topicFromDbName } from '@/lib/dungeons'
 
 export type TrainingStats = {
   sessionsToday: number
@@ -9,15 +10,6 @@ export type TrainingStats = {
 }
 
 export type TopicProgressMap = Record<string, number | null>
-
-const DUNGEON_TO_TOPIC: Record<string, string> = {
-  'Пещера сложения': 'add',
-  'Пещера вычитания': 'sub',
-  'Башня умножения': 'mul',
-  'Пещера деления': 'div',
-  'Храм дробей': 'frac',
-  'Рынок процентов': 'pct',
-}
 
 type AttemptRow = {
   is_correct: boolean
@@ -35,8 +27,7 @@ type RunRow = {
 }
 
 function topicIdFromDungeon(dungeonName: string | null | undefined) {
-  if (!dungeonName) return null
-  return DUNGEON_TO_TOPIC[dungeonName] ?? null
+  return topicFromDbName(dungeonName)
 }
 
 function aggregateByTopic(entries: { topicId: string | null; correct: number; total: number }[]): TopicProgressMap {

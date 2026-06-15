@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase'
 import { normalizeEquipped, type EquippedMap } from '@/lib/equipment'
 
-const LOCAL_KEY = (userId: string) => `loreforge_equipped_${userId}`
+const LOCAL_KEY = (userId: string) => `loreheim_equipped_${userId}`
 
 export function loadEquippedLocal(userId: string): EquippedMap {
   if (typeof window === 'undefined') return {}
@@ -43,7 +43,7 @@ export async function saveEquipped(userId: string, equipped: EquippedMap) {
   return { ok: true, usedLocal: false }
 }
 
-const OWNED_LOCAL_KEY = (userId: string) => `loreforge_owned_equipment_${userId}`
+const OWNED_LOCAL_KEY = (userId: string) => `loreheim_owned_equipment_${userId}`
 
 export function loadOwnedLocal(userId: string): string[] {
   if (typeof window === 'undefined') return []

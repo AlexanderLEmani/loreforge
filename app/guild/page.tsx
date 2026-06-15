@@ -130,7 +130,7 @@ export default function GuildPage() {
       setBuying(null)
     }
 
-    router.push(`/prepare?dungeon=${encodeURIComponent(dungeon.route)}`)
+    router.push(`/prepare?dungeon=${encodeURIComponent(dungeon.id)}`)
   }
 
   if (loading) return <LoadingScreen />
@@ -164,7 +164,7 @@ export default function GuildPage() {
       <nav className={layout.navBar} style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ fontFamily: 'monospace', fontSize: '16px', color: '#e0bc6a', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '26px', height: '26px', border: '1.5px solid #c9a84c', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✦</div>
-          LoreForge
+          LoreHeim
         </div>
         <div className="lf-nav-subtitle" style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>
           Гильдия Авантюристов · {rank.name}
@@ -236,8 +236,8 @@ export default function GuildPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0', marginBottom: '2px' }}>{d.name}</div>
                   <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic' }}>Математика · {d.tag} · Бесплатно</div>
-                  <div style={{ fontSize: '10px', color: championUnlockProgress(championWins[d.route] ?? 0).unlocked ? '#e05555' : '#5a5670', marginTop: '4px' }}>
-                    {championLabel(d.route)}
+                  <div style={{ fontSize: '10px', color: championUnlockProgress(championWins[d.id] ?? 0).unlocked ? '#e05555' : '#5a5670', marginTop: '4px' }}>
+                    {championLabel(d.id)}
                   </div>
                 </div>
                 <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#3db87a', padding: '5px 12px', border: '1px solid rgba(61,184,122,0.4)', borderRadius: '6px', background: 'rgba(61,184,122,0.08)', whiteSpace: 'nowrap' }}>{locked ? '🔒' : '▶ Войти'}</div>
@@ -301,8 +301,8 @@ export default function GuildPage() {
                     </div>
                     <div style={{ fontFamily: 'serif', fontSize: '14px', color: locked ? '#5a5670' : '#e6e2f0', marginBottom: '4px' }}>{d.name}</div>
                     <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic', lineHeight: 1.4, marginBottom: '6px' }}>{d.desc}</div>
-                    <div style={{ fontSize: '10px', color: championUnlockProgress(championWins[d.route] ?? 0).unlocked ? '#e05555' : '#5a5670', marginBottom: '10px' }}>
-                      {championLabel(d.route)}
+                    <div style={{ fontSize: '10px', color: championUnlockProgress(championWins[d.id] ?? 0).unlocked ? '#e05555' : '#5a5670', marginBottom: '10px' }}>
+                      {championLabel(d.id)}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontFamily: 'monospace', fontSize: '11px', color: locked ? '#3a3650' : canAfford ? '#a99fff' : '#e05555' }}>

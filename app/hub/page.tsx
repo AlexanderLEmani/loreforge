@@ -30,6 +30,7 @@ import DailyStudyProgress from '@/components/DailyStudyProgress'
 import MasteryPanel from '@/components/MasteryPanel'
 import { formatStudyMinutes, normalizeStudySeconds, syncStreakOnVisit, DAILY_STUDY_TARGET_SECONDS } from '@/lib/daily-study'
 import { loadMasteryUnlocks, parseMasteryUnlocks, type MasteryUnlocks } from '@/lib/mastery-achievements'
+import { flushAuthCompleted, identifyUser } from '@/lib/analytics'
 
 export default function Hub() {
   const supabase = createClient()
@@ -58,6 +59,8 @@ export default function Hub() {
         avatar_url: user.user_metadata?.avatar_url ?? null,
       }, { onConflict: 'id' })
       setUser(user)
+      identifyUser(user)
+      flushAuthCompleted()
 
       const { data: ch } = await supabase.from('characters').select('name, race').eq('user_id', user.id).single()
       if (!ch) { router.push('/create-character'); return }
@@ -448,7 +451,7 @@ export default function Hub() {
       <GuideModal
         open={showGuide}
         onClose={() => setShowGuide(false)}
-        title="Как учиться в LoreForge"
+        title="Как учиться в LoreHeim"
         subtitle="ТЕТРАДЬ · ТЕОРИЯ · ТРЕНАЖЁР"
         sections={HUB_GUIDE_SECTIONS}
         icon="📓"
@@ -468,7 +471,7 @@ export default function Hub() {
               </div>
             </div>
             <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
-              Ты в LoreForge — RPG, где математика это оружие. Начни с трёх шагов:
+              Ты в LoreHeim — RPG, где математика это оружие. Начни с трёх шагов:
               <br/><br/>
               <span style={{ color: '#3db87a' }}>1. 🏋️ Тренировка</span> — разомнись без риска. Ошибки не убивают.
               <br/><br/>

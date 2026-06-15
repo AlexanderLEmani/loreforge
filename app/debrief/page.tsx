@@ -10,9 +10,11 @@ import { applyRaceXp } from '@/lib/race-bonuses'
 import { grantGlory } from '@/lib/glory-wallet'
 import { syncQuestRewards } from '@/lib/quest-rewards'
 import { syncGuildRankRewards } from '@/lib/guild-rank-rewards'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Suspense } from 'react'
+import { dungeonDbNameFromRef, dungeonIdFromRef } from '@/lib/dungeons'
+import { dungeonById } from '@/lib/guild-dungeons'
+import { track } from '@/lib/analytics'
 
 function DebriefContent() {
   const router = useRouter()
@@ -26,7 +28,10 @@ function DebriefContent() {
   const score = params.get('score') || '0'
   const total = params.get('total') || '5'
   const mistakesRaw = params.get('mistakes') || ''
-  const dungeonName = params.get('dungeon') || 'Данж'
+  const dungeonRef = params.get('dungeon') || 'add'
+  const dungeonId = dungeonIdFromRef(dungeonRef)
+  const dungeonDbName = dungeonDbNameFromRef(dungeonRef)
+  const dungeonLabel = dungeonById(dungeonId)?.name ?? dungeonDbName
   const isHard = params.get('hard') === 'true'
   const isChampion = params.get('champion') === '1'
   const spellKill = params.get('spell') === '1'
@@ -34,8 +39,12 @@ function DebriefContent() {
   const pct = Math.round((parseInt(score) / parseInt(total)) * 100)
   const scoreNum = parseInt(score)
   const won = result === 'win'
-  const rewards = battleDebriefRewards(scoreNum, won, isHard, dungeonName, isChampion && won)
+  const rewards = battleDebriefRewards(scoreNum, won, isHard, dungeonDbName, isChampion && won)
   const xpDisplay = applyRaceXp(rewards.xpGained, playerRace, spellKill && won ? 'spell' : 'all')
+
+  useEffect(() => {
+    track('debrief_viewed', { dungeon: dungeonId, result: result || 'unknown' })
+  }, [dungeonId, result])
 
   useEffect(() => {
     async function saveRun() {
@@ -51,7 +60,7 @@ function DebriefContent() {
 
       const runRow = {
         user_id: user.id,
-        dungeon_name: dungeonName,
+        dungeon_name: dungeonDbName,
         score: parseInt(score),
         total: parseInt(total),
         result: result || 'win',
@@ -68,10 +77,10 @@ function DebriefContent() {
       const race = ch?.race ?? 'human'
       const xpGained = applyRaceXp(baseXp, race, spellKill && won ? 'spell' : 'all')
 
-      const lootKey = `loot:${user.id}:${dungeonName}:${score}:${total}:${result}:${isHard}:${isChampion}`
+      const lootKey = `loot:${user.id}:${dungeonId}:${score}:${total}:${result}:${isHard}:${isChampion}`
       let loot: LootDrop | null = null
       if (won && !sessionStorage.getItem(lootKey)) {
-        loot = await tryGrantDungeonLoot(supabase, user.id, dungeonName, true, isChampion)
+        loot = await tryGrantDungeonLoot(supabase, user.id, dungeonDbName, true, isChampion)
         if (loot) {
           sessionStorage.setItem(lootKey, JSON.stringify(loot))
           setLootDrop(loot)
@@ -143,7 +152,7 @@ function DebriefContent() {
         <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
           <div style={{ fontSize: '40px', marginBottom: '8px' }}>{won ? '🏆' : '💀'}</div>
           <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '6px' }}>
-            {characterName} · {dungeonName}
+            {characterName} · {dungeonLabel}
           </div>
           <div style={{ fontFamily: 'serif', fontSize: '26px', color: won ? '#e0bc6a' : '#e05555', marginBottom: '4px' }}>
             {won ? 'Данж пройден' : 'Не в этот раз'}
@@ -204,7 +213,7 @@ function DebriefContent() {
             : 'Ошибки — карта пробелов. Тренировка или свиток, потом снова в данж.'}
         </div>
 
-        <button type="button" className="lf-debrief-cta" onClick={() => router.push('/guild')}>
+        <button type="button" className="lf-debrief-cta" onClick={() => { track('guild_returned', { dungeon: dungeonId }); router.push('/guild') }}>
           {ctaLabel}
         </button>
       </div>
