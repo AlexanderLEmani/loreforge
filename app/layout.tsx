@@ -26,6 +26,9 @@ export const viewport = {
   initialScale: 1,
 };
 
+/** Auth/game pages need runtime env; skip static prerender at build. */
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({
   children,
 }: Readonly<{
