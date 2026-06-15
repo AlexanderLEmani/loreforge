@@ -1,6 +1,5 @@
 import { pickMonsterFromPool } from '@/lib/boss-system'
-
-export { TOPIC_UNLOCK_LEVEL }
+import { TOPIC_UNLOCK_LEVEL } from '@/lib/curriculum'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
