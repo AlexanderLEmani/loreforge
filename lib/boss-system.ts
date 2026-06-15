@@ -4,7 +4,7 @@
  * ЗАЧЕМ:
  * - Проверка темы данжа под давлением (мини-экзамен в бою)
  * - Учат читать паттерн врага (намерение), не только формулы
- * - Дают «пик» сессии: больше HP, механика, лучший лут (позже)
+ * - Дают «пик» сессии: больше HP, механика, лучший лут (× BOSS_LOOT_MULTIPLIER)
  *
  * ТИРЫ:
  * - champion (isBoss) — усилённый враг данжа, ~25% шанс при входе
@@ -106,5 +106,14 @@ export function resolveBossIntent(
   }
 }
 
-/** Награда / debrief — позже: множитель лута для isBoss */
+/** Награда debrief: золото, слава, шанс лута */
 export const BOSS_LOOT_MULTIPLIER = 1.35
+
+export function championLootMultiplier(active: boolean): number {
+  return active ? BOSS_LOOT_MULTIPLIER : 1
+}
+
+export function applyChampionBonus(amount: number, champion: boolean): number {
+  if (!champion || amount <= 0) return amount
+  return Math.round(amount * BOSS_LOOT_MULTIPLIER)
+}

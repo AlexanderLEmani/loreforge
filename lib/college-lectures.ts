@@ -309,20 +309,19 @@ export function getLectureList(userLevel: number, viewingLevel: number) {
   }))
 }
 
+/**
+ * Лекции в UI: приоритет Supabase, если в sections есть type "actions" (формат v2).
+ * Старые строки в БД без actions — игнорируем, показываем FALLBACK_LECTURES из кода.
+ * Чтобы синхронизировать БД: migration 20250615120000_lectures_vonnegut_polish.sql
+ */
 export function resolveLecture(levelNum: number, fromDb: Lecture | null | undefined): Lecture {
   const fallback = FALLBACK_LECTURES[levelNum] || FALLBACK_LECTURES[1]
   if (!fromDb?.sections?.length) return fallback
 
   const hasActions = fromDb.sections.some(s => s.type === 'actions')
-  if (hasActions) return fromDb
+  if (hasActions) {
+    return { title: fromDb.title || fallback.title, sections: fromDb.sections }
+  }
 
-  const actionsBlock = fallback.sections.find(s => s.type === 'actions')
-  if (!actionsBlock) return fromDb
-
-  const sections = [...fromDb.sections]
-  const outroIdx = sections.findIndex(s => s.type === 'outro')
-  if (outroIdx >= 0) sections.splice(outroIdx, 0, actionsBlock)
-  else sections.push(actionsBlock)
-
-  return { title: fromDb.title || fallback.title, sections }
+  return fallback
 }

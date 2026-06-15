@@ -41,17 +41,27 @@ export function battleGoldReward(
   return Math.round(base * dungeonGoldMultiplier(dungeonName))
 }
 
+import { applyChampionBonus } from '@/lib/boss-system'
+
 export function battleDebriefRewards(
   score: number,
   won: boolean,
   hard: boolean,
   dungeonName: string,
+  champion = false,
 ) {
   const hardMult = hard ? 2 : 1
+  const goldGained = applyChampionBonus(
+    battleGoldReward(score, won, hard, dungeonName),
+    champion && won,
+  )
+  const gloryGained = won
+    ? applyChampionBonus(Math.max(20, score * 12), champion)
+    : 0
   return {
     xpGained: score * 10 * hardMult,
-    goldGained: battleGoldReward(score, won, hard, dungeonName),
-    gloryGained: won ? Math.max(20, score * 12) : 0,
+    goldGained,
+    gloryGained,
   }
 }
 
@@ -66,6 +76,7 @@ export const GUILD_QUEST_GOLD: Record<string, number> = {
   perfect: 50,
   daily: 25,
   spells: 0,
+  champion: 45,
 }
 
 export function formatQuestReward(xp: number, gold: number): string {

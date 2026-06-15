@@ -76,12 +76,23 @@ export async function syncQuestRewards(
   let claims = parseQuestClaims(row.quest_claims)
   const spellKills = row.spell_kills != null ? Number(row.spell_kills) : await fetchSpellKills(supabase, userId)
 
-  const { data: runs } = await supabase
+  const { data: runsData, error: runsError } = await supabase
     .from('dungeon_runs')
-    .select('result, mistakes, created_at')
+    .select('result, mistakes, created_at, was_champion')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(50)
+
+  let runs = runsData
+  if (runsError?.message?.includes('was_champion')) {
+    const { data: legacyRuns } = await supabase
+      .from('dungeon_runs')
+      .select('result, mistakes, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    runs = legacyRuns
+  }
 
   const { count: answersToday } = await supabase
     .from('question_attempts')

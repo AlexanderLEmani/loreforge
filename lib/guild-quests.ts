@@ -18,6 +18,7 @@ type RunRow = {
   mistakes?: string[] | null
   dungeon_name?: string | null
   created_at?: string
+  was_champion?: boolean | null
 }
 
 function isToday(ts?: string): boolean {
@@ -35,8 +36,22 @@ export function buildGuildQuests(
   const perfectToday = todayRuns.some(
     r => r.result === 'win' && (!r.mistakes || r.mistakes.length === 0),
   )
+  const championWinToday = todayRuns.some(
+    r => r.result === 'win' && r.was_champion,
+  )
 
   return [
+    {
+      id: 'champion',
+      title: 'Победи чемпиона',
+      desc: 'Победа против чемпиона данжа сегодня. Чемпионы появляются случайно.',
+      prog: championWinToday ? 1 : 0,
+      total: 1,
+      glory: 100,
+      gold: GUILD_QUEST_GOLD.champion,
+      color: '#e05555',
+      done: championWinToday,
+    },
     {
       id: 'wins',
       title: '3 победы сегодня',

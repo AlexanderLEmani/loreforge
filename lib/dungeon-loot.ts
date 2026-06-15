@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ScrollBattleEffect } from '@/lib/battle-config'
+import { applyChampionBonus } from '@/lib/boss-system'
 import { consumableMeta, parseConsumables } from '@/lib/battle-consumables'
 import { itemsForTier, EQUIPMENT_ITEMS } from '@/lib/equipment'
 import { addOwnedItem, loadOwnedIds } from '@/lib/equipment-storage'
@@ -117,8 +118,11 @@ function pickWeighted(pool: PoolEntry[]): PoolEntry {
   return pool[pool.length - 1]
 }
 
-export function rollDungeonLoot(dungeonName: string): PoolEntry | null {
-  if (Math.random() > DUNGEON_WIN_DROP_CHANCE) return null
+export function rollDungeonLoot(dungeonName: string, champion = false): PoolEntry | null {
+  const chance = champion
+    ? Math.min(0.92, DUNGEON_WIN_DROP_CHANCE * 1.35)
+    : DUNGEON_WIN_DROP_CHANCE
+  if (Math.random() > chance) return null
   return pickWeighted(poolForDungeon(dungeonName))
 }
 
@@ -167,18 +171,20 @@ export async function grantDungeonLoot(
   userId: string,
   dungeonName: string,
   entry: PoolEntry,
+  champion = false,
 ): Promise<LootDrop | null> {
   if (entry.kind === 'equipment') {
     const eq = await grantEquipment(supabase, userId, dungeonName)
     if (eq) return eq
-    return grantDungeonLoot(supabase, userId, dungeonName, fallbackEntry(dungeonName))
+    return grantDungeonLoot(supabase, userId, dungeonName, fallbackEntry(dungeonName), champion)
   }
 
   if (entry.kind === 'gold') {
-    const gold =
+    const baseGold =
       entry.goldMin != null && entry.goldMax != null
         ? entry.goldMin + Math.floor(Math.random() * (entry.goldMax - entry.goldMin + 1))
         : 12
+    const gold = applyChampionBonus(baseGold, champion)
     const { data: u } = await supabase.from('users').select('gold').eq('id', userId).single()
     const newGold = (u?.gold ?? 0) + gold
     await supabase.from('users').update({ gold: newGold }).eq('id', userId)
@@ -206,7 +212,7 @@ export async function grantDungeonLoot(
     if (candidates.length === 0) {
       const eq = await grantEquipment(supabase, userId, dungeonName)
       if (eq) return eq
-      return grantDungeonLoot(supabase, userId, dungeonName, fallbackEntry(dungeonName))
+      return grantDungeonLoot(supabase, userId, dungeonName, fallbackEntry(dungeonName), champion)
     }
 
     const scroll = candidates[Math.floor(Math.random() * candidates.length)]
@@ -228,9 +234,10 @@ export async function tryGrantDungeonLoot(
   userId: string,
   dungeonName: string,
   won: boolean,
+  champion = false,
 ): Promise<LootDrop | null> {
   if (!won) return null
-  const entry = rollDungeonLoot(dungeonName)
+  const entry = rollDungeonLoot(dungeonName, champion)
   if (!entry) return null
-  return grantDungeonLoot(supabase, userId, dungeonName, entry)
+  return grantDungeonLoot(supabase, userId, dungeonName, entry, champion)
 }

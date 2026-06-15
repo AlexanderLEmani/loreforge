@@ -680,8 +680,9 @@ function BattleContent() {
     await restoreUnusedConsumables()
     const score = roundCount + 1 - finalMistakes.length
     const spellParam = result === 'win' && spellKill ? '&spell=1' : ''
+    const championParam = result === 'win' && isBossMonster(monster) ? '&champion=1' : ''
     router.push(
-      `/debrief?result=${result}&score=${Math.max(0, score)}&total=${roundCount + 1}&mistakes=${encodeURIComponent(finalMistakes.join('|'))}&dungeon=${encodeURIComponent(dungeonName)}${hardMode ? '&hard=true' : ''}${spellParam}`,
+      `/debrief?result=${result}&score=${Math.max(0, score)}&total=${roundCount + 1}&mistakes=${encodeURIComponent(finalMistakes.join('|'))}&dungeon=${encodeURIComponent(dungeonName)}${hardMode ? '&hard=true' : ''}${spellParam}${championParam}`,
     )
   }
 

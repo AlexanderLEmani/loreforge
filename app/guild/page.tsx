@@ -40,12 +40,23 @@ export default function GuildPage() {
       }
       setUserData(ud)
 
-      const { data: runs } = await supabase
+      const { data: runsData, error: runsError } = await supabase
         .from('dungeon_runs')
-        .select('result, mistakes, dungeon_name, created_at, score, total')
+        .select('result, mistakes, dungeon_name, created_at, score, total, was_champion')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50)
+
+      let runs = runsData
+      if (runsError?.message?.includes('was_champion')) {
+        const { data: legacyRuns } = await supabase
+          .from('dungeon_runs')
+          .select('result, mistakes, dungeon_name, created_at, score, total')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(50)
+        runs = legacyRuns
+      }
 
       const today = todayIso()
       const { count: answersToday } = await supabase
@@ -357,7 +368,10 @@ export default function GuildPage() {
             const short = (r.dungeon_name || 'Данж').replace('Пещера ', '').replace('Башня ', '')
             return (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                <div style={{ fontSize: '13px', color: '#9590a8' }}>{short}</div>
+                <div style={{ fontSize: '13px', color: '#9590a8' }}>
+                  {short}
+                  {r.was_champion && <span style={{ color: '#e05555', fontSize: '10px' }}> · чемпион</span>}
+                </div>
                 <div style={{ fontFamily: 'monospace', fontSize: '10px', color: win ? '#3db87a' : '#e05555' }}>
                   {win ? 'Победа' : 'Провал'} {gloryEst}
                 </div>

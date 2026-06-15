@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase'
 import { tryGrantDungeonLoot, type LootDrop } from '@/lib/dungeon-loot'
 import { itemById } from '@/lib/equipment'
 import EquipmentCard from '@/components/EquipmentCard'
+import { BOSS_LOOT_MULTIPLIER } from '@/lib/boss-system'
 import { battleDebriefRewards } from '@/lib/economy'
 import { applyRaceXp } from '@/lib/race-bonuses'
 import { grantGlory } from '@/lib/glory-wallet'
@@ -27,12 +28,13 @@ function DebriefContent() {
   const mistakesRaw = params.get('mistakes') || ''
   const dungeonName = params.get('dungeon') || 'Данж'
   const isHard = params.get('hard') === 'true'
+  const isChampion = params.get('champion') === '1'
   const spellKill = params.get('spell') === '1'
   const mistakes = mistakesRaw ? decodeURIComponent(mistakesRaw).split('|').filter(Boolean) : []
   const pct = Math.round((parseInt(score) / parseInt(total)) * 100)
   const scoreNum = parseInt(score)
   const won = result === 'win'
-  const rewards = battleDebriefRewards(scoreNum, won, isHard, dungeonName)
+  const rewards = battleDebriefRewards(scoreNum, won, isHard, dungeonName, isChampion && won)
   const xpDisplay = applyRaceXp(rewards.xpGained, playerRace, spellKill && won ? 'spell' : 'all')
 
   useEffect(() => {
@@ -47,23 +49,29 @@ function DebriefContent() {
         if (ch.race) setPlayerRace(ch.race)
       }
 
-      await supabase.from('dungeon_runs').insert({
+      const runRow = {
         user_id: user.id,
         dungeon_name: dungeonName,
         score: parseInt(score),
         total: parseInt(total),
         result: result || 'win',
         mistakes: mistakes,
-      })
+        was_champion: won && isChampion,
+      }
+      const { error: runError } = await supabase.from('dungeon_runs').insert(runRow)
+      if (runError?.message?.includes('was_champion')) {
+        const { was_champion: _, ...legacyRow } = runRow
+        await supabase.from('dungeon_runs').insert(legacyRow)
+      }
 
       const { xpGained: baseXp, goldGained, gloryGained } = rewards
       const race = ch?.race ?? 'human'
       const xpGained = applyRaceXp(baseXp, race, spellKill && won ? 'spell' : 'all')
 
-      const lootKey = `loot:${user.id}:${dungeonName}:${score}:${total}:${result}:${isHard}`
+      const lootKey = `loot:${user.id}:${dungeonName}:${score}:${total}:${result}:${isHard}:${isChampion}`
       let loot: LootDrop | null = null
       if (won && !sessionStorage.getItem(lootKey)) {
-        loot = await tryGrantDungeonLoot(supabase, user.id, dungeonName, true)
+        loot = await tryGrantDungeonLoot(supabase, user.id, dungeonName, true, isChampion)
         if (loot) {
           sessionStorage.setItem(lootKey, JSON.stringify(loot))
           setLootDrop(loot)
@@ -140,6 +148,11 @@ function DebriefContent() {
           <div style={{ fontFamily: 'serif', fontSize: '26px', color: won ? '#e0bc6a' : '#e05555', marginBottom: '4px' }}>
             {won ? 'Данж пройден' : 'Не в этот раз'}
           </div>
+          {won && isChampion && (
+            <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#e05555', marginBottom: '6px' }}>
+              ⚔ Чемпион повержен · лут ×{BOSS_LOOT_MULTIPLIER}
+            </div>
+          )}
           <div style={{ fontSize: '15px', color: '#9590a8' }}>
             {score} / {total} · {pct}%
           </div>
