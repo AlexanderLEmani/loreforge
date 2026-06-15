@@ -1,5 +1,5 @@
-import type { SupabaseClient, User } from '@supabase/supabase-js'
-import posthog from 'posthog-js'
+import type { User } from '@supabase/supabase-js'
+import { getPostHogClient, initPostHog, isPostHogConfigured } from '@/lib/posthog-client'
 
 type AnalyticsProps = Record<string, string | number | boolean | null | undefined>
 
@@ -14,22 +14,27 @@ function cleanProps(props?: AnalyticsProps): Record<string, string | number | bo
 }
 
 export function isAnalyticsEnabled(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_POSTHOG_KEY)
+  return isPostHogConfigured()
 }
 
 export function track(event: string, props?: AnalyticsProps) {
-  if (!isAnalyticsEnabled()) return
+  if (!isPostHogConfigured()) return
+  if (!initPostHog()) return
   try {
-    posthog.capture(event, cleanProps(props))
-  } catch {
-    /* optional */
+    getPostHogClient().capture(event, cleanProps(props))
+    if (typeof window !== 'undefined' && window.location.search.includes('ph_debug=1')) {
+      console.info('[LoreHeim analytics]', event, cleanProps(props))
+    }
+  } catch (err) {
+    console.warn('[LoreHeim analytics] capture failed:', event, err)
   }
 }
 
 export function identifyUser(user: User, traits?: AnalyticsProps) {
-  if (!isAnalyticsEnabled()) return
+  if (!isPostHogConfigured()) return
+  if (!initPostHog()) return
   try {
-    posthog.identify(user.id, cleanProps(traits))
+    getPostHogClient().identify(user.id, cleanProps(traits))
   } catch {
     /* optional */
   }
