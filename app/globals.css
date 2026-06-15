@@ -600,6 +600,30 @@ body {
   word-break: break-word;
 }
 
+.lf-sprint-answer-form {
+  display: flex;
+  gap: 10px;
+}
+
+.lf-sprint-enter-only {
+  display: none;
+  text-align: center;
+  font-family: monospace;
+  font-size: 10px;
+  color: #5a5670;
+  margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .lf-sprint-submit-btn {
+    display: none;
+  }
+
+  .lf-sprint-enter-only {
+    display: block;
+  }
+}
+
 .lf-lecture-actions {
   display: flex;
   flex-direction: column;

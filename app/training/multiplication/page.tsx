@@ -10,6 +10,7 @@ import { layout } from '@/lib/layout-classes'
 import { xpProgress } from '@/lib/economy'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { answersMatch, sanitizeAnswerInput } from '@/lib/scroll-display'
+import { refocusInput, keepInputFocusOnPress } from '@/lib/refocus-input'
 import { recordTrainingAttempt } from '@/lib/training-stats'
 import { useStudyTimer } from '@/lib/use-study-timer'
 import StudyProgressChip from '@/components/StudyProgressChip'
@@ -198,7 +199,7 @@ export default function MultiplicationTrainerPage() {
       })
     }
 
-    const delay = isCorrect ? 400 : 1400
+    const delay = isCorrect ? (mode === 'sprint' ? 180 : 400) : 1400
     setTimeout(() => {
       setInput('')
       setFeedback(null)
@@ -207,13 +208,12 @@ export default function MultiplicationTrainerPage() {
           setQueue(q => [...q, ...buildSession('full', stats).slice(0, 20)])
         }
         setIndex(i => i + 1)
-        return
-      }
-      if (index + 1 >= queue.length) {
+      } else if (index + 1 >= queue.length) {
         finishDrill()
       } else {
         setIndex(i => i + 1)
       }
+      requestAnimationFrame(() => refocusInput(inputRef.current))
     }, delay)
   }
 
@@ -367,14 +367,20 @@ export default function MultiplicationTrainerPage() {
                 <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670', marginTop: '8px' }}>= ?</div>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <form
+                className="lf-sprint-answer-form"
+                onSubmit={e => {
+                  e.preventDefault()
+                  submitAnswer()
+                }}
+              >
                 <input
                   ref={inputRef}
                   type="text"
                   inputMode="numeric"
+                  enterKeyHint="go"
                   value={input}
                   onChange={e => setInput(sanitizeAnswerInput(e.target.value))}
-                  onKeyDown={e => e.key === 'Enter' && submitAnswer()}
                   disabled={feedback !== null}
                   autoComplete="off"
                   style={{
@@ -391,13 +397,18 @@ export default function MultiplicationTrainerPage() {
                   }}
                 />
                 <button
-                  type="button"
-                  onClick={submitAnswer}
+                  type="submit"
+                  className="lf-sprint-submit-btn"
+                  onMouseDown={keepInputFocusOnPress}
+                  onTouchStart={keepInputFocusOnPress}
                   disabled={feedback !== null || !input.trim()}
                   style={{ padding: '14px 20px', borderRadius: '10px', border: '1px solid rgba(201,168,76,0.4)', background: 'rgba(201,168,76,0.1)', color: '#e0bc6a', fontSize: '18px', cursor: 'pointer' }}
                 >
                   ✓
                 </button>
+              </form>
+              <div className="lf-sprint-enter-only">
+                Готово на клавиатуре — без кнопки ✓
               </div>
 
               <button type="button" onClick={() => { setTimerActive(false); setPhase('setup') }} style={{ marginTop: '1rem', fontFamily: 'monospace', fontSize: '11px', color: '#5a5670', background: 'none', border: 'none', cursor: 'pointer' }}>

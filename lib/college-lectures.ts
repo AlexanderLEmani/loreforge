@@ -309,18 +309,21 @@ export function getLectureList(userLevel: number, viewingLevel: number) {
   }))
 }
 
+/** Ревизия контента в FALLBACK; БД показывается только при meta.revision === это значение */
+export const LECTURE_CONTENT_REVISION = 2
+
 /**
- * Лекции в UI: приоритет Supabase, если в sections есть type "actions" (формат v2).
- * Старые строки в БД без actions — игнорируем, показываем FALLBACK_LECTURES из кода.
- * Чтобы синхронизировать БД: migration 20250615120000_lectures_vonnegut_polish.sql
+ * Лекции в UI: по умолчанию FALLBACK из кода (то, что в деплое).
+ * Supabase не перебивает текст, пока в sections нет meta.revision = LECTURE_CONTENT_REVISION.
  */
 export function resolveLecture(levelNum: number, fromDb: Lecture | null | undefined): Lecture {
   const fallback = FALLBACK_LECTURES[levelNum] || FALLBACK_LECTURES[1]
   if (!fromDb?.sections?.length) return fallback
 
-  const hasActions = fromDb.sections.some(s => s.type === 'actions')
-  if (hasActions) {
-    return { title: fromDb.title || fallback.title, sections: fromDb.sections }
+  const meta = fromDb.sections.find(s => s.type === 'meta') as { revision?: number } | undefined
+  if (meta?.revision === LECTURE_CONTENT_REVISION) {
+    const sections = fromDb.sections.filter(s => s.type !== 'meta')
+    return { title: fromDb.title || fallback.title, sections }
   }
 
   return fallback

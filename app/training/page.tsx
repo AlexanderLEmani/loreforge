@@ -25,6 +25,7 @@ import { applyRaceXp } from '@/lib/race-bonuses'
 import { useStudyTimer } from '@/lib/use-study-timer'
 import StudyProgressChip from '@/components/StudyProgressChip'
 import { checkTrainingMastery, type MasteryDef } from '@/lib/mastery-achievements'
+import { refocusInput } from '@/lib/refocus-input'
 
 const TOPICS = [
   { id: 'add', icon: '➕', name: 'Сложение',   level: 1, dungeon: 'Пещера сложения' },
@@ -273,12 +274,18 @@ export default function TrainingPage() {
       } else {
         setCurrent(c => c + 1)
       }
+      if (answerFormat === 'typed') {
+        requestAnimationFrame(() => refocusInput(answerInputRef.current))
+      }
       return
     }
     if (current + 1 >= questions.length) {
       finishSession()
     } else {
       setCurrent(c => c + 1)
+    }
+    if (answerFormat === 'typed') {
+      requestAnimationFrame(() => refocusInput(answerInputRef.current))
     }
   }
 
@@ -326,9 +333,10 @@ export default function TrainingPage() {
     if (!isCorrect && selectedMode === 'guided') setShowHint(true)
 
     if (isCorrect || selectedMode !== 'guided') {
+      const isSpeedTyped = selectedMode === 'speed' && answerFormat === 'typed'
       const delay = isCorrect
-        ? (answerFormat === 'typed' ? 350 : 600)
-        : 1200
+        ? (isSpeedTyped ? 160 : answerFormat === 'typed' ? 350 : 600)
+        : (isSpeedTyped ? 900 : 1200)
       setTimeout(() => advanceQuestion(), delay)
     }
   }
@@ -769,6 +777,7 @@ export default function TrainingPage() {
                         ref={answerInputRef}
                         type="text"
                         inputMode="text"
+                        enterKeyHint="go"
                         value={inputAnswer}
                         onChange={e => setInputAnswer(sanitizeAnswerInput(e.target.value))}
                         onKeyDown={e => {
@@ -797,7 +806,7 @@ export default function TrainingPage() {
                         }}
                       />
                       <div style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', marginTop: '10px' }}>
-                        Enter — отправить{fracInput ? ' · дроби: 2/3 или ½' : ''}
+                        {selectedMode === 'speed' ? 'На клавиатуре: Готово / Enter — следующий пример' : `Enter — отправить${fracInput ? ' · дроби: 2/3 или ½' : ''}`}
                       </div>
                     </div>
                   )
