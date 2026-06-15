@@ -59,6 +59,10 @@ import {
 import { useStudyTimer } from '@/lib/use-study-timer'
 import StudyProgressChip from '@/components/StudyProgressChip'
 import {
+  isBossMonster,
+  resolveBossIntent,
+} from '@/lib/boss-system'
+import {
   applyStanceToMonster,
   monsterProfile,
   rageChargeMultiplier,
@@ -137,6 +141,17 @@ function BattleContent() {
     () => getAttacksForBattle(userLevel, dungeonName, unlockedTopics),
     [userLevel, dungeonName, unlockedTopics],
   )
+  const bossIntent = useMemo(() => {
+    if (!monster || !currentProfile || !isBossMonster(monster)) return null
+    return resolveBossIntent(
+      currentProfile,
+      enemyHP,
+      enemyMaxHP,
+      bossEnraged,
+      stanceStacks,
+      rageChargeStacks,
+    )
+  }, [monster, currentProfile, enemyHP, enemyMaxHP, bossEnraged, stanceStacks, rageChargeStacks])
 
   function playSound(type: 'hit' | 'miss' | 'block' | 'defeat' | 'dark') {
     try {
@@ -245,6 +260,10 @@ function BattleContent() {
       setMonster(m)
       setEnemyHP(m.hp)
       setEnemyMaxHP(m.hp)
+      if (isBossMonster(m)) {
+        setItemToast('⚔ Чемпион данжа — смотри намерение')
+        setTimeout(() => setItemToast(null), 3200)
+      }
       setLoading(false)
     }
     load()
@@ -750,7 +769,15 @@ function BattleContent() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '24px' }}>{monster.icon}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '13px', color: '#e6e2f0' }}>{monster.name}</div>
+                <div style={{ fontSize: '13px', color: '#e6e2f0' }}>
+                  {monster.name}
+                  {isBossMonster(monster) && <span className="lf-battle-boss-tag">Чемпион</span>}
+                </div>
+                {bossIntent && (
+                  <div style={{ fontSize: '10px', color: '#e0bc6a', marginTop: '4px', lineHeight: 1.4 }}>
+                    → {bossIntent.label}
+                  </div>
+                )}
                 <div style={{ fontSize: '10px', color: bossEnraged ? '#e05555' : '#8a849c' }}>
                   {monster.trait}{bossEnraged ? ' · ЯРОСТЬ' : ''} · таймер {monster.defendTimer}s
                 </div>
@@ -872,7 +899,12 @@ function BattleContent() {
             )}
             <div className="lf-battle-avatar" style={{ fontSize: '32px' }}>{monster?.icon ?? '👹'}</div>
             <div style={{ flex: 1, textAlign: 'right' }}>
-              <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e05555', marginBottom: '5px' }}>{monster?.name ?? 'Демон'}</div>
+              <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e05555', marginBottom: '2px' }}>
+                {monster?.name ?? 'Демон'}
+                {monster && isBossMonster(monster) && (
+                  <span className="lf-battle-boss-tag">Чемпион</span>
+                )}
+              </div>
               <div style={{ height: '5px', background: '#171920', borderRadius: '3px', overflow: 'hidden', marginBottom: '3px' }}>
                 <div style={{ height: '100%', background: '#e05555', width: `${(enemyHP / enemyMaxHP) * 100}%`, transition: 'width 0.4s', marginLeft: 'auto' }} />
               </div>
@@ -880,6 +912,13 @@ function BattleContent() {
             </div>
           </div>
         </div>
+
+        {bossIntent && (
+          <div className="lf-battle-intent">
+            <div className="lf-battle-intent-label">Намерение · {bossIntent.label}</div>
+            <div className="lf-battle-intent-hint">{bossIntent.hint}</div>
+          </div>
+        )}
 
         <div className="lf-battle-stage">
         {phase === 'result_flash' && (

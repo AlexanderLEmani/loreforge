@@ -137,6 +137,15 @@ export default function TrainingPage() {
         }
       }
 
+      const topicsParam = new URLSearchParams(window.location.search).get('topics')
+      if (topicsParam) {
+        const ids = topicsParam.split(',').map(s => s.trim()).filter(id => TOPICS.some(t => t.id === id))
+        if (ids.length > 0) {
+          setSetupSource('topics')
+          setSelectedTopics(ids)
+        }
+      }
+
       if (data && !data.visited_training) {
         setShowWelcome(true)
         await supabase.from('users').update({ visited_training: true }).eq('id', user.id)
@@ -378,7 +387,7 @@ export default function TrainingPage() {
             <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
               <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Тренировочный лагерь</div>
               <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '4px' }}>Зал тренировок</div>
-              <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic' }}>Здесь ошибки не убивают. Только учат.</div>
+              <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic' }}>Практика без давления — ошибка даёт подсказку, не провал.</div>
             </div>
 
             <div
@@ -411,7 +420,7 @@ export default function TrainingPage() {
               <div>
                 <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#3db87a', letterSpacing: '0.1em', marginBottom: '6px' }}>СЕРЖАНТ ВАРГ · МАСТЕР ТРЕНИРОВОК</div>
                 <div style={{ fontSize: '14px', color: '#c8c0d8', fontStyle: 'italic', lineHeight: 1.6 }}>
-                  "Данжи — не место для учёбы. Здесь ошибаться можно — но сессия не вечная: <span style={{ color: '#e0bc6a' }}>20 задач</span> или <span style={{ color: '#e0bc6a' }}>3 минуты</span> в спидране. Потом итог. Хочешь ещё — жми «ещё раунд»."
+                  "Данж — экзамен на скорость. Зал — место учиться: <span style={{ color: '#e0bc6a' }}>20 задач</span> или <span style={{ color: '#e0bc6a' }}>3 минуты</span> спидрана, потом итог. Один раунд сегодня — уже прогресс."
                 </div>
               </div>
             </div>

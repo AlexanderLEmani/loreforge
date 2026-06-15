@@ -67,7 +67,7 @@ export default function Home() {
       }}
     >
       <h1 style={{ fontSize: '48px', marginBottom: '8px' }}>LoreForge</h1>
-      <p style={{ color: '#9590a8', marginBottom: '12px' }}>Знание есть сила</p>
+      <p style={{ color: '#9590a8', marginBottom: '12px' }}>Путь мастера: теория → практика → проверка. Для тех, кто учит математику сам.</p>
       <div style={{ maxWidth: '380px', marginBottom: '28px', padding: '12px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', background: 'rgba(255,255,255,0.03)' }}>
         <p style={{ color: '#9590a8', fontSize: '13px', textAlign: 'center', lineHeight: 1.65, margin: 0 }}>
           <span style={{ color: '#3db87a' }}>Быстрый старт</span> — без Google, персонаж в один клик.

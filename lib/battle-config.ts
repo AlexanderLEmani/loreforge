@@ -1,4 +1,4 @@
-import { TOPIC_UNLOCK_LEVEL } from '@/lib/curriculum'
+import { pickMonsterFromPool } from '@/lib/boss-system'
 
 export { TOPIC_UNLOCK_LEVEL }
 
@@ -13,6 +13,8 @@ export type Monster = {
   attackDmg: number
   timeoutDmg: number
   trait: string
+  /** Чемпион данжа — реже, сильнее, намерения в UI */
+  isBoss?: boolean
 }
 
 export type BattleAttack = {
@@ -59,32 +61,32 @@ export const MONSTERS_BY_DUNGEON: Record<string, Monster[]> = {
   'Пещера сложения': [
     { id: 'slime', name: 'Слизь суммы', icon: '🟢', hp: 85, defendTimer: 15, attackDmg: 18, timeoutDmg: 25, trait: 'Липкий' },
     { id: 'adder', name: 'Скриб-скриб', icon: '📜', hp: 100, defendTimer: 13, attackDmg: 20, timeoutDmg: 28, trait: 'Шустрый' },
-    { id: 'golem_add', name: 'Голем плюса', icon: '🗿', hp: 120, defendTimer: 16, attackDmg: 24, timeoutDmg: 32, trait: 'Толстый' },
+    { id: 'golem_add', name: 'Голем плюса', icon: '🗿', hp: 120, defendTimer: 16, attackDmg: 24, timeoutDmg: 32, trait: 'Толстый', isBoss: true },
   ],
   'Пещера вычитания': [
     { id: 'bat', name: 'Бат минус', icon: '🦇', hp: 80, defendTimer: 11, attackDmg: 19, timeoutDmg: 27, trait: 'Очень быстрый' },
     { id: 'debt', name: 'Коллектор', icon: '💸', hp: 105, defendTimer: 14, attackDmg: 22, timeoutDmg: 30, trait: 'Коварный' },
-    { id: 'void', name: 'Пожиратель', icon: '🕳️', hp: 115, defendTimer: 15, attackDmg: 23, timeoutDmg: 30, trait: 'Голодный' },
+    { id: 'void', name: 'Пожиратель', icon: '🕳️', hp: 115, defendTimer: 15, attackDmg: 23, timeoutDmg: 30, trait: 'Голодный', isBoss: true },
   ],
   'Башня умножения': [
     { id: 'spark', name: 'Искра таблицы', icon: '⚡', hp: 95, defendTimer: 10, attackDmg: 22, timeoutDmg: 32, trait: 'Молниеносный' },
     { id: 'wizard', name: 'Множитель', icon: '🧙', hp: 110, defendTimer: 12, attackDmg: 24, timeoutDmg: 34, trait: 'Маг' },
-    { id: 'titan', name: 'Квадратный титан', icon: '⬛', hp: 125, defendTimer: 14, attackDmg: 26, timeoutDmg: 36, trait: 'Массивный' },
+    { id: 'titan', name: 'Квадратный титан', icon: '⬛', hp: 125, defendTimer: 14, attackDmg: 26, timeoutDmg: 36, trait: 'Массивный', isBoss: true },
   ],
   'Пещера деления': [
     { id: 'split', name: 'Делитель', icon: '✂️', hp: 100, defendTimer: 13, attackDmg: 21, timeoutDmg: 30, trait: 'Рассекающий' },
     { id: 'remain', name: 'Остаточный дух', icon: '👻', hp: 90, defendTimer: 11, attackDmg: 20, timeoutDmg: 29, trait: 'Нервный' },
-    { id: 'frac_demon', name: 'Демон частей', icon: '👹', hp: 120, defendTimer: 15, attackDmg: 25, timeoutDmg: 33, trait: 'Злой' },
+    { id: 'frac_demon', name: 'Демон частей', icon: '👹', hp: 120, defendTimer: 15, attackDmg: 25, timeoutDmg: 33, trait: 'Злой', isBoss: true },
   ],
   'Храм дробей': [
     { id: 'pie', name: 'Пирог дробей', icon: '🥧', hp: 110, defendTimer: 14, attackDmg: 22, timeoutDmg: 31, trait: 'Липкий' },
     { id: 'half', name: 'Полуэльф половин', icon: '🧝', hp: 100, defendTimer: 12, attackDmg: 21, timeoutDmg: 30, trait: 'Хитрый' },
-    { id: 'frac_boss', name: 'Архидробь', icon: '½', hp: 140, defendTimer: 16, attackDmg: 26, timeoutDmg: 35, trait: 'Босс-претендент' },
+    { id: 'frac_boss', name: 'Архидробь', icon: '½', hp: 140, defendTimer: 16, attackDmg: 26, timeoutDmg: 35, trait: 'Босс-претендент', isBoss: true },
   ],
   'Рынок процентов': [
     { id: 'merchant', name: 'Торговец скидок', icon: '🛒', hp: 105, defendTimer: 13, attackDmg: 21, timeoutDmg: 30, trait: 'Суетливый' },
     { id: 'tax', name: 'Сборщик процентов', icon: '💰', hp: 115, defendTimer: 14, attackDmg: 23, timeoutDmg: 32, trait: 'Точный' },
-    { id: 'pct_boss', name: 'Лорд наценки', icon: '%', hp: 135, defendTimer: 15, attackDmg: 25, timeoutDmg: 34, trait: 'Жадный' },
+    { id: 'pct_boss', name: 'Лорд наценки', icon: '%', hp: 135, defendTimer: 15, attackDmg: 25, timeoutDmg: 34, trait: 'Жадный', isBoss: true },
   ],
 }
 
@@ -133,7 +135,7 @@ export function getUnlockedTopics(userLevel: number): string[] {
 
 export function pickMonster(dungeonName: string): Monster {
   const pool = MONSTERS_BY_DUNGEON[dungeonName] || DEFAULT_MONSTERS
-  return pool[Math.floor(Math.random() * pool.length)]
+  return pickMonsterFromPool(pool)
 }
 
 export function getAttacksForBattle(

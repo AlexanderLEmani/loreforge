@@ -35,7 +35,7 @@ export const CORE_ONBOARDING_STEPS: OnboardingStep[] = [
     title: 'Зайди в Гильдию',
     desc: 'Выбери данж и подготовься к первому бою.',
     href: '/guild',
-    icon: '🏛️',
+    icon: '⚔️',
     check: c => c.visited_guild,
   },
   {
@@ -53,7 +53,7 @@ export const EXTENDED_ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: 4,
     title: 'Лекция в Коллегии',
-    desc: 'Профессор Горус объяснит зачем нужна математика.',
+    desc: 'Короткая теория: зачем тема и один метод — 5 минут.',
     href: '/college',
     icon: '📚',
     check: c => c.visited_college,

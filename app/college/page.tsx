@@ -19,6 +19,8 @@ import { canTakeExam, isV1Graduate, V1_COMPLETE_DESC, V1_COMPLETE_TITLE } from '
 import { layout } from '@/lib/layout-classes'
 import { xpProgress } from '@/lib/economy'
 import { pickLoadingMessage } from '@/lib/loading-flavor'
+import { LectureActions } from '@/components/LectureActions'
+import type { LectureActionContext } from '@/lib/lecture-actions'
 import { LoadingScreen } from '@/components/LoadingScreen'
 
 const LEVEL_SPELLS: Record<number, [string, string, string][]> = {
@@ -29,10 +31,10 @@ const LEVEL_SPELLS: Record<number, [string, string, string][]> = {
 }
 
 const NEXT_TOPIC: Record<number, string> = {
-  1: 'Пройди данжи уровня 1 чтобы открыть Лекцию II и получить заклинания умножения.',
-  2: 'Пройди данжи уровня 2 чтобы открыть Лекцию III и получить заклинания дробей.',
-  3: 'Пройди данжи уровня 3 чтобы открыть Лекцию IV и получить заклинания процентов.',
-  4: 'Это последняя лекция курса арифметики. Тренировка на % → Рынок процентов → экзамен IV — дальше твой собственный путь.',
+  1: 'Данжи ур.1 → откроется Лекция II и умножение.',
+  2: 'Данжи ур.2 → Лекция III и дроби.',
+  3: 'Данжи ур.3 → Лекция IV и проценты.',
+  4: 'Финал курса: тренировка на %, Рынок процентов, экзамен IV.',
 }
 
 export default function CollegePage() {
@@ -141,6 +143,17 @@ export default function CollegePage() {
   const canGoPrev = selectedLectureLevel > 1 && isLectureUnlocked(selectedLectureLevel - 1, level)
   const canGoNext = selectedLectureLevel < 4 && isLectureUnlocked(selectedLectureLevel + 1, level)
 
+  const actionCtx: LectureActionContext = {
+    userLevel: level,
+    examReady,
+    visitedTraining: userData?.visited_training,
+  }
+
+  const sidebarActionDefs =
+    lecture?.sections?.find(s => s.type === 'actions')?.actions
+    ?? FALLBACK_LECTURES[selectedLectureLevel]?.sections?.find(s => s.type === 'actions')?.actions
+    ?? []
+
   if (loading) return <LoadingScreen />
 
   if (loadError && !lecture) return (
@@ -245,10 +258,16 @@ export default function CollegePage() {
                 </div>
               )
               if (s.type === 'outro') return (
-                <div key={i} style={{ background: 'rgba(224,85,85,0.06)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '12px', padding: '1.25rem', margin: '2rem 0 0', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                  <div style={{ fontSize: '28px', flexShrink: 0 }}>🧙‍♂️</div>
-                  <p style={{ fontSize: '15px', color: '#c8b0b0', lineHeight: 1.7, fontStyle: 'italic' }}>"{s.text}"</p>
+                <div key={i} className="lf-professor-block" style={{ margin: '2rem 0 0' }}>
+                  <div style={{ fontSize: '40px', flexShrink: 0, lineHeight: 1 }}>🧙‍♂️</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#e0bc6a', letterSpacing: '0.1em', marginBottom: '6px' }}>ПРОФЕССОР ГОРУС</div>
+                    <div className="lf-prose" style={{ fontStyle: 'italic', marginBottom: 0 }}>"{s.text}"</div>
+                  </div>
                 </div>
+              )
+              if (s.type === 'actions' && s.actions?.length) return (
+                <LectureActions key={i} defs={s.actions} ctx={actionCtx} title={s.text} />
               )
               return null
             })}
@@ -312,6 +331,14 @@ export default function CollegePage() {
 
             <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }}></div>
 
+            {sidebarActionDefs.length > 0 && (
+              <>
+                <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '4px' }}>Действия</div>
+                <LectureActions defs={sidebarActionDefs} ctx={actionCtx} compact />
+                <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }}></div>
+              </>
+            )}
+
             <div style={{ background: 'rgba(123,108,255,0.06)', border: '1px solid rgba(123,108,255,0.2)', borderRadius: '9px', padding: '10px 12px' }}>
               <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#a99fff', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '8px' }}>Прогресс к экзамену</div>
               <div style={{ height: '4px', background: '#171920', borderRadius: '2px', overflow: 'hidden', marginBottom: '5px' }}>
@@ -329,7 +356,7 @@ export default function CollegePage() {
                   🎓 Сдать экзамен
                 </div>
               ) : (
-                <div style={{ fontSize: '11px', color: '#8a849c', lineHeight: 1.5 }}>
+                <div className="lf-college-hint" style={{ fontSize: '11px', color: '#8a849c', lineHeight: 1.5 }}>
                   {NEXT_TOPIC[Math.min(level, 4)] || 'Пройди данжи чтобы набрать XP и открыть экзамен.'}
                 </div>
               )}
@@ -348,13 +375,13 @@ export default function CollegePage() {
               <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#5a5670', letterSpacing: '0.2em' }}>ПРОФЕССОР ГОРУС</div>
             </div>
             <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
-              Здесь ты получаешь <span style={{ color: '#e0bc6a' }}>теоретическую базу</span> — без неё в данжах делать нечего.
+              Короткие лекции: <span style={{ color: '#e0bc6a' }}>зачем тема</span> и один рабочий метод — без воды.
               <br/><br/>
-              <span style={{ color: '#e6e2f0' }}>📖 Лекции</span> — читай теорию и переключайся между пройденными лекциями в списке справа.
+              <span style={{ color: '#e6e2f0' }}>📖 Лекции</span> — теория по уровню, архив пройденных.
               <br/>
-              <span style={{ color: '#e6e2f0' }}>🎓 Экзамен</span> — сдай когда наберёшь достаточно опыта.
+              <span style={{ color: '#e6e2f0' }}>🎓 Экзамен</span> — когда XP-бар полный: проверка, не оценка в школе.
               <br/>
-              <span style={{ color: '#e6e2f0' }}>⚡ Заклинания</span> — каждый уровень даёт новые атаки для боя.
+              <span style={{ color: '#e6e2f0' }}>⚡ Заклинания</span> — новые атаки открываются с уровнем.
             </div>
             <div onClick={() => setShowWelcome(false)}
               style={{ width: '100%', padding: '14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#e0bc6a', cursor: 'pointer' }}>
@@ -371,7 +398,7 @@ export default function CollegePage() {
               <div style={{ fontSize: '40px', marginBottom: '10px' }}>🧙‍♂️</div>
               <div style={{ fontFamily: 'serif', fontSize: '20px', color: '#e0bc6a', marginBottom: '6px' }}>Первый шаг сделан</div>
               <div style={{ fontSize: '13px', color: '#8a849c', lineHeight: 1.6 }}>
-                Теория без практики — пустой звук. Куда идёшь дальше?
+                Теория без практики не держится. Куда дальше?
               </div>
             </div>
 
