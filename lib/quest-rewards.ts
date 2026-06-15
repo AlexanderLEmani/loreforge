@@ -91,7 +91,7 @@ export async function syncQuestRewards(
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(50)
-    runs = legacyRuns
+    runs = (legacyRuns ?? []).map(r => ({ ...r, was_champion: false }))
   }
 
   const { count: answersToday } = await supabase
