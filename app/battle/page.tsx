@@ -61,6 +61,11 @@ import {
 import { useStudyTimer } from '@/lib/use-study-timer'
 import StudyProgressChip from '@/components/StudyProgressChip'
 import BattleScratchPad from '@/components/BattleScratchPad'
+import SoundToggle from '@/components/SoundToggle'
+import { playSound, soundOnAnswerInput, soundOnEnterKey } from '@/lib/sounds'
+import { allDungeonDbNames, resolveDungeonParam } from '@/lib/dungeons'
+import { dungeonById } from '@/lib/guild-dungeons'
+import { track } from '@/lib/analytics'
 import {
   isBossMonster,
   resolveBossIntent,
@@ -80,8 +85,11 @@ function BattleContent() {
   const router = useRouter()
   const supabase = createClient()
   const params = useSearchParams()
-  const dungeonName = params.get('dungeon') || 'Пещера сложения'
-  const typedAnswerPlaceholder = dungeonName === 'Храм дробей' ? '2/3, ½ или 0…' : 'Введи ответ…'
+  const dungeonEntry = resolveDungeonParam(params.get('dungeon'))
+  const dungeonId = dungeonEntry.id
+  const dungeonDbName = dungeonEntry.dbName
+  const dungeonLabel = dungeonById(dungeonId)?.name ?? dungeonDbName
+  const typedAnswerPlaceholder = dungeonId === 'frac' ? '2/3, ½ или 0…' : 'Введи ответ…'
 
   const [questionBank, setQuestionBank] = useState<Record<string, any[]>>({})
   const [loading, setLoading] = useState(true)
@@ -130,6 +138,7 @@ function BattleContent() {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const consumablesRef = useRef<ConsumableInventory>(EMPTY_CONSUMABLES)
   const consumablesRestoredRef = useRef(false)
+  const battleTrackedRef = useRef(false)
 
   useStudyTimer(!loading && monster !== null)
 
@@ -143,8 +152,8 @@ function BattleContent() {
     [monster],
   )
   const availableAttacks = useMemo(
-    () => getAttacksForBattle(userLevel, dungeonName, unlockedTopics),
-    [userLevel, dungeonName, unlockedTopics],
+    () => getAttacksForBattle(userLevel, dungeonDbName, unlockedTopics),
+    [userLevel, dungeonDbName, unlockedTopics],
   )
   const bossIntent = useMemo(() => {
     if (!monster || !currentProfile || !isBossMonster(monster)) return null
@@ -158,66 +167,24 @@ function BattleContent() {
     )
   }, [monster, currentProfile, enemyHP, enemyMaxHP, bossEnraged, stanceStacks, rageChargeStacks])
 
-  function playSound(type: 'hit' | 'miss' | 'block' | 'defeat' | 'dark') {
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      if (type === 'hit') {
-        osc.frequency.setValueAtTime(520, ctx.currentTime)
-        osc.frequency.exponentialRampToValueAtTime(340, ctx.currentTime + 0.15)
-        gain.gain.setValueAtTime(0.18, ctx.currentTime)
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2)
-        osc.start(); osc.stop(ctx.currentTime + 0.2)
-      } else if (type === 'miss') {
-        osc.type = 'sawtooth'
-        osc.frequency.setValueAtTime(180, ctx.currentTime)
-        gain.gain.setValueAtTime(0.15, ctx.currentTime)
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25)
-        osc.start(); osc.stop(ctx.currentTime + 0.25)
-      } else if (type === 'block') {
-        osc.type = 'square'
-        osc.frequency.setValueAtTime(440, ctx.currentTime)
-        gain.gain.setValueAtTime(0.12, ctx.currentTime)
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15)
-        osc.start(); osc.stop(ctx.currentTime + 0.15)
-      } else if (type === 'dark') {
-        osc.type = 'sawtooth'
-        osc.frequency.setValueAtTime(80, ctx.currentTime)
-        gain.gain.setValueAtTime(0.2, ctx.currentTime)
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6)
-        osc.start(); osc.stop(ctx.currentTime + 0.6)
-      }
-    } catch { /* audio optional */ }
-  }
-
   useEffect(() => {
     async function load() {
-      const dungeonsToLoad = [
-        'Пещера сложения',
-        'Пещера вычитания',
-        'Башня умножения',
-        'Пещера деления',
-        'Храм дробей',
-        'Рынок процентов',
-      ]
+      const dungeonsToLoad = allDungeonDbNames()
       const bank: Record<string, any[]> = {}
       for (const d of dungeonsToLoad) {
         const { data } = await supabase.from('questions').select('*').eq('dungeon_name', d).limit(120)
         const merged = mergeWithFallback(d, data || []).map(normalizeQuestionDifficulty)
         bank[d] = shuffleQuestions(merged)
       }
-      if (!bank[dungeonName]?.length) {
-        const merged = mergeWithFallback(dungeonName, []).map(normalizeQuestionDifficulty)
-        bank[dungeonName] = shuffleQuestions(merged)
+      if (!bank[dungeonDbName]?.length) {
+        const merged = mergeWithFallback(dungeonDbName, []).map(normalizeQuestionDifficulty)
+        bank[dungeonDbName] = shuffleQuestions(merged)
       }
       setQuestionBank(bank)
 
-      const loadout = readBattleLoadout(dungeonName)
+      const loadout = readBattleLoadout(dungeonId)
       if (loadout === null) {
-        router.replace(`/prepare?dungeon=${encodeURIComponent(dungeonName)}`)
+        router.replace(`/prepare?dungeon=${encodeURIComponent(dungeonId)}`)
         return
       }
       setConsumables(loadoutToInventory(loadout))
@@ -248,7 +215,7 @@ function BattleContent() {
           const demo = loadDemoSkillState()
           unlockedIds = demo.unlocked
         }
-        setSkillBonuses(computeBattleBonuses(dungeonName, nodesByIds(unlockedIds, nodes)))
+        setSkillBonuses(computeBattleBonuses(dungeonDbName, nodesByIds(unlockedIds, nodes)))
 
         const equipped = await loadEquipped(user.id)
         setEquipBonuses(computeEquipBonuses(equipped))
@@ -257,12 +224,12 @@ function BattleContent() {
           .from('dungeon_runs')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
-          .eq('dungeon_name', dungeonName)
+          .eq('dungeon_name', dungeonDbName)
           .eq('result', 'win')
         dungeonWins = winCount ?? 0
       }
 
-      const m = pickMonster(dungeonName, dungeonWins)
+      const m = pickMonster(dungeonDbName, dungeonWins)
       baseMonsterRef.current = {
         attackDmg: m.attackDmg,
         timeoutDmg: m.timeoutDmg,
@@ -281,7 +248,13 @@ function BattleContent() {
       setLoading(false)
     }
     load()
-  }, [dungeonName])
+  }, [dungeonDbName, dungeonId])
+
+  useEffect(() => {
+    if (loading || !monster || battleTrackedRef.current) return
+    battleTrackedRef.current = true
+    track('battle_started', { dungeon: dungeonId })
+  }, [loading, monster, dungeonId])
 
   useEffect(() => {
     const needsTimer = phase === 'monster_attack' || (phase === 'player_attack' && chosenAttack?.id === 'heavy')
@@ -348,7 +321,7 @@ function BattleContent() {
   }
 
   function dungeonQuestions() {
-    return questionBank[dungeonName] || []
+    return questionBank[dungeonDbName] || []
   }
 
   function flash(msg: string, color: string, cb: () => void) {
@@ -371,6 +344,7 @@ function BattleContent() {
   function chooseAttack(atk: BattleAttack) {
     if ((cooldowns[atk.id] ?? 0) > 0) return
     if (atk.id === 'heavy') playSound('dark')
+    else playSound('tap')
     if (atk.cooldown) {
       let cd = atk.cooldown
       if (atk.kind === 'spell') cd = Math.max(0, cd - raceSpellCooldownReduction(playerRace))
@@ -446,7 +420,7 @@ function BattleContent() {
     if (powerBuff) dmg *= 2
     if (isCrit) dmg *= STREAK_CRIT_MULT
     if (monster) {
-      const { mult } = topicDamageMultiplier(attack, dungeonName, monsterProfile(monster.id))
+      const { mult } = topicDamageMultiplier(attack, dungeonDbName, monsterProfile(monster.id))
       dmg *= mult
     }
     return Math.round(dmg)
@@ -526,12 +500,13 @@ function BattleContent() {
       userId: currentUser.id,
       questionId: q.id ?? q.question,
       isCorrect: correct,
-      dungeonName,
+      dungeonName: dungeonDbName,
     })
   }
 
   async function handleAttack(idx: number) {
     if (selected !== null || !currentQ || !chosenAttack) return
+    playSound('tap')
     setSelected(idx)
     const correct = idx === currentQ.correct_index
     await recordAnswer(currentQ, correct)
@@ -702,16 +677,28 @@ function BattleContent() {
   }
 
   async function endBattle(result: 'win' | 'lose', finalMistakes: string[], spellKill = false) {
+    track('battle_ended', {
+      dungeon: dungeonId,
+      result,
+      rounds: roundCount + 1,
+      mistakes: finalMistakes.length,
+    })
     await restoreUnusedConsumables()
     const score = roundCount + 1 - finalMistakes.length
     const spellParam = result === 'win' && spellKill ? '&spell=1' : ''
     const championParam = result === 'win' && isBossMonster(monster) ? '&champion=1' : ''
     router.push(
-      `/debrief?result=${result}&score=${Math.max(0, score)}&total=${roundCount + 1}&mistakes=${encodeURIComponent(finalMistakes.join('|'))}&dungeon=${encodeURIComponent(dungeonName)}${hardMode ? '&hard=true' : ''}${spellParam}${championParam}`,
+      `/debrief?result=${result}&score=${Math.max(0, score)}&total=${roundCount + 1}&mistakes=${encodeURIComponent(finalMistakes.join('|'))}&dungeon=${encodeURIComponent(dungeonId)}${hardMode ? '&hard=true' : ''}${spellParam}${championParam}`,
     )
   }
 
   async function fleeDungeon() {
+    track('battle_ended', {
+      dungeon: dungeonId,
+      result: 'escape',
+      rounds: roundCount + 1,
+      mistakes: mistakes.length,
+    })
     await restoreUnusedConsumables()
     router.push('/guild')
   }
@@ -721,7 +708,7 @@ function BattleContent() {
   if (dungeonQuestions().length === 0) {
     return (
       <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
-        Вопросы не найдены для «{dungeonName}»
+        Вопросы не найдены для «{dungeonLabel}»
       </div>
     )
   }
@@ -794,7 +781,7 @@ function BattleContent() {
 
       <div className={`${layout.sidebarL} lf-battle-sidebar lf-sidebar-panel`} style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         <div style={{ background: 'rgba(224,85,85,0.11)', border: '1px solid rgba(224,85,85,0.2)', borderRadius: '8px', padding: '10px 12px' }}>
-          <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e05555' }}>{dungeonName}</div>
+          <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e05555' }}>{dungeonLabel}</div>
           <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#8a849c', marginTop: '2px' }}>РАУНД {roundCount + 1}</div>
         </div>
 
@@ -892,6 +879,10 @@ function BattleContent() {
           )}
         </div>
 
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+          <SoundToggle />
+        </div>
+
         <div onClick={() => setHardMode(!hardMode)} style={{ padding: '7px 10px', background: hardMode ? 'rgba(201,168,76,0.12)' : '#1c1f2a', border: `1px solid ${hardMode ? 'rgba(201,168,76,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '7px', fontFamily: 'monospace', fontSize: '11px', color: hardMode ? '#e0bc6a' : '#8a849c', cursor: 'pointer', textAlign: 'center' }}>
           {hardMode ? '⚡ ХАРД 2x XP' : 'ОБЫЧНЫЙ'}
         </div>
@@ -978,7 +969,7 @@ function BattleContent() {
                 const cd = cooldowns[atk.id] ?? 0
                 const locked = cd > 0
                 const topicHint = monster
-                  ? topicDamageMultiplier(atk, dungeonName, monsterProfile(monster.id))
+                  ? topicDamageMultiplier(atk, dungeonDbName, monsterProfile(monster.id))
                   : { mult: 1, label: null }
                 return (
                   <div key={atk.id} onClick={() => !locked && chooseAttack(atk)}
@@ -1007,7 +998,7 @@ function BattleContent() {
                     const cd = cooldowns[atk.id] ?? 0
                     const locked = cd > 0
                     const topicHint = monster
-                      ? topicDamageMultiplier(atk, dungeonName, monsterProfile(monster.id))
+                      ? topicDamageMultiplier(atk, dungeonDbName, monsterProfile(monster.id))
                       : { mult: 1, label: null }
                     return (
                       <div key={atk.id} onClick={() => !locked && chooseAttack(atk)}
@@ -1053,8 +1044,15 @@ function BattleContent() {
                   type="text"
                   inputMode="text"
                   value={inputAnswer}
-                  onChange={e => setInputAnswer(sanitizeAnswerInput(e.target.value))}
-                  onKeyDown={e => e.key === 'Enter' && handleAttackHard()}
+                  onChange={e => {
+                    const next = sanitizeAnswerInput(e.target.value)
+                    soundOnAnswerInput(inputAnswer, next)
+                    setInputAnswer(next)
+                  }}
+                  onKeyDown={e => {
+                    soundOnEnterKey(e)
+                    if (e.key === 'Enter') handleAttackHard()
+                  }}
                   placeholder={typedAnswerPlaceholder}
                   disabled={selected !== null}
                   autoComplete="off"
@@ -1093,8 +1091,15 @@ function BattleContent() {
                   type="text"
                   inputMode="text"
                   value={inputAnswer}
-                  onChange={e => setInputAnswer(sanitizeAnswerInput(e.target.value))}
-                  onKeyDown={e => e.key === 'Enter' && handleAttackHard()}
+                  onChange={e => {
+                    const next = sanitizeAnswerInput(e.target.value)
+                    soundOnAnswerInput(inputAnswer, next)
+                    setInputAnswer(next)
+                  }}
+                  onKeyDown={e => {
+                    soundOnEnterKey(e)
+                    if (e.key === 'Enter') handleAttackHard()
+                  }}
                   placeholder={typedAnswerPlaceholder}
                   disabled={selected !== null}
                   autoComplete="off"

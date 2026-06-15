@@ -19,12 +19,17 @@ import {
 import { pickLoadingMessage } from '@/lib/loading-flavor'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { layout } from '@/lib/layout-classes'
+import { resolveDungeonParam } from '@/lib/dungeons'
+import { dungeonById } from '@/lib/guild-dungeons'
+import { track } from '@/lib/analytics'
 
 function PrepareContent() {
   const router = useRouter()
   const params = useSearchParams()
   const supabase = createClient()
-  const dungeonName = params.get('dungeon') || 'Пещера сложения'
+  const dungeonEntry = resolveDungeonParam(params.get('dungeon'))
+  const dungeonId = dungeonEntry.id
+  const dungeonLabel = dungeonById(dungeonId)?.name ?? dungeonEntry.dbName
 
   const [loading, setLoading] = useState(true)
   const [inventory, setInventory] = useState<ConsumableInventory>({ hint: 0, power: 0, shield: 0, heal: 0 })
@@ -76,8 +81,9 @@ function PrepareContent() {
       setEntering(false)
       return
     }
-    saveBattleLoadout({ dungeon: dungeonName, loadout })
-    router.push(`/battle?dungeon=${encodeURIComponent(dungeonName)}`)
+    saveBattleLoadout({ dungeon: dungeonId, loadout })
+    track('dungeon_prepare_enter', { dungeon: dungeonId, consumables_count: slots.length })
+    router.push(`/battle?dungeon=${encodeURIComponent(dungeonId)}`)
   }
 
   if (loading) return <LoadingScreen />
@@ -97,7 +103,7 @@ function PrepareContent() {
           </div>
           <div style={{ fontFamily: 'serif', fontSize: '28px', color: '#e0bc6a', marginBottom: '6px' }}>Собери рюкзак</div>
           <div style={{ fontSize: '14px', color: '#9590a8', lineHeight: 1.6 }}>
-            Данж: <span style={{ color: '#c8c0d8' }}>{dungeonName}</span>. Возьми с собой до {MAX_BATTLE_LOADOUT} расходников — свитки, зелья и руны из запаса.
+            Данж: <span style={{ color: '#c8c0d8' }}>{dungeonLabel}</span>. Возьми с собой до {MAX_BATTLE_LOADOUT} расходников — свитки, зелья и руны из запаса.
           </div>
         </div>
 

@@ -1,4 +1,4 @@
--- LoreForge: единое древо — позиции и связи между темами (PoE-style spine)
+-- LoreHeim: единое древо — позиции и связи между темами (PoE-style spine)
 
 -- ADD (x=100)
 UPDATE skill_tree_nodes SET position_x = 100, position_y = 300, requires = NULL

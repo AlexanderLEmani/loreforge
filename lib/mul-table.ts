@@ -130,7 +130,7 @@ export function tipForPair(a: number, b: number): string {
   return symmetryTip(a, b) ?? ''
 }
 
-const STATS_KEY = (userId: string) => `loreforge_mul_table_${userId}`
+const STATS_KEY = (userId: string) => `loreheim_mul_table_${userId}`
 
 export function loadMulStats(userId: string): Record<string, CellStat> {
   if (typeof window === 'undefined') return {}
@@ -259,7 +259,7 @@ export type MulSprintRecord = {
   at: string
 }
 
-const SPRINT_RECORD_KEY = (userId: string) => `loreforge_mul_sprint_record_${userId}`
+const SPRINT_RECORD_KEY = (userId: string) => `loreheim_mul_sprint_record_${userId}`
 
 export function loadMulSprintRecord(userId: string): MulSprintRecord | null {
   if (typeof window === 'undefined') return null

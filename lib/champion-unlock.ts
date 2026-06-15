@@ -14,11 +14,14 @@ export function championUnlockProgress(dungeonWins: number) {
   }
 }
 
+import { dungeonIdFromRef } from '@/lib/dungeons'
+
 export function countDungeonWins(
   runs: { result?: string; dungeon_name?: string | null }[],
-  dungeonName: string,
+  dungeonRef: string,
 ): number {
-  return runs.filter(r => r.result === 'win' && r.dungeon_name === dungeonName).length
+  const id = dungeonIdFromRef(dungeonRef)
+  return runs.filter(r => r.result === 'win' && dungeonIdFromRef(r.dungeon_name) === id).length
 }
 
 export function championWinsByDungeon(
@@ -27,7 +30,8 @@ export function championWinsByDungeon(
   const map: Record<string, number> = {}
   for (const r of runs) {
     if (r.result !== 'win' || !r.dungeon_name) continue
-    map[r.dungeon_name] = (map[r.dungeon_name] ?? 0) + 1
+    const id = dungeonIdFromRef(r.dungeon_name)
+    map[id] = (map[id] ?? 0) + 1
   }
   return map
 }

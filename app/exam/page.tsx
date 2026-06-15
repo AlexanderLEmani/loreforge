@@ -20,6 +20,9 @@ import { XP_THRESHOLDS, xpProgress } from '@/lib/economy'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { useStudyTimer } from '@/lib/use-study-timer'
 import StudyProgressChip from '@/components/StudyProgressChip'
+import { playSound, soundOnAnswerInput, soundOnEnterKey } from '@/lib/sounds'
+import SoundToggle from '@/components/SoundToggle'
+import { track } from '@/lib/analytics'
 
 function ExamContent() {
   const router = useRouter()
@@ -116,6 +119,7 @@ function ExamContent() {
   async function handleAnswerText() {
     if (selected !== null || !inputAnswer.trim() || !q) return
     const correct = answersMatch(inputAnswer, q.answers[q.correct_index])
+    playSound(correct ? 'correct' : 'wrong')
     setSelected(correct ? 'correct' : 'wrong')
     setInputAnswer('')
     const newAnswers = [...answers, correct]
@@ -140,6 +144,13 @@ function ExamContent() {
     setFinalCorrect(correctCount)
     setFinalPassed(passed)
     setPhase('result')
+
+    track('exam_ended', {
+      level: examLevel,
+      passed,
+      score: correctCount,
+      total,
+    })
 
     if (passed && user) {
       const { data: ud } = await supabase
@@ -227,7 +238,7 @@ function ExamContent() {
             ))}
           </div>
         </div>
-        <div onClick={() => setPhase('exam')} style={{ padding: '16px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', fontFamily: 'serif', fontSize: '18px', color: '#e0bc6a', cursor: 'pointer', marginBottom: '10px' }}>
+        <div onClick={() => { track('exam_started', { level: examLevel }); setPhase('exam') }} style={{ padding: '16px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', fontFamily: 'serif', fontSize: '18px', color: '#e0bc6a', cursor: 'pointer', marginBottom: '10px' }}>
           Начать экзамен →
         </div>
         <div onClick={() => router.push('/college')} style={{ padding: '12px', fontFamily: 'monospace', fontSize: '12px', color: '#5a5670', cursor: 'pointer' }}>
@@ -316,6 +327,9 @@ function ExamContent() {
 
       <div style={{ maxWidth: '600px', margin: '0 auto', padding: '3rem 2rem' }}>
         <StudyProgressChip />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+          <SoundToggle />
+        </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>
             Вопрос {current + 1} из {questions.length}
@@ -343,15 +357,22 @@ function ExamContent() {
               inputMode="text"
               autoFocus
               value={inputAnswer}
-              onChange={e => setInputAnswer(sanitizeAnswerInput(e.target.value))}
-              onKeyDown={e => e.key === 'Enter' && handleAnswerText()}
+              onChange={e => {
+                const next = sanitizeAnswerInput(e.target.value)
+                soundOnAnswerInput(inputAnswer, next)
+                setInputAnswer(next)
+              }}
+              onKeyDown={e => {
+                soundOnEnterKey(e)
+                if (e.key === 'Enter') handleAnswerText()
+              }}
               placeholder={examLevel === 3 ? '2/3, ½ или 0…' : 'Введи ответ…'}
               autoComplete="off"
               autoCorrect="off"
               spellCheck={false}
               style={{ flex: 1, background: '#1c1f2a', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', padding: '16px', fontSize: '28px', color: '#e6e2f0', fontFamily: 'serif', outline: 'none', textAlign: 'center' }}
             />
-            <div onClick={handleAnswerText} style={{ padding: '16px 24px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', fontSize: '20px', cursor: 'pointer', color: '#e0bc6a', display: 'flex', alignItems: 'center' }}>✓</div>
+            <div onClick={() => { playSound('tap'); handleAnswerText() }} style={{ padding: '16px 24px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', fontSize: '20px', cursor: 'pointer', color: '#e0bc6a', display: 'flex', alignItems: 'center' }}>✓</div>
           </div>
         ) : (
           <div style={{ padding: '20px', background: selected === 'correct' ? 'rgba(61,184,122,0.08)' : 'rgba(224,85,85,0.08)', border: `1px solid ${selected === 'correct' ? 'rgba(61,184,122,0.4)' : 'rgba(224,85,85,0.4)'}`, borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '28px', color: selected === 'correct' ? '#3db87a' : '#e05555' }}>

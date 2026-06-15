@@ -7,6 +7,7 @@ import { ensureGuestUserRow } from '@/lib/quick-start-auth'
 import PixelCharacter from '@/components/PixelCharacter'
 import { layout } from '@/lib/layout-classes'
 import { RACE_OPTIONS } from '@/lib/race-bonuses'
+import { track } from '@/lib/analytics'
 
 const HAIR_STYLES = ['a1', 'a2', 'a3', 'a4', 'a5']
 const HAIR_LABELS: Record<string, string> = { a1: 'Короткие', a2: 'Длинные', a3: 'Хвост', a4: 'Бритый', a5: 'Дикие' }
@@ -59,6 +60,7 @@ export default function CreateCharacter() {
     })
 
     if (err) { setError('Ошибка сохранения. Попробуй ещё раз.'); setSaving(false); return }
+    track('character_created', { race })
     router.push('/hub')
   }
 
@@ -67,7 +69,7 @@ export default function CreateCharacter() {
 
       {/* Хедер */}
       <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
-        <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.3em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '6px' }}>LoreForge · Начало пути</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.3em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '6px' }}>LoreHeim · Начало пути</div>
         <div style={{ fontFamily: 'serif', fontSize: '28px', color: '#e0bc6a' }}>Создай персонажа</div>
         <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic', marginTop: '4px' }}>Имя и раса — навсегда. Внешность можно менять.</div>
       </div>

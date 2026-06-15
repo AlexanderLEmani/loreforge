@@ -115,7 +115,7 @@ export default function ShopPage() {
       <nav className={layout.navBar} style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ fontFamily: 'monospace', fontSize: '16px', color: '#e0bc6a', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '26px', height: '26px', border: '1.5px solid #c9a84c', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✦</div>
-          LoreForge
+          LoreHeim
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#5a5670', display: 'flex', alignItems: 'center', gap: '6px' }}>

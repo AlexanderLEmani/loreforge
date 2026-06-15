@@ -5,9 +5,9 @@ import {
   isLegacyGuestEmail,
 } from '@/lib/guest-credentials'
 
-const GUEST_EMAIL_KEY = 'loreforge_guest_email'
-const GUEST_PASS_KEY = 'loreforge_guest_pass'
-const GUEST_VERSION_KEY = 'loreforge_guest_version'
+const GUEST_EMAIL_KEY = 'loreheim_guest_email'
+const GUEST_PASS_KEY = 'loreheim_guest_pass'
+const GUEST_VERSION_KEY = 'loreheim_guest_version'
 
 export function clearGuestCreds() {
   if (typeof window === 'undefined') return

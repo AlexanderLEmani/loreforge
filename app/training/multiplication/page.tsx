@@ -15,6 +15,8 @@ import { recordTrainingAttempt } from '@/lib/training-stats'
 import { useStudyTimer } from '@/lib/use-study-timer'
 import StudyProgressChip from '@/components/StudyProgressChip'
 import { checkTrainingMastery, type MasteryDef } from '@/lib/mastery-achievements'
+import { playSound, soundOnAnswerInput, soundOnEnterKey } from '@/lib/sounds'
+import SoundToggle from '@/components/SoundToggle'
 import {
   buildSession,
   loadMulStats,
@@ -171,6 +173,7 @@ export default function MultiplicationTrainerPage() {
     if (!pair) return
 
     const isCorrect = answersMatch(input, String(pair.product))
+    playSound(isCorrect ? 'correct' : 'wrong')
     setFeedback(isCorrect ? 'ok' : 'bad')
     scheduleInputRefocus(inputRef.current)
     setTotal(t => {
@@ -383,8 +386,11 @@ export default function MultiplicationTrainerPage() {
                   value={input}
                   onChange={e => {
                     if (feedback !== null) return
-                    setInput(sanitizeAnswerInput(e.target.value))
+                    const next = sanitizeAnswerInput(e.target.value)
+                    soundOnAnswerInput(input, next)
+                    setInput(next)
                   }}
+                  onKeyDown={soundOnEnterKey}
                   autoComplete="off"
                   style={{
                     flex: 1,
@@ -455,6 +461,9 @@ export default function MultiplicationTrainerPage() {
         </div>
 
         <div className={layout.sidebarR} style={{ background: '#111318', borderLeft: '1px solid rgba(255,255,255,0.06)', padding: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
+            <SoundToggle />
+          </div>
           <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', letterSpacing: '0.2em', marginBottom: '10px' }}>СПИДРАН</div>
           <div style={{ background: '#1c1f2a', border: '1px solid rgba(224,188,106,0.2)', borderRadius: '10px', padding: '12px', marginBottom: '1.25rem' }}>
             {sprintRecord ? (

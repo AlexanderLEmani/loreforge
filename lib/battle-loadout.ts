@@ -1,8 +1,9 @@
 import type { ScrollBattleEffect } from '@/lib/battle-config'
 import { CONSUMABLE_EFFECTS, type ConsumableInventory } from '@/lib/battle-consumables'
+import { dungeonIdFromRef } from '@/lib/dungeons'
 
 export const MAX_BATTLE_LOADOUT = 3
-export const BATTLE_LOADOUT_KEY = 'loreforge_battle_loadout'
+export const BATTLE_LOADOUT_KEY = 'loreheim_battle_loadout'
 
 export type BattleLoadoutPayload = {
   dungeon: string
@@ -20,13 +21,14 @@ export function saveBattleLoadout(payload: BattleLoadoutPayload) {
   sessionStorage.setItem(BATTLE_LOADOUT_KEY, JSON.stringify(payload))
 }
 
-export function readBattleLoadout(dungeon: string): Partial<ConsumableInventory> | null {
+export function readBattleLoadout(dungeonRef: string): Partial<ConsumableInventory> | null {
   if (typeof window === 'undefined') return null
+  const expectedId = dungeonIdFromRef(dungeonRef)
   try {
     const raw = sessionStorage.getItem(BATTLE_LOADOUT_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as BattleLoadoutPayload
-    if (parsed.dungeon !== dungeon) return null
+    if (dungeonIdFromRef(parsed.dungeon) !== expectedId) return null
     return parsed.loadout ?? {}
   } catch {
     return null
