@@ -3077,12 +3077,18 @@ body {
     border-radius: 2px;
   }
 
+  .lf-char-desk-hero {
+    width: 100%;
+    min-width: 0;
+  }
+
   .lf-char-desk-hero-grid {
     display: grid;
-    grid-template-columns: minmax(80px, 104px) minmax(18rem, 1fr) minmax(80px, 104px);
-    gap: 14px;
+    grid-template-columns: minmax(72px, 88px) minmax(0, 1fr) minmax(72px, 88px);
+    gap: 8px;
     align-items: start;
-    justify-items: center;
+    justify-items: stretch;
+    width: 100%;
   }
 
   .lf-char-desk-slots {
@@ -3092,6 +3098,7 @@ body {
     flex-direction: column;
     gap: 8px;
     width: 100%;
+    min-width: 0;
   }
 
   .lf-char-desk-slots .lf-equip-slot {
@@ -3106,14 +3113,14 @@ body {
     align-items: center;
     gap: 6px;
     min-width: 0;
-    max-width: 100%;
+    width: 100%;
   }
 
   .lf-char-portrait-frame--desk {
     min-height: 0;
-    width: 18rem;
-    max-width: none;
-    padding: 0.75rem 1rem;
+    width: 100%;
+    max-width: 18rem;
+    padding: 0.75rem 0.75rem;
     overflow: visible;
   }
 
@@ -3289,17 +3296,17 @@ body {
   }
 
   .lf-char-mobile-stage {
-    padding-bottom: 2px;
+    flex-shrink: 0;
+    overflow: hidden;
   }
 
   .lf-char-mobile-hero {
-    flex: 1;
-    min-height: 0;
     display: grid;
-    grid-template-columns: minmax(52px, 64px) 1fr minmax(52px, 64px);
+    grid-template-columns: minmax(52px, 64px) minmax(0, 1fr) minmax(52px, 64px);
     gap: 4px;
     align-items: start;
-    justify-items: center;
+    justify-items: stretch;
+    width: 100%;
   }
 
   .lf-char-mobile-slots {
@@ -3378,11 +3385,13 @@ body {
   }
 
   .lf-char-bonus-wrap--mobile {
+    position: relative;
+    z-index: 40;
     flex-shrink: 0;
     display: block;
-    visibility: visible;
-    margin: 6px 6px 4px;
-    padding-top: 4px;
+    margin: 0 8px 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   .lf-char-bonus-wrap .lf-char-bonus-strip {

@@ -320,8 +320,8 @@ export default function CharacterPage() {
             </div>
           </div>
 
-          <div className="lf-char-mobile-stage flex-1 min-h-0 flex flex-col">
-            <div className="lf-char-mobile-hero flex-1 min-h-0">
+          <div className="lf-char-mobile-stage shrink-0">
+            <div className="lf-char-mobile-hero">
               <div className="lf-char-mobile-slots lf-char-mobile-slots--left">
                 {leftSlots.map(slot => (
                   <EquipSlotButton
@@ -370,13 +370,13 @@ export default function CharacterPage() {
                 ))}
               </div>
             </div>
-
-            {bonusStrip && (
-              <div className="lf-char-bonus-wrap lf-char-bonus-wrap--mobile shrink-0">
-                {bonusStrip}
-              </div>
-            )}
           </div>
+
+          {bonusStrip && (
+            <div className="lf-char-bonus-wrap lf-char-bonus-wrap--mobile shrink-0">
+              {bonusStrip}
+            </div>
+          )}
         </section>
 
         <section className="lf-char-mobile-bag h-[60%] shrink-0 flex flex-col bg-[#0b0c10] border-t border-white/10">
@@ -393,7 +393,7 @@ export default function CharacterPage() {
 
       {/* ── Tablet / Desktop: 2-column RPG layout (≥ md) ── */}
       <div className="hidden md:flex h-[calc(100vh-64px)] overflow-hidden">
-        <aside className="lf-char-desk-left w-[45%] shrink-0 flex flex-col overflow-hidden bg-[#111318] border-r border-white/10">
+        <aside className="lf-char-desk-left w-[45%] shrink-0 min-w-0 flex flex-col overflow-hidden bg-[#111318] border-r border-white/10">
           <div className="lf-char-desk-head shrink-0 px-5 pt-4 pb-3">
             <div className="lf-char-hero-title">{character?.name}</div>
             <div className="lf-char-hero-sub">
@@ -425,7 +425,7 @@ export default function CharacterPage() {
               </div>
 
               <div className="lf-char-desk-portrait">
-                <div className="lf-char-portrait-frame lf-char-portrait-frame--desk w-72 max-w-none">
+                <div className="lf-char-portrait-frame lf-char-portrait-frame--desk">
                   <PixelCharacter
                     race={race}
                     skinColor={character?.skin_color || '#c8a882'}
