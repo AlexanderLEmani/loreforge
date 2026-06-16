@@ -92,7 +92,7 @@ export function getLectureList(ctx: LectureUnlockContext | number, viewingLevel:
 }
 
 /** Ревизия контента в FALLBACK; явный маркер в БД (CMS) */
-export const LECTURE_CONTENT_REVISION = 3
+export const LECTURE_CONTENT_REVISION = 4
 
 /** @deprecated Коллегия читает только FALLBACK */
 export function resolveLecture(levelNum: number, _fromDb?: Lecture | null): Lecture {

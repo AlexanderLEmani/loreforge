@@ -11,6 +11,7 @@ import {
   getLectureList,
   isLectureUnlocked,
   lectureLevelForUser,
+  LECTURE_CONTENT_REVISION,
   LECTURE_NUMS,
   maxUnlockedLectureLevel,
   type Lecture,
@@ -279,7 +280,10 @@ export default function CollegePage() {
               <div className="lf-page-title">
                 {lectureLoading ? lectureLoadingMsg : lecture?.title}
               </div>
-              <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff' }}>Профессор Горус · Архимаг Арифметики</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff' }}>
+                Профессор Горус · Архимаг Арифметики
+                <span style={{ color: '#5a5670', marginLeft: '8px' }}>· текст rev {LECTURE_CONTENT_REVISION}</span>
+              </div>
               {viewingArchive && (
                 <div
                   onClick={() => openLecture(currentLectureLevel, unlockCtx)}
