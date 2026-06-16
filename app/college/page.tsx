@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
 import {
-  FALLBACK_LECTURES,
+  LECTURES,
   getLectureForLevel,
   getLectureList,
   isLectureUnlocked,
@@ -68,7 +68,7 @@ export default function CollegePage() {
   }, [lectureLoading])
 
   async function ensureLectureInCache(levelNum: number): Promise<Lecture> {
-    const resolved = lectureCache[levelNum] || FALLBACK_LECTURES[levelNum] || FALLBACK_LECTURES[1]
+    const resolved = lectureCache[levelNum] || LECTURES[levelNum] || LECTURES[1]
     if (!lectureCache[levelNum]) {
       setLectureCache(prev => ({ ...prev, [levelNum]: resolved }))
     }
@@ -148,7 +148,7 @@ export default function CollegePage() {
 
         const cache: Record<number, Lecture> = {}
         for (let i = 1; i <= 4; i++) {
-          cache[i] = FALLBACK_LECTURES[i]
+          cache[i] = LECTURES[i]
         }
         setLectureCache(cache)
         setSelectedLectureLevel(Math.min(maxUnlocked, Math.max(currentLecture, 1)))
@@ -162,7 +162,7 @@ export default function CollegePage() {
       } catch (e) {
         console.error(e)
         setLoadError('Ошибка загрузки коллегии')
-        setLectureCache(FALLBACK_LECTURES)
+        setLectureCache(LECTURES)
         setSelectedLectureLevel(1)
       } finally {
         setLoading(false)
@@ -216,7 +216,7 @@ export default function CollegePage() {
 
   const sidebarActionDefs =
     lecture?.sections?.find(s => s.type === 'actions')?.actions
-    ?? FALLBACK_LECTURES[selectedLectureLevel]?.sections?.find(s => s.type === 'actions')?.actions
+    ?? LECTURES[selectedLectureLevel]?.sections?.find(s => s.type === 'actions')?.actions
     ?? []
 
   if (loading) return <LoadingScreen />

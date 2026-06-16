@@ -16,14 +16,44 @@ export type Lecture = {
   sections: LectureSection[]
 }
 
-/** Единственный источник текста лекций — JSON в lib/lectures/ (не Supabase) */
-export const FALLBACK_LECTURES: Record<number, Lecture> = {
+/**
+ * Единственный источник текста лекций — lib/lectures/{1..4}.json.
+ * Таблица Supabase `lectures` не используется. Редактируй только JSON.
+ */
+export const LECTURES: Record<number, Lecture> = {
   1: lecture1 as Lecture,
   2: lecture2 as Lecture,
   3: lecture3 as Lecture,
   4: lecture4 as Lecture,
 }
 
+/** @deprecated alias — не «fallback», это канон */
+export const FALLBACK_LECTURES = LECTURES
+
+/** Маркеры полного текста — сборка упадёт, если подставили укороченную версию */
+const LECTURE_CANONICAL_MARKERS: Record<number, string> = {
+  1: 'Кость Ишанго',
+  2: 'аль-Хорезми',
+  3: 'Кронекер был неправ',
+  4: 'Последняя лекция курса',
+}
+
+function assertCanonicalLectures() {
+  for (const level of [1, 2, 3, 4] as const) {
+    const marker = LECTURE_CANONICAL_MARKERS[level]
+    const blob = JSON.stringify(LECTURES[level])
+    if (!blob.includes(marker)) {
+      throw new Error(
+        `lib/lectures/${level}.json: нет маркера «${marker}» — подставлена не та версия лекции`,
+      )
+    }
+    if (!LECTURES[level].sections.some(s => s.type === 'actions')) {
+      throw new Error(`lib/lectures/${level}.json: нет блока actions (кнопки «Куда дальше»)`)
+    }
+  }
+}
+
+assertCanonicalLectures()
 
 export function lectureLevelForUser(level: number): number {
   if (level <= 1) return 1
@@ -33,17 +63,16 @@ export function lectureLevelForUser(level: number): number {
 
 export function getLectureForLevel(level: number): Lecture {
   const lectureLevel = lectureLevelForUser(level)
-  return FALLBACK_LECTURES[lectureLevel] || FALLBACK_LECTURES[1]
+  return LECTURES[lectureLevel] || LECTURES[1]
 }
 
 export const LECTURE_NUMS = ['I', 'II', 'III', 'IV'] as const
 
-export const LECTURE_META = [
-  { level: 1, num: 'I', title: 'Введение в арифметику' },
-  { level: 2, num: 'II', title: 'Умножение и деление' },
-  { level: 3, num: 'III', title: 'Дроби' },
-  { level: 4, num: 'IV', title: 'Проценты' },
-] as const
+export const LECTURE_META = ([1, 2, 3, 4] as const).map((level, i) => ({
+  level,
+  num: LECTURE_NUMS[i],
+  title: LECTURES[level].title,
+}))
 
 /** Сигналы прогресса для архива лекций (игровой level + старые сохранения) */
 export type LectureUnlockContext = {
@@ -91,10 +120,5 @@ export function getLectureList(ctx: LectureUnlockContext | number, viewingLevel:
   }))
 }
 
-/** Ревизия контента в FALLBACK; явный маркер в БД (CMS) */
-export const LECTURE_CONTENT_REVISION = 5
-
-/** @deprecated Коллегия читает только FALLBACK */
-export function resolveLecture(levelNum: number, _fromDb?: Lecture | null): Lecture {
-  return FALLBACK_LECTURES[levelNum] || FALLBACK_LECTURES[1]
-}
+/** Поднимай при любом изменении lib/lectures/*.json — маркер в UI коллегии */
+export const LECTURE_CONTENT_REVISION = 6
