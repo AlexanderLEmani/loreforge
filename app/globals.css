@@ -2757,9 +2757,22 @@ body {
 
 .lf-char-bonus-wrap {
   width: 100%;
+  flex-shrink: 0;
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.lf-avatar-solo {
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-radius: 6px;
+  background: radial-gradient(circle, #1c1f2a 0%, #0c0d14 100%);
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  box-sizing: border-box;
 }
 
 .lf-char-consumables-grid {
@@ -3203,8 +3216,9 @@ body {
   .lf-char-mobile-hud {
     background: #111318;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 8px 10px 4px;
+    padding: 8px 10px 6px;
     gap: 0;
+    overflow: visible;
   }
 
   .lf-char-mobile-hud-top {
@@ -3296,11 +3310,13 @@ body {
   }
 
   .lf-char-mobile-stage {
-    flex-shrink: 0;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: hidden;
   }
 
   .lf-char-mobile-hero {
+    height: 100%;
     display: grid;
     grid-template-columns: minmax(52px, 64px) minmax(0, 1fr) minmax(52px, 64px);
     gap: 4px;
@@ -3389,9 +3405,8 @@ body {
     z-index: 40;
     flex-shrink: 0;
     display: block;
-    margin: 0 8px 6px;
-    padding-top: 6px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin: 0 4px 4px;
+    padding-top: 4px;
   }
 
   .lf-char-bonus-wrap .lf-char-bonus-strip {

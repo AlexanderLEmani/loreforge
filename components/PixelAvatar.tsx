@@ -22,22 +22,19 @@ export default function PixelAvatar({
   const activePetId = equipment.pet
   const gear = charGear(equipment)
 
-  const character = (
-    <PixelCharacter
-      race={race}
-      skinColor={skinColor}
-      hairStyle={hairStyle}
-      hairColor={hairColor}
-      cloakColor={cloakColor}
-      equipment={gear}
-      size={size}
-    />
-  )
-
   if (!activePetId) {
+    const soloSize = Math.round(size * 28 / 48)
     return (
       <div className="lf-avatar-solo" style={{ width: size, height: size }}>
-        {character}
+        <PixelCharacter
+          race={race}
+          skinColor={skinColor}
+          hairStyle={hairStyle}
+          hairColor={hairColor}
+          cloakColor={cloakColor}
+          equipment={gear}
+          size={soloSize}
+        />
       </div>
     )
   }

@@ -148,7 +148,7 @@ export default function CharacterPage() {
 
   const bonusParts = bonusLabel(equipBonuses).split(' · ').filter(p => p && p !== '—')
 
-  const bonusStrip = equippedCount > 0 ? (
+  const bonusStrip = bonusParts.length > 0 ? (
     <div className="lf-char-bonus-strip flex flex-wrap justify-center items-center gap-x-1 gap-y-0.5 text-[10px] leading-snug">
       {bonusParts.map(part => (
         <span key={part} className="lf-char-bonus-part whitespace-nowrap">{part}</span>
@@ -290,7 +290,7 @@ export default function CharacterPage() {
 
       {/* ── Mobile: fixed HUD + scrollable inventory (< md) ── */}
       <div className="md:hidden flex flex-col h-[calc(100vh-64px)] overflow-hidden">
-        <section className="lf-char-mobile-hud h-[40%] shrink-0 flex flex-col overflow-hidden">
+        <section className="lf-char-mobile-hud h-[42%] shrink-0 flex flex-col min-h-0">
           <div className="lf-char-mobile-hud-top shrink-0">
             <div className="lf-char-mobile-hud-head">
               <div className="lf-char-mobile-hud-name">{character?.name}</div>
@@ -320,7 +320,7 @@ export default function CharacterPage() {
             </div>
           </div>
 
-          <div className="lf-char-mobile-stage shrink-0">
+          <div className="lf-char-mobile-stage flex-1 min-h-0 overflow-hidden">
             <div className="lf-char-mobile-hero">
               <div className="lf-char-mobile-slots lf-char-mobile-slots--left">
                 {leftSlots.map(slot => (
@@ -347,15 +347,11 @@ export default function CharacterPage() {
                     glowTier={maxGlowTier}
                   />
                 </div>
-                <div className="lf-char-pet-visual lf-char-pet-visual--mobile">
-                  {petItem ? (
+                {petItem && (
+                  <div className="lf-char-pet-visual lf-char-pet-visual--mobile">
                     <PixelPet visualId={petItem.visualId} size={40} />
-                  ) : (
-                    <div className="lf-char-pet-placeholder lf-char-pet-placeholder--mobile" aria-hidden>
-                      <span>🐾</span>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
               <div className="lf-char-mobile-slots lf-char-mobile-slots--right">
@@ -379,7 +375,7 @@ export default function CharacterPage() {
           )}
         </section>
 
-        <section className="lf-char-mobile-bag h-[60%] shrink-0 flex flex-col bg-[#0b0c10] border-t border-white/10">
+        <section className="lf-char-mobile-bag h-[58%] shrink-0 flex flex-col bg-[#0b0c10] border-t border-white/10">
           <div className="lf-char-mobile-bag-head">
             <div className="lf-char-mobile-bag-title">Сумка · {ownedItems.length} предм.</div>
           </div>
