@@ -1,0 +1,26 @@
+category,parameter,value,description
+attack,defendTimer,по врагу,Секунды на ответ при защите
+attack,attackDmg,по врагу,Урон при неверном ответе
+attack,timeoutDmg,по врагу,Урон при истечении таймера
+behavior,stance_on_block,+5/+3 за стек,Каждый блок: +5 attackDmg и +3 timeoutDmg (макс. stanceMax)
+behavior,rage_on_block,×1.35 за стек,Блок копит заряд до 2: удар до ×1.7
+behavior,dodge,8 сек,Лёгкий пример урон ~45% от удара мин. 6 HP
+behavior,boss_enrage,<40% HP,+4 урона +5 timeout таймер −3 сек
+behavior,weak_topic,×1.3,Атака по слабой мат. теме
+behavior,resist_topic,×0.75,Атака по сопротивляемой теме
+squad,single,1 враг,Обычный удар таймер = defendTimer
+squad,combo,лидер+миньон,Короткий таймер суммарный урон ×0.88
+squad,frenzy,лидер мёртв или <40%,Отчаянная атака ×0.92 миньоны +45% урона
+squad,swarm,рой пчёл,3 быстрых примера один таймер ~85% attackDmg за укус
+squad,windup_charge,культист,2 хода игрока заряд не атакует
+squad,windup_strike,после заряда,Сложный пример урон ×1.75
+champion,unlock_wins,10,Побед в данже для шанса чемпиона
+champion,encounter_chance,28%,Шанс чемпиона при входе
+champion,squad,1-2 подручных,Шустрый (34% HP / 58% dmg) или Глухой (44% / 72%)
+champion,loot_multiplier,×1.35,Золото и слава
+champion,drop_chance,~92%,База 72% при победе
+intent,attack,Атака,Стандартный удар — защита примером
+intent,charge_stance,Копит стойку,Блок даст стойку — добивай или не блокируй
+intent,rage_charge,Заряженный удар,Сильная атака — блок или уклонение
+intent,enrage_soon,Готовит ярость,Ниже 40% HP — урон и таймер растут
+intent,heavy,Яростная атака,Таймер короче урон выше

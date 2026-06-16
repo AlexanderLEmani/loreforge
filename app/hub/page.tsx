@@ -28,6 +28,12 @@ import { totalConsumables } from '@/lib/hub-resources'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import DailyStudyProgress from '@/components/DailyStudyProgress'
 import MasteryPanel from '@/components/MasteryPanel'
+import PixelAvatar from '@/components/PixelAvatar'
+import PixelItem from '@/components/PixelItem'
+import { characterAppearance, CHARACTER_APPEARANCE_SELECT } from '@/lib/character-appearance'
+import { consumablePixelId } from '@/lib/consumable-visuals'
+import { visualEquipFromEquipped, type EquipSlot } from '@/lib/equipment'
+import { loadEquipped } from '@/lib/equipment-storage'
 import { formatStudyMinutes, normalizeStudySeconds, syncStreakOnVisit, DAILY_STUDY_TARGET_SECONDS } from '@/lib/daily-study'
 import { loadMasteryUnlocks, parseMasteryUnlocks, type MasteryUnlocks } from '@/lib/mastery-achievements'
 import { flushAuthCompleted, identifyUser } from '@/lib/analytics'
@@ -45,9 +51,8 @@ export default function Hub() {
   const [potionCount, setPotionCount] = useState(0)
   const [dailyQuests, setDailyQuests] = useState<DailyQuest[]>([])
   const [masteryUnlocks, setMasteryUnlocks] = useState<MasteryUnlocks>({})
-  const RACE_ICONS: Record<string, string> = {
-    human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀'
-  }
+  const [appearance, setAppearance] = useState(() => characterAppearance())
+  const [visualEquip, setVisualEquip] = useState<Partial<Record<EquipSlot, string>>>({})
 
   useEffect(() => {
     async function getUser() {
@@ -67,9 +72,11 @@ export default function Hub() {
       identifyUser(user)
       flushAuthCompleted()
 
-      const { data: ch } = await supabase.from('characters').select('name, race').eq('user_id', user.id).single()
+      const { data: ch } = await supabase.from('characters').select(CHARACTER_APPEARANCE_SELECT).eq('user_id', user.id).single()
       if (!ch) { router.push('/create-character'); return }
       setCharacter(ch)
+      setAppearance(characterAppearance(ch))
+      setVisualEquip(visualEquipFromEquipped(await loadEquipped(user.id)))
 
       const { data: ud, error: udError } = await supabase
         .from('users')
@@ -190,11 +197,9 @@ export default function Hub() {
 
         <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '11px', marginBottom: '11px' }}>
-            <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: 'rgba(123,108,255,0.13)', border: '1px solid rgba(123,108,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
-              {RACE_ICONS[character?.race] || '🧙'}
-            </div>
+            <PixelAvatar {...appearance} equipment={visualEquip} size={64} />
             <div>
-              <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0' }}>{character?.name || 'Аркан'}</div>
+              <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0' }}>{appearance.name}</div>
               <div style={{ fontSize: '11px', color: '#a99fff', marginTop: '1px', fontFamily: 'monospace' }}>СТРАНСТВУЮЩИЙ МАГ</div>
             </div>
           </div>
@@ -213,9 +218,12 @@ export default function Hub() {
         <div style={{ fontSize: '10px', color: '#5a5670', fontStyle: 'italic', marginBottom: '10px', lineHeight: 1.5 }}>
           ⭐ слава — данжи (кошелёк) · репутация — ранг · 💰 золото — лавка
         </div>
-        {[['💰', 'Золото', userData?.gold || '0'], ['📜', 'Свитки', scrollCount], ['🧪', 'Зелья', potionCount], ['⭐', 'Слава', userData?.glory || '0']].map(([icon, name, val]) => (
-          <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '13px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9590a8' }}><span>{icon}</span>{name}</div>
+        {[['💰', 'Золото', userData?.gold || '0'], ['📜', 'Свитки', scrollCount], ['potion', 'Зелья', potionCount], ['⭐', 'Слава', userData?.glory || '0']].map(([icon, name, val]) => (
+          <div key={name as string} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '13px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9590a8' }}>
+              {icon === 'potion' ? <PixelItem itemId="potion_hp" size={18} /> : <span>{icon as string}</span>}
+              {name as string}
+            </div>
             <div style={{ fontFamily: 'monospace', fontSize: '12px', color: '#e0bc6a' }}>{val}</div>
           </div>
         ))}

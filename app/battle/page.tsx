@@ -49,7 +49,7 @@ import { getDifficultyPool, normalizeQuestionDifficulty, pickUnused, poolForAtta
 import { recordBattleAttempt } from '@/lib/training-stats'
 import { mergeWithFallback } from '@/lib/fallback-questions'
 import { loadDemoSkillState } from '@/lib/skill-tree'
-import { computeEquipBonuses } from '@/lib/equipment'
+import { computeEquipBonuses, playerMaxHp } from '@/lib/equipment'
 import { loadEquipped } from '@/lib/equipment-storage'
 import { answersMatch, sanitizeAnswerInput } from '@/lib/scroll-display'
 import { shuffleQuestions } from '@/lib/shuffle-question'
@@ -64,6 +64,13 @@ import { useStudyTimer } from '@/lib/use-study-timer'
 import StudyProgressChip from '@/components/StudyProgressChip'
 import BattleScratchPad from '@/components/BattleScratchPad'
 import SoundToggle from '@/components/SoundToggle'
+import PixelMonster from '@/components/PixelMonster'
+import PixelAvatar from '@/components/PixelAvatar'
+import PixelItem from '@/components/PixelItem'
+import { monsterVisualId } from '@/lib/monster-visuals'
+import { consumablePixelId } from '@/lib/consumable-visuals'
+import { characterAppearance, CHARACTER_APPEARANCE_SELECT } from '@/lib/character-appearance'
+import { visualEquipFromEquipped, type EquipSlot } from '@/lib/equipment'
 import { playSound, soundOnAnswerInput, soundOnEnterKey, warmupAudio } from '@/lib/sounds'
 import { allDungeonDbNames, isPackDungeon, resolveDungeonParam } from '@/lib/dungeons'
 import { dungeonById } from '@/lib/guild-dungeons'
@@ -118,6 +125,10 @@ import {
 
 type Phase = 'choose_attack' | 'player_attack' | 'monster_attack' | 'dodge_attempt' | 'swarm_attack' | 'result_flash'
 
+function MonsterSprite({ monster, size }: { monster: Monster; size: number }) {
+  return <PixelMonster visualId={monsterVisualId(monster)} size={size} />
+}
+
 function BattleContent() {
   const router = useRouter()
   const supabase = createClient()
@@ -133,6 +144,8 @@ function BattleContent() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [userLevel, setUserLevel] = useState(1)
   const [playerRace, setPlayerRace] = useState('human')
+  const [playerAppearance, setPlayerAppearance] = useState(() => characterAppearance())
+  const [playerVisualEquip, setPlayerVisualEquip] = useState<Partial<Record<EquipSlot, string>>>({})
   const [monster, setMonster] = useState<Monster | null>(null)
   const [squad, setSquad] = useState<BattleEnemy[]>([])
   const [targetUid, setTargetUid] = useState('')
@@ -277,9 +290,6 @@ function BattleContent() {
         cacheLearnedSpells(mergedLearned)
         setLearnedSpells(mergedLearned)
 
-        const { data: ch } = await supabase.from('characters').select('race').eq('user_id', user.id).maybeSingle()
-        if (ch?.race) setPlayerRace(ch.race)
-
         const allNodes = defaultSkillNodes()
         const { data: dbNodes } = await supabase.from('skill_tree_nodes').select('*')
         const nodes = (dbNodes?.length ? dbNodes.map(n => ({
@@ -298,8 +308,21 @@ function BattleContent() {
 
         setUnlockedSkillNodeIds(unlockedIds.map(id => Number(id)).filter(n => !Number.isNaN(n)))
 
+        const { data: ch } = await supabase
+          .from('characters')
+          .select(CHARACTER_APPEARANCE_SELECT)
+          .eq('user_id', user.id)
+          .maybeSingle()
+        if (ch) {
+          setPlayerAppearance(characterAppearance(ch))
+          if (ch.race) setPlayerRace(ch.race)
+        }
+
         const equipped = await loadEquipped(user.id)
-        setEquipBonuses(computeEquipBonuses(equipped))
+        setPlayerVisualEquip(visualEquipFromEquipped(equipped))
+        const bonuses = computeEquipBonuses(equipped)
+        setEquipBonuses(bonuses)
+        setPlayerHP(playerMaxHp(bonuses))
 
         const { count: winCount } = await supabase
           .from('dungeon_runs')
@@ -574,7 +597,7 @@ function BattleContent() {
     if (effect === 'power') setPowerBuff(true)
     if (effect === 'shield') setShieldActive(true)
     if (effect === 'heal') {
-      setPlayerHP(h => Math.min(100, h + HEAL_POTION_HP))
+      setPlayerHP(h => Math.min(playerMaxHp(equipBonuses), h + HEAL_POTION_HP))
     }
     flash(`${SCROLL_EFFECT_LABELS[effect].icon} ${SCROLL_EFFECT_LABELS[effect].label}!`, '#a99fff', () => setPhase('choose_attack'))
   }
@@ -1169,6 +1192,8 @@ function BattleContent() {
 
   if (loading) return <LoadingScreen flavor="dungeon" />
 
+  const playerMaxHP = playerMaxHp(equipBonuses)
+
   if (dungeonQuestions().length === 0) {
     return (
       <div style={{ background: '#0b0c10', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9590a8', fontFamily: 'serif', fontSize: '18px' }}>
@@ -1190,7 +1215,6 @@ function BattleContent() {
           </div>
           <div className="lf-battle-hud-items">
             {BATTLE_CONSUMABLES.map(c => {
-              const meta = SCROLL_EFFECT_LABELS[c.effect]
               const qty = consumables[c.effect]
               const canUse = canUseConsumable(c.effect)
               if (qty === 0) return null
@@ -1201,7 +1225,7 @@ function BattleContent() {
                   onClick={() => canUse && applyConsumable(c.effect)}
                   title={c.name}
                 >
-                  {meta.icon}
+                  <PixelItem itemId={consumablePixelId(c.effect)} size={22} />
                   <div className="lf-battle-hud-item-qty">×{qty}</div>
                 </div>
               )
@@ -1258,7 +1282,7 @@ function BattleContent() {
               <div className="lf-battle-squad-sidebar">
                 {squad.filter(e => e.hp > 0).map(e => (
                   <div key={e.uid} className={`lf-battle-squad-sidebar-row${e.uid === targetUid ? ' lf-battle-squad-sidebar-row--target' : ''}`}>
-                    <span style={{ fontSize: '18px' }}>{e.monster.icon}</span>
+                    <MonsterSprite monster={e.monster} size={36} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '12px', color: e.role === 'leader' ? '#e6e2f0' : '#c8c0d8' }}>
                         {e.monster.name}
@@ -1280,7 +1304,7 @@ function BattleContent() {
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '24px' }}>{monster.icon}</span>
+                <MonsterSprite monster={monster} size={40} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '13px', color: '#e6e2f0' }}>
                     {monster.name}
@@ -1360,7 +1384,6 @@ function BattleContent() {
             <div style={{ fontSize: '11px', color: '#e0bc6a', marginBottom: '6px', fontFamily: 'monospace' }}>{itemToast}</div>
           )}
           {BATTLE_CONSUMABLES.filter(c => consumables[c.effect] > 0).map(c => {
-            const meta = SCROLL_EFFECT_LABELS[c.effect]
             const qty = consumables[c.effect]
             const canUse = canUseConsumable(c.effect)
             return (
@@ -1373,8 +1396,11 @@ function BattleContent() {
                   borderRadius: '7px', cursor: canUse ? 'pointer' : 'default', opacity: qty === 0 ? 0.35 : 1,
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px' }}>
-                  <div style={{ fontSize: '12px', color: '#c8c0d8' }}>{meta.icon} {c.name}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#c8c0d8' }}>
+                    <PixelItem itemId={consumablePixelId(c.effect)} size={24} />
+                    {c.name}
+                  </div>
                   <div style={{ fontFamily: 'monospace', fontSize: '10px', color: qty > 0 ? '#a99fff' : '#5a5670' }}>×{qty}</div>
                 </div>
                 <div style={{ fontSize: '10px', color: '#8a849c' }}>{c.shortDesc}</div>
@@ -1422,13 +1448,15 @@ function BattleContent() {
                 -{damageFlash.amount}
               </div>
             )}
-            <div className="lf-battle-avatar" style={{ fontSize: '32px' }}>🧙</div>
+            <div className="lf-battle-avatar">
+              <PixelAvatar {...playerAppearance} equipment={playerVisualEquip} size={56} />
+            </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e6e2f0', marginBottom: '5px' }}>Аркан</div>
+              <div style={{ fontFamily: 'serif', fontSize: '13px', color: '#e6e2f0', marginBottom: '5px' }}>{playerAppearance.name}</div>
               <div style={{ height: '5px', background: '#171920', borderRadius: '3px', overflow: 'hidden', marginBottom: '3px' }}>
-                <div style={{ height: '100%', background: playerHP > 40 ? '#3db87a' : '#e0bc6a', width: `${playerHP}%`, transition: 'width 0.4s' }} />
+                <div style={{ height: '100%', background: playerHP > playerMaxHP * 0.4 ? '#3db87a' : '#e0bc6a', width: `${(playerHP / playerMaxHP) * 100}%`, transition: 'width 0.4s' }} />
               </div>
-              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#8a849c' }}>{playerHP} / 100 HP</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#8a849c' }}>{playerHP} / {playerMaxHP} HP</div>
             </div>
           </div>
           <div className="lf-battle-vs-mid" style={{ fontFamily: 'serif', fontSize: '20px', color: '#5a5670', textAlign: 'center' }}>⚔️</div>
@@ -1446,7 +1474,9 @@ function BattleContent() {
                     <div className="lf-battle-squad-dmg">-{damageFlash.amount}</div>
                   )}
                   <div className="lf-battle-squad-card-inner">
-                    <span className="lf-battle-squad-icon">{e.monster.icon}</span>
+                    <div className="lf-battle-squad-icon">
+                      <MonsterSprite monster={e.monster} size={52} />
+                    </div>
                     <div className="lf-battle-squad-meta">
                       <div className="lf-battle-squad-name">
                         {e.monster.name}
@@ -1502,7 +1532,7 @@ function BattleContent() {
                         className={`lf-battle-target-chip${e.uid === targetUid ? ' lf-battle-target-chip--on' : ''}`}
                         onClick={() => setTargetUid(e.uid)}
                       >
-                        <span>{e.monster.icon}</span>
+                        <MonsterSprite monster={e.monster} size={28} />
                         <span>{e.monster.name}</span>
                         <span className="lf-battle-target-chip-hp">{e.hp} HP</span>
                       </button>

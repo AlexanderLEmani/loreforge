@@ -18,6 +18,8 @@ import {
 } from '@/lib/battle-loadout'
 import { pickLoadingMessage } from '@/lib/loading-flavor'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import PixelItem from '@/components/PixelItem'
+import { consumablePixelId } from '@/lib/consumable-visuals'
 import { layout } from '@/lib/layout-classes'
 import { resolveDungeonParam } from '@/lib/dungeons'
 import { dungeonById } from '@/lib/guild-dungeons'
@@ -131,7 +133,7 @@ function PrepareContent() {
                       borderRadius: '8px', padding: '8px 12px',
                     }}
                   >
-                    <span>{meta.icon}</span>
+                    <PixelItem itemId={consumablePixelId(effect)} size={22} />
                     <span style={{ fontSize: '13px' }}>{item?.name ?? meta.label}</span>
                     <span onClick={() => removeSlot(i)} style={{ cursor: 'pointer', color: '#e05555', fontFamily: 'monospace', fontSize: '12px' }}>✕</span>
                   </div>
@@ -161,7 +163,7 @@ function PrepareContent() {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '18px' }}>{meta.icon}</span>
+                  <span style={{ display: 'flex', alignItems: 'center' }}><PixelItem itemId={consumablePixelId(c.effect)} size={22} /></span>
                   <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff' }}>
                     ×{stock}{taken > 0 ? ` (−${taken})` : ''}
                   </span>

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import ScrollPreviewModal from '@/components/ScrollPreviewModal'
+import PixelItem from '@/components/PixelItem'
+import { consumablePixelId } from '@/lib/consumable-visuals'
 import { navUnlockFromUser, USER_NAV_SELECT } from '@/lib/nav-unlock'
 import {
   BATTLE_CONSUMABLES,
@@ -357,7 +359,7 @@ export default function ShopPage() {
                 const qty = consumables[c.effect]
                 return (
                   <div key={c.effect} style={{ background: '#141820', border: '1px solid rgba(169,159,255,0.2)', borderRadius: '8px', padding: '14px' }}>
-                    <div style={{ fontSize: '20px', marginBottom: '6px' }}>{meta.icon}</div>
+                    <div style={{ marginBottom: '6px' }}><PixelItem itemId={consumablePixelId(c.effect)} size={28} /></div>
                     <div style={{ fontSize: '13px', color: '#c8c0d8', marginBottom: '2px' }}>{c.name}</div>
                     <div style={{ fontSize: '10px', color: '#8a849c', marginBottom: '8px', lineHeight: 1.4 }}>{c.shortDesc}</div>
                     <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#a99fff', marginBottom: '8px' }}>В запасе: ×{qty}</div>

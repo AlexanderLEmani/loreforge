@@ -1,0 +1,14 @@
+parameter,value,notes
+gold_per_correct,8,× счёт правильных ответов
+gold_win_bonus,30,только при победе
+hard_mode_multiplier,×2,золото и XP
+dungeon_gold_mult_Пещера сложения,×1.0,
+dungeon_gold_mult_Пещера вычитания,×1.0,
+dungeon_gold_mult_Башня умножения,×1.3,
+dungeon_gold_mult_Пещера деления,×1.3,
+dungeon_gold_mult_Храм дробей,×1.6,
+dungeon_gold_mult_Рынок процентов,×1.8,
+dungeon_gold_mult_Арена отрядов,×1.0,
+champion_gold_mult,×1.35,если победа над чемпионом
+xp_per_correct,10,× счёт × hard mult
+glory_on_win,max(20 score×12),×1.35 если чемпион

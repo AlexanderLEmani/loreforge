@@ -4,6 +4,10 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import PixelCharacter from '@/components/PixelCharacter'
+import PixelPet from '@/components/PixelPet'
+import PixelAvatar from '@/components/PixelAvatar'
+import PixelItem from '@/components/PixelItem'
+import { consumablePixelId } from '@/lib/consumable-visuals'
 import EquipmentCard from '@/components/EquipmentCard'
 import EquipSlotButton from '@/components/EquipSlotButton'
 import AppNav from '@/components/AppNav'
@@ -15,19 +19,17 @@ import {
   itemById,
   ownedItemIds,
   bonusLabel,
+  PET_ITEM_IDS,
+  visualEquipFromEquipped,
   type EquipSlot,
   type EquippedMap,
   type EquipmentItem,
 } from '@/lib/equipment'
-import { loadEquipped, loadOwnedIds, saveEquipped } from '@/lib/equipment-storage'
+import { loadEquipped, loadOwnedIds, saveEquipped, addOwnedItem } from '@/lib/equipment-storage'
 import { navUnlockFromUser } from '@/lib/nav-unlock'
 import { layout } from '@/lib/layout-classes'
 import { xpProgress } from '@/lib/economy'
 import { LoadingScreen } from '@/components/LoadingScreen'
-
-const RACE_ICONS: Record<string, string> = {
-  human: '🧙', elf: '🧝', dwarf: '⛏️', orc: '👹', undead: '💀',
-}
 
 const RACE_LABELS: Record<string, string> = {
   human: 'Странствующий маг', elf: 'Архивист', dwarf: 'Рунный кузнец', orc: 'Боевой учёный', undead: 'Некромант знаний',
@@ -74,7 +76,13 @@ export default function CharacterPage() {
 
       const level = ud?.level || 1
       setEquipped(await loadEquipped(user.id))
-      const owned = await loadOwnedIds(user.id)
+      let owned = await loadOwnedIds(user.id)
+      for (const petId of PET_ITEM_IDS) {
+        if (!owned.includes(petId)) {
+          const res = await addOwnedItem(user.id, petId)
+          owned = res.ids
+        }
+      }
       setOwnedIds(ownedItemIds(level, owned))
 
       const { count } = await supabase
@@ -123,13 +131,7 @@ export default function CharacterPage() {
     intel: 10 + level * 6 + (race === 'elf' ? 10 : 0) + (race === 'human' ? 4 : 0) + Math.round((equipBonuses.spellDamagePct || 0) * 0.5),
   }
 
-  const visualEquip: Partial<Record<EquipSlot, string>> = {}
-  for (const slot of EQUIP_SLOTS) {
-    const id = equipped[slot.id]
-    if (!id) continue
-    const item = itemById(id)
-    if (item) visualEquip[slot.id] = item.visualId
-  }
+  const visualEquip = visualEquipFromEquipped(equipped)
 
   const ownedItems = EQUIPMENT_ITEMS.filter(i => ownedIds.includes(i.id))
   const bagItems = ownedItems.filter(i => {
@@ -148,6 +150,9 @@ export default function CharacterPage() {
 
   const leftSlots = EQUIP_SLOTS.filter(s => s.id === 'head' || s.id === 'body')
   const rightSlots = EQUIP_SLOTS.filter(s => s.id === 'weapon' || s.id === 'hands' || s.id === 'feet')
+  const petSlot = EQUIP_SLOTS.find(s => s.id === 'pet')!
+  const petItem = equipped.pet ? itemById(equipped.pet) : null
+  const slotTotal = EQUIP_SLOTS.length
 
   return (
     <div className="lf-char-page">
@@ -157,9 +162,15 @@ export default function CharacterPage() {
           LoreHeim
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'monospace', fontSize: '11px', color: '#5a5670' }}>
-          <div style={{ width: '28px', height: '28px', border: '1px solid #c9a84c', borderRadius: '50%', background: '#1c1f2a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>
-            {RACE_ICONS[race]}
-          </div>
+          <PixelAvatar
+              race={race}
+              skinColor={character?.skin_color || '#c8a882'}
+              hairStyle={character?.hair_style || 'a1'}
+              hairColor={character?.hair_color || '#3d2b1f'}
+              cloakColor={character?.cloak_color || '#4a1f6e'}
+              equipment={visualEquip}
+              size={40}
+            />
           {character?.name} · Ур.{level}
         </div>
       </nav>
@@ -205,7 +216,7 @@ export default function CharacterPage() {
               <div className="lf-char-hero-name">
                 <div className="lf-char-hero-title">{character?.name}</div>
                 <div className="lf-char-hero-sub">
-                  {RACE_LABELS[race]?.toUpperCase()} · УР. {level} · {equippedCount}/5 слотов
+                  {RACE_LABELS[race]?.toUpperCase()} · УР. {level} · {equippedCount}/{slotTotal} слотов
                 </div>
               </div>
 
@@ -221,17 +232,37 @@ export default function CharacterPage() {
                 ))}
               </div>
 
-              <div className="lf-char-portrait-frame">
-                <PixelCharacter
-                  race={race}
-                  skinColor={character?.skin_color || '#c8a882'}
-                  hairStyle={character?.hair_style || 'a1'}
-                  hairColor={character?.hair_color || '#3d2b1f'}
-                  cloakColor={character?.cloak_color || '#4a1f6e'}
-                  equipment={visualEquip}
-                  size={220}
-                  glowTier={maxGlowTier}
-                />
+              <div className="lf-char-portrait-cluster">
+                <div className="lf-char-portrait-frame lf-char-portrait-frame--hero">
+                  <PixelCharacter
+                    race={race}
+                    skinColor={character?.skin_color || '#c8a882'}
+                    hairStyle={character?.hair_style || 'a1'}
+                    hairColor={character?.hair_color || '#3d2b1f'}
+                    cloakColor={character?.cloak_color || '#4a1f6e'}
+                    equipment={visualEquip}
+                    size={200}
+                    glowTier={maxGlowTier}
+                  />
+                </div>
+
+                <div className="lf-char-pet-area">
+                  <div className="lf-char-pet-visual">
+                    {petItem ? (
+                      <PixelPet visualId={petItem.visualId} size={84} />
+                    ) : (
+                      <div className="lf-char-pet-placeholder" aria-hidden>
+                        <span>🐾</span>
+                      </div>
+                    )}
+                  </div>
+                  <EquipSlotButton
+                    slot={petSlot}
+                    equipped={equipped}
+                    onEquip={setBagFilter}
+                    onUnequip={unequipSlot}
+                  />
+                </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', maxWidth: 110 }}>
@@ -319,7 +350,10 @@ export default function CharacterPage() {
           <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', margin: '14px 0 12px' }}>Расходники</div>
           {BATTLE_CONSUMABLES.map(c => (
             <div key={c.effect} style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '7px', padding: '10px 12px', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: '#9590a8' }}>{c.name}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#9590a8' }}>
+                <PixelItem itemId={consumablePixelId(c.effect)} size={20} />
+                {c.name}
+              </span>
               <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#a99fff' }}>×{consumables[c.effect]}</span>
             </div>
           ))}

@@ -1,0 +1,10 @@
+type,id,name,cost_gold,effect,attack_id,damage,cooldown,lecture_level,mastery_required,source
+consumable,hint,Светоч подсказки,25,2 из 4 вариантов (1 верный),,,,,,данж/лавка
+consumable,power,Эссенция мощи,40,×2 урон следующей атаки,,,,,,данж/лавка
+consumable,shield,Руна щита,35,Блокирует 1 удар монстра,,,,,,данж/лавка
+consumable,heal,Зелье жизни,85,+40 HP,,,,,,данж/лавка
+spell,scroll_twin_strike,Двойной удар,90,сложение + вычитание,twin_strike,24,,1,Мастер прибавления,только лавка
+spell,scroll_fireball,Огненный шар,140,× и ÷,fireball,38,2,2,Мастер умножения,только лавка
+spell,scroll_storm_lance,Штормовой ланс,155,× и ÷ hard,storm_lance,46,2,3,Мастер деления,только лавка
+spell,scroll_arcane_burst,Арканический взрыв,195,+ − × hard,arcane_burst,52,3,3,Мастер дробей,только лавка
+spell,scroll_dark_sigil,Тёмный сигил,230,ввод ответа ошибка −40 HP,dark_sigil,50,3,2,Мастер умножения,только лавка

@@ -1,4 +1,4 @@
-export type EquipSlot = 'head' | 'body' | 'weapon' | 'hands' | 'feet'
+export type EquipSlot = 'head' | 'body' | 'weapon' | 'hands' | 'feet' | 'pet'
 
 export type StatBonuses = {
   attackPct?: number
@@ -7,6 +7,7 @@ export type StatBonuses = {
   xpPct?: number
   defendTimerSec?: number
   spellDamagePct?: number
+  maxHpFlat?: number
 }
 
 export type EquipmentItem = {
@@ -29,6 +30,7 @@ export const EQUIP_SLOTS: { id: EquipSlot; icon: string; label: string }[] = [
   { id: 'weapon', icon: '🪄', label: 'Оружие' },
   { id: 'hands', icon: '🧤', label: 'Руки' },
   { id: 'feet', icon: '👢', label: 'Ноги' },
+  { id: 'pet', icon: '🐾', label: 'Питомец' },
 ]
 
 /** Снаряжение только из данжей — не продаётся в лавке */
@@ -48,6 +50,10 @@ export const EQUIPMENT_ITEMS: EquipmentItem[] = [
   { id: 'feet_soft', slot: 'feet', name: 'Мягкие сапоги', tier: 1, icon: '👢', visualId: 'feet_soft', minLevel: 1, goldCost: 0, bonuses: { attackPct: 2 }, desc: '+2% скорость атаки' },
   { id: 'feet_iron', slot: 'feet', name: 'Железные сапоги', tier: 2, icon: '🛡', visualId: 'feet_iron', minLevel: 2, goldCost: 0, bonuses: { defensePct: 4, attackPct: 2 }, desc: '+4% защита, +2% атака' },
   { id: 'feet_swift', slot: 'feet', name: 'Стремные сапоги', tier: 3, icon: '⚡', visualId: 'feet_swift', minLevel: 3, goldCost: 0, bonuses: { attackPct: 5, damagePct: 2 }, desc: '+5% атака, +2% урон' },
+  { id: 'pet_mote', slot: 'pet', name: 'Искорка', tier: 1, icon: '✨', visualId: 'pet_mote', minLevel: 1, goldCost: 0, bonuses: { xpPct: 2 }, desc: '+2% XP' },
+  { id: 'pet_owl', slot: 'pet', name: 'Совёнок рун', tier: 2, icon: '🦉', visualId: 'pet_owl', minLevel: 2, goldCost: 0, bonuses: { xpPct: 2, spellDamagePct: 3 }, desc: '+2% XP, +3% магия' },
+  { id: 'pet_wyrm', slot: 'pet', name: 'Мини-виверн', tier: 3, icon: '🐉', visualId: 'pet_wyrm', minLevel: 3, goldCost: 0, bonuses: { xpPct: 3, damagePct: 3 }, desc: '+3% XP, +3% урон' },
+  { id: 'pet_floppa', slot: 'pet', name: 'Верный Флоппа', tier: 2, icon: '🐕', visualId: 'pet_floppa', minLevel: 1, goldCost: 0, bonuses: { maxHpFlat: 15, xpPct: 5 }, desc: '+15 HP, +5% XP' },
 ]
 
 export const DEFAULT_EQUIPMENT: Record<EquipSlot, string> = {
@@ -56,6 +62,7 @@ export const DEFAULT_EQUIPMENT: Record<EquipSlot, string> = {
   weapon: '',
   hands: '',
   feet: '',
+  pet: '',
 }
 
 export function itemsForTier(tier: 1 | 2 | 3): EquipmentItem[] {
@@ -89,9 +96,23 @@ export function normalizeEquipped(raw: EquippedMap | null | undefined): Equipped
   return out
 }
 
+export const PET_ITEM_IDS = ['pet_mote', 'pet_owl', 'pet_wyrm', 'pet_floppa'] as const
+
+export type PetItemId = (typeof PET_ITEM_IDS)[number]
+
 /** Снаряжение только из данжей — стартовый набор пуст */
 export function starterItemIds(): string[] {
   return []
+}
+
+export function mergeOwnedWithPets(owned: string[]): string[] {
+  return [...new Set([...owned, ...PET_ITEM_IDS])]
+}
+
+export const PLAYER_BASE_HP = 100
+
+export function playerMaxHp(bonuses: StatBonuses): number {
+  return PLAYER_BASE_HP + (bonuses.maxHpFlat ?? 0)
 }
 
 export function computeEquipBonuses(equipped: EquippedMap): StatBonuses {
@@ -113,6 +134,7 @@ export function bonusLabel(b: StatBonuses): string {
   if (b.defensePct) parts.push(`+${b.defensePct}% защита`)
   if (b.attackPct) parts.push(`+${b.attackPct}% атака`)
   if (b.xpPct) parts.push(`+${b.xpPct}% XP`)
+  if (b.maxHpFlat) parts.push(`+${b.maxHpFlat} HP`)
   if (b.defendTimerSec) parts.push(`+${b.defendTimerSec}с защита`)
   return parts.join(' · ') || '—'
 }
@@ -146,4 +168,15 @@ export const EQUIP_TIER_META: Record<
 
 export function tierMeta(tier: EquipmentItem['tier']) {
   return EQUIP_TIER_META[tier]
+}
+
+export function visualEquipFromEquipped(equipped: EquippedMap): Partial<Record<EquipSlot, string>> {
+  const visual: Partial<Record<EquipSlot, string>> = {}
+  for (const slot of EQUIP_SLOTS) {
+    const id = equipped[slot.id]
+    if (!id) continue
+    const item = itemById(id)
+    if (item) visual[slot.id] = item.visualId
+  }
+  return visual
 }
