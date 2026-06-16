@@ -372,7 +372,9 @@ export default function CharacterPage() {
       </div>
       <div className="shrink-0 px-5 lf-char-desk-bag-filters-wrap">{bagFiltersDesktop}</div>
       <div className="lf-char-desk-bag-list flex-1 overflow-y-auto min-h-0 px-5 pb-5">
-        {bagItemsListDesktop}
+        <div className="lf-char-desk-bag-grid">
+          {bagItemsListDesktop}
+        </div>
         {consumablesList}
       </div>
     </>
@@ -457,12 +459,16 @@ export default function CharacterPage() {
                     size={90}
                     glowTier={maxGlowTier}
                   />
-                </div>
-                {petItem && (
-                  <div className="lf-char-pet-visual lf-char-pet-visual--mobile">
-                    <PixelPet visualId={petItem.visualId} size={40} />
+                  <div className="lf-char-mobile-pet-badge">
+                    {petItem ? (
+                      <PixelPet visualId={petItem.visualId} size={36} />
+                    ) : (
+                      <div className="lf-char-pet-placeholder lf-char-pet-placeholder--mobile" aria-hidden>
+                        <span>🐾</span>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
 
               <div className="lf-char-mobile-slots lf-char-mobile-slots--right">
@@ -511,7 +517,7 @@ export default function CharacterPage() {
       </div>
 
       {/* ── Desktop: стандартная 3-col сетка как Hub (≥ xl) ── */}
-      <div className={`hidden xl:grid ${layout.hub} lf-char-hub-shell`} style={{ minHeight: 'calc(100vh - 56px)' }}>
+      <div className={`hidden xl:grid ${layout.hub} lf-char-hub-shell w-full`} style={{ minHeight: 'calc(100vh - 56px)' }}>
         <aside
           className={layout.sidebarL}
           style={{ background: '#111318', borderRight: '1px solid rgba(201,168,76,0.2)', padding: '1.5rem 1.25rem' }}
