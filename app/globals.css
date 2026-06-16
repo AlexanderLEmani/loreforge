@@ -2738,16 +2738,19 @@ body {
 }
 
 .lf-char-bonus-strip {
-  grid-column: 1 / -1;
   width: 100%;
   text-align: center;
   font-family: monospace;
-  font-size: 11px;
+  font-size: 10px;
   color: #b8b0d8;
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 6px;
   background: rgba(123, 108, 255, 0.06);
   border: 1px solid rgba(123, 108, 255, 0.15);
+}
+
+.lf-char-bonus-part {
+  display: inline-block;
 }
 
 .lf-equip-slot {
@@ -2991,11 +2994,142 @@ body {
 }
 
 @media (min-width: 768px) {
-  .lf-layout-character--desktop {
-    display: grid !important;
-    flex-direction: unset !important;
-    grid-template-columns: 260px 1fr 300px;
-    min-height: calc(100vh - 56px);
+  .lf-char-page {
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .lf-char-desk-head {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .lf-char-desk-xp {
+    margin-top: 10px;
+  }
+
+  .lf-char-desk-xp-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: monospace;
+    font-size: 9px;
+    color: #5a5670;
+    margin-bottom: 4px;
+  }
+
+  .lf-char-desk-xp-track {
+    height: 3px;
+    background: #171920;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .lf-char-desk-xp-fill {
+    height: 100%;
+    background: #7b6cff;
+    border-radius: 2px;
+  }
+
+  .lf-char-desk-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(72px, 96px) 1fr minmax(72px, 96px);
+    gap: 10px;
+    align-items: center;
+    justify-items: center;
+  }
+
+  .lf-char-desk-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .lf-char-desk-slots .lf-equip-slot {
+    max-width: none;
+  }
+
+  .lf-char-desk-portrait {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .lf-char-portrait-frame--desk {
+    min-height: 0;
+    width: 100%;
+    max-width: 220px;
+    padding: 1rem 0.75rem 0.5rem;
+  }
+
+  .lf-char-pet-visual--desk {
+    min-height: 0;
+  }
+
+  .lf-char-pet-placeholder--desk {
+    width: 56px;
+    height: 56px;
+    font-size: 22px;
+  }
+
+  .lf-char-bonus-strip--desk {
+    position: relative;
+    z-index: 1;
+  }
+
+  .lf-char-desk-stats-label {
+    font-family: monospace;
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    color: #5a5670;
+    text-transform: uppercase;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    margin: 12px 0 8px;
+  }
+
+  .lf-char-desk-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 13px;
+  }
+
+  .lf-char-desk-stat-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #9590a8;
+  }
+
+  .lf-char-desk-stat-val {
+    font-family: monospace;
+    font-size: 12px;
+  }
+
+  .lf-char-desk-nav {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .lf-char-desk-bag-title {
+    font-family: monospace;
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    color: #5a5670;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .lf-char-desk-bag-hint {
+    font-size: 11px;
+    color: #5a5670;
+    font-style: italic;
+    line-height: 1.5;
   }
 }
 
@@ -3008,8 +3142,12 @@ body {
   .lf-char-mobile-hud {
     background: #111318;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 8px 10px 6px;
-    gap: 4px;
+    padding: 8px 10px 4px;
+    gap: 0;
+  }
+
+  .lf-char-mobile-hud-top {
+    margin-bottom: 4px;
   }
 
   .lf-char-mobile-hud-head {
@@ -3095,9 +3233,14 @@ body {
     line-height: 1.1;
   }
 
+  .lf-char-mobile-hero-wrap {
+    position: relative;
+    z-index: 2;
+    margin-bottom: 2px;
+  }
+
   .lf-char-mobile-hero {
-    flex: 1;
-    min-height: 0;
+    height: 100%;
     display: grid;
     grid-template-columns: minmax(52px, 64px) 1fr minmax(52px, 64px);
     gap: 4px;
@@ -3136,7 +3279,7 @@ body {
     align-items: center;
     justify-content: center;
     min-width: 0;
-    gap: 2px;
+    gap: 4px;
   }
 
   .lf-char-portrait-frame--mobile {
@@ -3172,9 +3315,17 @@ body {
 
   .lf-char-bonus-strip--mobile {
     flex-shrink: 0;
-    font-size: 9px;
-    padding: 4px 8px;
-    margin-top: 2px;
+    position: relative;
+    z-index: 1;
+    margin: 4px 8px 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .lf-char-bonus-strip--mobile .lf-char-bonus-strip {
+    padding: 5px 6px;
+    font-size: 10px;
+    line-height: 1.35;
   }
 
   .lf-char-mobile-bag-head {

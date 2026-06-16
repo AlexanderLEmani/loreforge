@@ -41,7 +41,6 @@ export default function CharacterPage() {
   const [user, setUser] = useState<any>(null)
   const [userData, setUserData] = useState<any>(null)
   const [character, setCharacter] = useState<any>(null)
-  const [scrollCount, setScrollCount] = useState(0)
   const [equipped, setEquipped] = useState<EquippedMap>({})
   const [ownedIds, setOwnedIds] = useState<string[]>([])
   const [bagFilter, setBagFilter] = useState<'all' | EquipSlot>('all')
@@ -84,12 +83,6 @@ export default function CharacterPage() {
         }
       }
       setOwnedIds(ownedItemIds(level, owned))
-
-      const { count } = await supabase
-        .from('user_scrolls')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-      setScrollCount(count ?? 0)
 
       setLoading(false)
     }
@@ -148,13 +141,51 @@ export default function CharacterPage() {
     return max
   }, undefined)
 
-  const leftSlots = EQUIP_SLOTS.filter(s => s.id === 'head' || s.id === 'body')
+  const leftSlots = EQUIP_SLOTS.filter(s => s.id === 'head' || s.id === 'body' || s.id === 'pet')
   const rightSlots = EQUIP_SLOTS.filter(s => s.id === 'weapon' || s.id === 'hands' || s.id === 'feet')
-  const petSlot = EQUIP_SLOTS.find(s => s.id === 'pet')!
   const petItem = equipped.pet ? itemById(equipped.pet) : null
   const slotTotal = EQUIP_SLOTS.length
 
-  const bagFilters = (
+  const bonusParts = bonusLabel(equipBonuses).split(' · ').filter(p => p && p !== '—')
+
+  const bonusStrip = equippedCount > 0 ? (
+    <div className="lf-char-bonus-strip flex flex-wrap justify-center items-center gap-x-1 gap-y-0.5 text-[10px] leading-snug">
+      {bonusParts.map(part => (
+        <span key={part} className="lf-char-bonus-part whitespace-nowrap">{part}</span>
+      ))}
+    </div>
+  ) : null
+
+  const statsRows = [
+    ['⚔️', 'Сила атаки', stats.attack, '#e6e2f0'],
+    ['🛡️', 'Защита', stats.defense, '#e6e2f0'],
+    ['⚡', 'Скорость', stats.speed, '#a99fff'],
+    ['🧠', 'Интеллект', stats.intel, '#2dd9b8'],
+    ['💰', 'Золото', userData?.gold || 0, '#e0bc6a'],
+  ] as const
+
+  const bagFiltersDesktop = (
+    <div className="lf-char-bag-filters">
+      <button
+        type="button"
+        className={`lf-char-bag-filter${bagFilter === 'all' ? ' lf-char-bag-filter--active' : ''}`}
+        onClick={() => setBagFilter('all')}
+      >
+        Все
+      </button>
+      {EQUIP_SLOTS.map(s => (
+        <button
+          key={s.id}
+          type="button"
+          className={`lf-char-bag-filter${bagFilter === s.id ? ' lf-char-bag-filter--active' : ''}`}
+          onClick={() => setBagFilter(s.id)}
+        >
+          {s.icon} {s.label}
+        </button>
+      ))}
+    </div>
+  )
+  const bagFiltersMobile = (
     <div className="lf-char-bag-filters lf-char-bag-filters--mobile">
       <button
         type="button"
@@ -176,7 +207,24 @@ export default function CharacterPage() {
     </div>
   )
 
-  const bagItemsList = (
+  const bagItemsListDesktop = (
+    <>
+      {ownedItems.length === 0 && (
+        <div className="lf-char-bag-empty">Пока пусто. Пройди данж и победи — шанс получить предмет.</div>
+      )}
+      {bagItems.map(item => (
+        <EquipmentCard
+          key={item.id}
+          item={item}
+          action="equip"
+          onAction={() => equipItem(item)}
+          compact
+        />
+      ))}
+    </>
+  )
+
+  const bagItemsListMobile = (
     <>
       {ownedItems.length === 0 && (
         <div className="lf-char-bag-empty">Пока пусто. Пройди данж и победи — шанс получить предмет.</div>
@@ -240,156 +288,37 @@ export default function CharacterPage() {
       {/* ── Mobile: fixed HUD + scrollable inventory (< md) ── */}
       <div className="md:hidden flex flex-col h-[calc(100vh-64px)] overflow-hidden">
         <section className="lf-char-mobile-hud h-[40%] shrink-0 flex flex-col overflow-hidden">
-          <div className="lf-char-mobile-hud-head">
-            <div className="lf-char-mobile-hud-name">{character?.name}</div>
-            <div className="lf-char-mobile-hud-sub">
-              {RACE_LABELS[race]?.toUpperCase()} · УР. {level} · {equippedCount}/{slotTotal}
-            </div>
-            <div className="lf-char-mobile-xp">
-              <div className="lf-char-mobile-xp-labels">
-                <span>УР. {level}</span>
-                <span>{xpCurrent}/{xpNext}</span>
+          <div className="lf-char-mobile-hud-top shrink-0">
+            <div className="lf-char-mobile-hud-head">
+              <div className="lf-char-mobile-hud-name">{character?.name}</div>
+              <div className="lf-char-mobile-hud-sub">
+                {RACE_LABELS[race]?.toUpperCase()} · УР. {level} · {equippedCount}/{slotTotal}
               </div>
-              <div className="lf-char-mobile-xp-track">
-                <div className="lf-char-mobile-xp-fill" style={{ width: `${xpPct}%` }} />
-              </div>
-            </div>
-          </div>
-
-          <div className="lf-char-mobile-stats">
-            {combatStats.map(([icon, label, val, color]) => (
-              <div key={label} className="lf-char-mobile-stat">
-                <span className="lf-char-mobile-stat-icon">{icon}</span>
-                <span className="lf-char-mobile-stat-label">{label}</span>
-                <span className="lf-char-mobile-stat-val" style={{ color }}>{val}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="lf-char-mobile-hero">
-            <div className="lf-char-mobile-slots lf-char-mobile-slots--left">
-              {leftSlots.map(slot => (
-                <EquipSlotButton
-                  key={slot.id}
-                  slot={slot}
-                  equipped={equipped}
-                  onEquip={setBagFilter}
-                  onUnequip={unequipSlot}
-                />
-              ))}
-            </div>
-
-            <div className="lf-char-mobile-portrait">
-              <div className="lf-char-portrait-frame lf-char-portrait-frame--mobile">
-                <PixelCharacter
-                  race={race}
-                  skinColor={character?.skin_color || '#c8a882'}
-                  hairStyle={character?.hair_style || 'a1'}
-                  hairColor={character?.hair_color || '#3d2b1f'}
-                  cloakColor={character?.cloak_color || '#4a1f6e'}
-                  equipment={visualEquip}
-                  size={112}
-                  glowTier={maxGlowTier}
-                />
-              </div>
-              <div className="lf-char-mobile-pet">
-                <div className="lf-char-pet-visual lf-char-pet-visual--mobile">
-                  {petItem ? (
-                    <PixelPet visualId={petItem.visualId} size={48} />
-                  ) : (
-                    <div className="lf-char-pet-placeholder lf-char-pet-placeholder--mobile" aria-hidden>
-                      <span>🐾</span>
-                    </div>
-                  )}
+              <div className="lf-char-mobile-xp">
+                <div className="lf-char-mobile-xp-labels">
+                  <span>УР. {level}</span>
+                  <span>{xpCurrent}/{xpNext}</span>
                 </div>
-                <EquipSlotButton
-                  slot={petSlot}
-                  equipped={equipped}
-                  onEquip={setBagFilter}
-                  onUnequip={unequipSlot}
-                />
+                <div className="lf-char-mobile-xp-track">
+                  <div className="lf-char-mobile-xp-fill" style={{ width: `${xpPct}%` }} />
+                </div>
               </div>
             </div>
 
-            <div className="lf-char-mobile-slots lf-char-mobile-slots--right">
-              {rightSlots.map(slot => (
-                <EquipSlotButton
-                  key={slot.id}
-                  slot={slot}
-                  equipped={equipped}
-                  onEquip={setBagFilter}
-                  onUnequip={unequipSlot}
-                />
+            <div className="lf-char-mobile-stats">
+              {combatStats.map(([icon, label, val, color]) => (
+                <div key={label} className="lf-char-mobile-stat">
+                  <span className="lf-char-mobile-stat-icon">{icon}</span>
+                  <span className="lf-char-mobile-stat-label">{label}</span>
+                  <span className="lf-char-mobile-stat-val" style={{ color }}>{val}</span>
+                </div>
               ))}
             </div>
           </div>
 
-          {equippedCount > 0 && (
-            <div className="lf-char-bonus-strip lf-char-bonus-strip--mobile">
-              {bonusLabel(equipBonuses)}
-            </div>
-          )}
-        </section>
-
-        <section className="lf-char-mobile-bag h-[60%] shrink-0 flex flex-col bg-[#0b0c10] border-t border-white/10">
-          <div className="lf-char-mobile-bag-head">
-            <div className="lf-char-mobile-bag-title">Сумка · {ownedItems.length} предм.</div>
-          </div>
-          {bagFilters}
-          <div className="lf-char-mobile-bag-list flex-1 overflow-y-auto min-h-0 px-3 pb-3">
-            {bagItemsList}
-            {consumablesList}
-          </div>
-        </section>
-      </div>
-
-      {/* ── Desktop: 3-column layout (≥ md) ── */}
-      <div className={`hidden md:grid ${layout.character} lf-layout-character--desktop`}>
-        <div className={layout.sidebarL} style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}>
-          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>Персонаж</div>
-          <div style={{ marginBottom: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', marginBottom: '4px' }}>
-              <span>УРОВЕНЬ {level}</span><span>{xpCurrent} / {xpNext}</span>
-            </div>
-            <div style={{ height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: '#7b6cff', borderRadius: '2px', width: `${xpPct}%` }} />
-            </div>
-          </div>
-          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '12px' }}>Характеристики</div>
-          {[
-            ['⚔️', 'Сила атаки', stats.attack, '#e6e2f0'],
-            ['🛡️', 'Защита', stats.defense, '#e6e2f0'],
-            ['⚡', 'Скорость', stats.speed, '#a99fff'],
-            ['🧠', 'Интеллект', stats.intel, '#2dd9b8'],
-            ['💰', 'Золото', userData?.gold || 0, '#e0bc6a'],
-          ].map(([icon, name, val, color]) => (
-            <div key={name as string} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '13px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9590a8' }}><span>{icon as string}</span>{name as string}</div>
-              <div style={{ fontFamily: 'monospace', fontSize: '12px', color: color as string }}>{val as number}</div>
-            </div>
-          ))}
-          <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '14px 0 12px' }} />
-          <div className="lf-sidebar-nav">
-            <AppNav step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
-          </div>
-        </div>
-
-        <div className={`${layout.main} lf-main lf-pad-main`} style={{ background: '#0b0c10', overflowY: 'auto' }}>
-          <div style={{ marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Снаряжение и внешность</div>
-            <div style={{ fontFamily: 'monospace', fontSize: '26px', color: '#e0bc6a' }}>Твой персонаж</div>
-          </div>
-
-          <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '12px', padding: '1.25rem 1rem', marginBottom: '1.5rem' }}>
-            <div className="lf-char-hero">
-              <div className="lf-char-hero-name">
-                <div className="lf-char-hero-title">{character?.name}</div>
-                <div className="lf-char-hero-sub">
-                  {RACE_LABELS[race]?.toUpperCase()} · УР. {level} · {equippedCount}/{slotTotal} слотов
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', maxWidth: 110 }}>
+          <div className="lf-char-mobile-hero-wrap flex-1 min-h-0 overflow-hidden">
+            <div className="lf-char-mobile-hero">
+              <div className="lf-char-mobile-slots lf-char-mobile-slots--left">
                 {leftSlots.map(slot => (
                   <EquipSlotButton
                     key={slot.id}
@@ -401,8 +330,8 @@ export default function CharacterPage() {
                 ))}
               </div>
 
-              <div className="lf-char-portrait-cluster">
-                <div className="lf-char-portrait-frame lf-char-portrait-frame--hero">
+              <div className="lf-char-mobile-portrait">
+                <div className="lf-char-portrait-frame lf-char-portrait-frame--mobile">
                   <PixelCharacter
                     race={race}
                     skinColor={character?.skin_color || '#c8a882'}
@@ -410,31 +339,22 @@ export default function CharacterPage() {
                     hairColor={character?.hair_color || '#3d2b1f'}
                     cloakColor={character?.cloak_color || '#4a1f6e'}
                     equipment={visualEquip}
-                    size={200}
+                    size={112}
                     glowTier={maxGlowTier}
                   />
                 </div>
-
-                <div className="lf-char-pet-area">
-                  <div className="lf-char-pet-visual">
-                    {petItem ? (
-                      <PixelPet visualId={petItem.visualId} size={84} />
-                    ) : (
-                      <div className="lf-char-pet-placeholder" aria-hidden>
-                        <span>🐾</span>
-                      </div>
-                    )}
-                  </div>
-                  <EquipSlotButton
-                    slot={petSlot}
-                    equipped={equipped}
-                    onEquip={setBagFilter}
-                    onUnequip={unequipSlot}
-                  />
+                <div className="lf-char-pet-visual lf-char-pet-visual--mobile">
+                  {petItem ? (
+                    <PixelPet visualId={petItem.visualId} size={48} />
+                  ) : (
+                    <div className="lf-char-pet-placeholder lf-char-pet-placeholder--mobile" aria-hidden>
+                      <span>🐾</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', maxWidth: 110 }}>
+              <div className="lf-char-mobile-slots lf-char-mobile-slots--right">
                 {rightSlots.map(slot => (
                   <EquipSlotButton
                     key={slot.id}
@@ -445,88 +365,134 @@ export default function CharacterPage() {
                   />
                 ))}
               </div>
-
-              {equippedCount > 0 && (
-                <div className="lf-char-bonus-strip">
-                  {bonusLabel(equipBonuses)}
-                </div>
-              )}
             </div>
           </div>
 
-          <div style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.11)', borderRadius: '12px', padding: '1.25rem' }}>
-            <div style={{ fontFamily: 'monospace', fontSize: '14px', color: '#e0bc6a', marginBottom: '1rem', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Статистика</div>
-            <div className="lf-char-stats-grid">
-              {[
-                ['📚', 'Ответов дано', userData?.total_answers || 0, '#e6e2f0'],
-                ['🔥', 'Дней подряд', userData?.streak || 0, '#e05555'],
-                ['📖', 'Свитков', scrollCount, '#a99fff'],
-                ['🎽', 'Снаряжение', ownedItems.length, '#e0bc6a'],
-              ].map(([icon, label, val, color]) => (
-                <div key={label as string} className="lf-char-stat">
-                  <div className="lf-char-stat-label">
-                    <span>{icon as string}</span> {label as string}
-                  </div>
-                  <div className="lf-char-stat-val" style={{ color: color as string }}>{val as number}</div>
-                </div>
-              ))}
+          {bonusStrip && (
+            <div className="lf-char-bonus-strip--mobile shrink-0">
+              {bonusStrip}
             </div>
-          </div>
-        </div>
-
-        <div className={layout.sidebarR} style={{ background: '#111318', borderLeft: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem', overflowY: 'auto' }}>
-          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '10px' }}>
-            Сумка · {ownedItems.length} предм.
-          </div>
-          <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '12px' }}>
-            Снаряжение выпадает из данжей (~72% шанс дропа). Надеть — на персонаже.
-          </div>
-
-          <div className="lf-char-bag-filters">
-            <button
-              type="button"
-              className={`lf-char-bag-filter${bagFilter === 'all' ? ' lf-char-bag-filter--active' : ''}`}
-              onClick={() => setBagFilter('all')}
-            >
-              Все
-            </button>
-            {EQUIP_SLOTS.map(s => (
-              <button
-                key={s.id}
-                type="button"
-                className={`lf-char-bag-filter${bagFilter === s.id ? ' lf-char-bag-filter--active' : ''}`}
-                onClick={() => setBagFilter(s.id)}
-              >
-                {s.icon} {s.label}
-              </button>
-            ))}
-          </div>
-
-          {ownedItems.length === 0 && (
-            <div style={{ fontSize: '12px', color: '#5a5670', fontStyle: 'italic', marginBottom: '14px' }}>Пока пусто. Пройди данж и победи — шанс получить предмет.</div>
           )}
+        </section>
 
-          {bagItems.map(item => (
-            <EquipmentCard
-              key={item.id}
-              item={item}
-              action="equip"
-              onAction={() => equipItem(item)}
-              compact
-            />
-          ))}
+        <section className="lf-char-mobile-bag h-[60%] shrink-0 flex flex-col bg-[#0b0c10] border-t border-white/10">
+          <div className="lf-char-mobile-bag-head">
+            <div className="lf-char-mobile-bag-title">Сумка · {ownedItems.length} предм.</div>
+          </div>
+          {bagFiltersMobile}
+          <div className="lf-char-mobile-bag-list flex-1 overflow-y-auto min-h-0 px-3 pb-3">
+            {bagItemsListMobile}
+            {consumablesList}
+          </div>
+        </section>
+      </div>
 
-          <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.25em', color: '#5a5670', textTransform: 'uppercase', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', margin: '14px 0 12px' }}>Расходники</div>
-          {BATTLE_CONSUMABLES.map(c => (
-            <div key={c.effect} style={{ background: '#1c1f2a', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '7px', padding: '10px 12px', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#9590a8' }}>
-                <PixelItem itemId={consumablePixelId(c.effect)} size={20} />
-                {c.name}
-              </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#a99fff' }}>×{consumables[c.effect]}</span>
+      {/* ── Tablet / Desktop: 2-column RPG layout (≥ md) ── */}
+      <div className="hidden md:flex h-[calc(100vh-64px)] overflow-hidden">
+        <aside className="lf-char-desk-left w-[45%] max-w-[520px] shrink-0 flex flex-col overflow-hidden bg-[#111318] border-r border-white/10">
+          <div className="lf-char-desk-head shrink-0 px-5 pt-4 pb-3">
+            <div className="lf-char-hero-title">{character?.name}</div>
+            <div className="lf-char-hero-sub">
+              {RACE_LABELS[race]?.toUpperCase()} · УР. {level} · {equippedCount}/{slotTotal} слотов
             </div>
-          ))}
-        </div>
+            <div className="lf-char-desk-xp">
+              <div className="lf-char-desk-xp-labels">
+                <span>УРОВЕНЬ {level}</span>
+                <span>{xpCurrent} / {xpNext}</span>
+              </div>
+              <div className="lf-char-desk-xp-track">
+                <div className="lf-char-desk-xp-fill" style={{ width: `${xpPct}%` }} />
+              </div>
+            </div>
+          </div>
+
+          <div className="lf-char-desk-hero shrink-0 px-4 py-2">
+            <div className="lf-char-desk-hero-grid">
+              <div className="lf-char-desk-slots lf-char-desk-slots--left">
+                {leftSlots.map(slot => (
+                  <EquipSlotButton
+                    key={slot.id}
+                    slot={slot}
+                    equipped={equipped}
+                    onEquip={setBagFilter}
+                    onUnequip={unequipSlot}
+                  />
+                ))}
+              </div>
+
+              <div className="lf-char-desk-portrait">
+                <div className="lf-char-portrait-frame lf-char-portrait-frame--desk">
+                  <PixelCharacter
+                    race={race}
+                    skinColor={character?.skin_color || '#c8a882'}
+                    hairStyle={character?.hair_style || 'a1'}
+                    hairColor={character?.hair_color || '#3d2b1f'}
+                    cloakColor={character?.cloak_color || '#4a1f6e'}
+                    equipment={visualEquip}
+                    size={180}
+                    glowTier={maxGlowTier}
+                  />
+                </div>
+                <div className="lf-char-pet-visual lf-char-pet-visual--desk">
+                  {petItem ? (
+                    <PixelPet visualId={petItem.visualId} size={72} />
+                  ) : (
+                    <div className="lf-char-pet-placeholder lf-char-pet-placeholder--desk" aria-hidden>
+                      <span>🐾</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="lf-char-desk-slots lf-char-desk-slots--right">
+                {rightSlots.map(slot => (
+                  <EquipSlotButton
+                    key={slot.id}
+                    slot={slot}
+                    equipped={equipped}
+                    onEquip={setBagFilter}
+                    onUnequip={unequipSlot}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {bonusStrip && (
+              <div className="lf-char-bonus-strip--desk mt-3 mx-1">
+                {bonusStrip}
+              </div>
+            )}
+          </div>
+
+          <div className="lf-char-desk-stats flex-1 min-h-0 overflow-y-auto px-5 pb-4">
+            <div className="lf-char-desk-stats-label">Характеристики</div>
+            {statsRows.map(([icon, name, val, color]) => (
+              <div key={name} className="lf-char-desk-stat-row">
+                <div className="lf-char-desk-stat-name">
+                  <span>{icon}</span>{name}
+                </div>
+                <div className="lf-char-desk-stat-val" style={{ color }}>{val}</div>
+              </div>
+            ))}
+            <div className="lf-char-desk-nav">
+              <AppNav step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
+            </div>
+          </div>
+        </aside>
+
+        <section className="lf-char-desk-right flex-1 flex flex-col h-full min-w-0 bg-[#0b0c10] overflow-hidden">
+          <div className="lf-char-desk-bag-head shrink-0 px-5 pt-4 pb-2">
+            <div className="lf-char-desk-bag-title">Сумка · {ownedItems.length} предм.</div>
+            <div className="lf-char-desk-bag-hint">
+              Снаряжение выпадает из данжей (~72% шанс дропа). Надеть — на персонаже.
+            </div>
+          </div>
+          <div className="shrink-0 px-5">{bagFiltersDesktop}</div>
+          <div className="lf-char-desk-bag-list flex-1 overflow-y-auto min-h-0 px-5 pb-5">
+            {bagItemsListDesktop}
+            {consumablesList}
+          </div>
+        </section>
       </div>
 
       {toast && (
