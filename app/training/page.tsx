@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { loadTrainingStats, loadTopicProgress, recordTrainingAttempt, type TrainingStats, type TopicProgressMap } from '@/lib/training-stats'
@@ -50,6 +50,10 @@ const TOPIC_COLORS: Record<string, string> = {
 
 const TRAINING_SESSION_QUESTIONS = 20
 const TRAINING_SPEED_SECONDS = 180
+
+function computeElapsedSeconds(startMs: number): number {
+  return Math.max(1, Math.round((Date.now() - startMs) / 1000))
+}
 
 const MODES = [
   { id: 'guided', icon: '📖', name: 'С подсказками',  desc: '20 задач — после каждой ошибки подсказка. Потом итог сессии.', color: '#3db87a', xpMod: '+3 XP · +1 💰', sessionLabel: '20 задач' },
@@ -177,7 +181,7 @@ export default function TrainingPage() {
     const elapsed =
       selectedMode === 'speed'
         ? TRAINING_SPEED_SECONDS - timerRef.current
-        : Math.max(1, Math.round((Date.now() - sessionStartRef.current) / 1000))
+        : computeElapsedSeconds(sessionStartRef.current)
     track('training_session_end', {
       mode: selectedMode,
       correct: correctRef.current,
@@ -193,7 +197,7 @@ export default function TrainingPage() {
     const elapsed =
       selectedMode === 'speed'
         ? TRAINING_SPEED_SECONDS - timerRef.current
-        : Math.max(1, Math.round((Date.now() - sessionStartRef.current) / 1000))
+        : computeElapsedSeconds(sessionStartRef.current)
 
     const scrollTag = activeScroll ? resolveScrollTrainingTag(activeScroll) : null
     const granted = await checkTrainingMastery(supabase, userData.id, {
@@ -362,6 +366,11 @@ export default function TrainingPage() {
     const q = questions[current]
     setSelected(idx)
     await processAnswer(idx === q.correct_index)
+  }
+
+  function onChoiceAnswerClick(e: MouseEvent<HTMLDivElement>) {
+    const idx = parseInt(e.currentTarget.dataset.choiceIdx ?? '-1', 10)
+    void handleChoiceAnswer(idx)
   }
 
   async function handleTypedSubmit() {
@@ -772,7 +781,7 @@ export default function TrainingPage() {
                         else if (idx === selected) { bg = 'rgba(224,85,85,0.06)'; border = 'rgba(224,85,85,0.35)'; color = '#e05555' }
                       }
                       return (
-                        <div key={idx} onClick={() => handleChoiceAnswer(idx)}
+                        <div key={idx} data-choice-idx={idx} onClick={onChoiceAnswerClick}
                           style={{ background: bg, border: `1px solid ${border}`, borderRadius: '9px', padding: '14px', textAlign: 'center', fontFamily: 'serif', fontSize: '24px', color, cursor: selected !== null ? 'default' : 'pointer', transition: 'all 0.18s' }}>
                           {ans}
                         </div>

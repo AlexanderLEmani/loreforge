@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, type MouseEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Suspense } from 'react'
@@ -159,6 +159,7 @@ function BattleContent() {
   const usedTextsRef = useRef<Set<string>>(new Set())
   const defendBusyRef = useRef(false)
   const dodgePendingRef = useRef<{ rawHit: number; skippedQuestion: string; chipApplied: number } | null>(null)
+  const [dodgePending, setDodgePending] = useState<{ rawHit: number; skippedQuestion: string; chipApplied: number } | null>(null)
   const [cooldowns, setCooldowns] = useState<Record<string, number>>({})
   const [damageFlash, setDamageFlash] = useState<{ target: 'player' | 'enemy'; amount: number; enemyUid?: string } | null>(null)
   const [timer, setTimer] = useState(15)
@@ -189,6 +190,7 @@ function BattleContent() {
   const consumablesRef = useRef<ConsumableInventory>(EMPTY_CONSUMABLES)
   const consumablesRestoredRef = useRef(false)
   const spellScrollUsedRef = useRef(false)
+  const [spellScrollUsed, setSpellScrollUsed] = useState(false)
   const spellScrollRestoredRef = useRef(false)
   const initialSpellScrollRef = useRef<SpellScrollId | null>(null)
   const battleTrackedRef = useRef(false)
@@ -215,7 +217,7 @@ function BattleContent() {
     [userLevel, dungeonDbName, unlockedTopics],
   )
   const scrollSpellAttack = useMemo(() => {
-    if (!battleSpellScroll || spellScrollUsedRef.current) return null
+    if (!battleSpellScroll || spellScrollUsed) return null
     if (!canUseSpellScroll(battleSpellScroll, unlockedSkillNodeIds, {
       scroll_twin_strike: 1,
       scroll_fireball: 1,
@@ -224,7 +226,7 @@ function BattleContent() {
       scroll_dark_sigil: 1,
     })) return null
     return scrollAttackForBattle(battleSpellScroll, BATTLE_ATTACKS)
-  }, [battleSpellScroll, unlockedSkillNodeIds])
+  }, [battleSpellScroll, unlockedSkillNodeIds, spellScrollUsed])
   const bossIntent = useMemo(() => {
     if (!monster || !currentProfile || !isBossMonster(monster)) return null
     return resolveBossIntent(
@@ -496,8 +498,9 @@ function BattleContent() {
   function chooseAttack(atk: BattleAttack, fromScroll = false) {
     if ((cooldowns[atk.id] ?? 0) > 0) return
     if (fromScroll) {
-      if (!battleSpellScroll || spellScrollUsedRef.current) return
+      if (!battleSpellScroll || spellScrollUsed) return
       spellScrollUsedRef.current = true
+      setSpellScrollUsed(true)
       setBattleSpellScroll(null)
     }
     if (atk.id === 'dark_sigil') playSound('dark')
@@ -939,7 +942,9 @@ function BattleContent() {
     const rageMult = rageChargeMultiplier(rageChargeStacks)
     const rawHit = squadAttackDamage(plan, rageMult, false)
     const chipApplied = applyIncomingDamage(dodgeChipDamage(rawHit))
-    dodgePendingRef.current = { rawHit, skippedQuestion: monsterQ.question, chipApplied }
+    const pending = { rawHit, skippedQuestion: monsterQ.question, chipApplied }
+    dodgePendingRef.current = pending
+    setDodgePending(pending)
 
     setCorrectStreak(0)
     setRageChargeStacks(0)
@@ -963,6 +968,7 @@ function BattleContent() {
 
     const pending = dodgePendingRef.current
     dodgePendingRef.current = null
+    setDodgePending(null)
     const dodgeCorrect = !timeout && idx === dodgeQ.correct_index
     await recordAnswer(dodgeQ, dodgeCorrect)
 
@@ -1026,7 +1032,7 @@ function BattleContent() {
     if (timerRef.current) clearInterval(timerRef.current)
 
     const hitDmg = attackPlan.swarmDmgPerHit ?? 8
-    let newMistakes = [...mistakes]
+    const newMistakes = [...mistakes]
     let wrongCount = 0
     let correctCount = 0
 
@@ -1166,6 +1172,16 @@ function BattleContent() {
     await restoreUnusedConsumables()
     await restoreUnusedSpellScroll()
     router.push('/guild')
+  }
+
+  function onDefendButtonClick(e: MouseEvent<HTMLButtonElement>) {
+    const idx = parseInt(e.currentTarget.dataset.defendIdx ?? '-1', 10)
+    void handleDefend(idx)
+  }
+
+  function onDodgeAnswerClick(e: MouseEvent<HTMLButtonElement>) {
+    const idx = parseInt(e.currentTarget.dataset.dodgeIdx ?? '-1', 10)
+    void handleDodgeAnswer(idx)
   }
 
   if (loading) return <LoadingScreen flavor="dungeon" />
@@ -1783,7 +1799,8 @@ function BattleContent() {
                     key={idx}
                     type="button"
                     className="lf-battle-defend-btn"
-                    onClick={() => handleDefend(idx)}
+                    data-defend-idx={idx}
+                    onClick={onDefendButtonClick}
                     style={{ background: bg, border: `1px solid ${border}`, color }}
                   >
                     <span className="lf-battle-defend-ans">{ans}</span>
@@ -1795,7 +1812,7 @@ function BattleContent() {
           )
         })()}
 
-        {phase === 'dodge_attempt' && dodgeQ && dodgePendingRef.current && (
+        {phase === 'dodge_attempt' && dodgeQ && dodgePending && (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#e0bc6a', textTransform: 'uppercase' }}>
@@ -1805,11 +1822,11 @@ function BattleContent() {
             </div>
             <div style={{ background: 'rgba(224,188,106,0.06)', border: '1px solid rgba(224,188,106,0.35)', borderRadius: '12px', padding: '1rem 1.25rem', marginBottom: '1rem' }}>
               <div style={{ fontSize: '11px', color: '#8a849c', marginBottom: '8px' }}>
-                Отступил от: {dodgePendingRef.current.skippedQuestion} · пример в ошибки
+                Отступил от: {dodgePending.skippedQuestion} · пример в ошибки
               </div>
               <div className="lf-battle-question" style={{ fontFamily: 'serif', fontSize: '38px', color: '#e6e2f0', lineHeight: 1.1 }}>{dodgeQ.question}</div>
               <div style={{ fontSize: '12px', color: '#e0bc6a', marginTop: '8px' }}>
-                Лёгкий пример · верный ≈ −{dodgePendingRef.current.chipApplied} HP · промах = полный удар
+                Лёгкий пример · верный ≈ −{dodgePending.chipApplied} HP · промах = полный удар
               </div>
             </div>
             <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
@@ -1828,7 +1845,8 @@ function BattleContent() {
                     key={idx}
                     type="button"
                     className="lf-battle-defend-btn"
-                    onClick={() => handleDodgeAnswer(idx)}
+                    data-dodge-idx={idx}
+                    onClick={onDodgeAnswerClick}
                     style={{ background: bg, border: `1px solid ${border}`, color }}
                   >
                     <span className="lf-battle-defend-ans">{ans}</span>
