@@ -2932,6 +2932,19 @@ body {
   width: 100%;
 }
 
+.lf-mul-table-wrap--teens .lf-mul-table {
+  max-width: 560px;
+}
+
+.lf-mul-table-wrap--teens .lf-mul-table-cell,
+.lf-mul-table-wrap--teens .lf-mul-table-cell--btn {
+  font-size: 10px;
+}
+
+.lf-mul-table-wrap--teens .lf-mul-table-head {
+  font-size: 12px;
+}
+
 .lf-mul-table {
   width: 100%;
   max-width: 520px;

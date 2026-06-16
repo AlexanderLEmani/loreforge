@@ -1,9 +1,10 @@
 'use client'
 
-import { MUL_MAX, MUL_MIN, isSquareCell, pairKey, type CellStat } from '@/lib/mul-table'
+import { isSquareCell, pairKey, tierConfig, type CellStat, type MulTierId } from '@/lib/mul-table'
 
 type Props = {
   stats: Record<string, CellStat>
+  tier?: MulTierId
   highlightRow?: number | null
   highlightCol?: number | null
   onCellClick?: (a: number, b: number) => void
@@ -20,14 +21,16 @@ function cellBg(stat: CellStat | undefined, a: number, b: number): string {
 
 export default function MulTableGrid({
   stats,
+  tier = 'basic',
   highlightRow = null,
   highlightCol = null,
   onCellClick,
 }: Props) {
-  const nums = Array.from({ length: MUL_MAX }, (_, i) => i + MUL_MIN)
+  const { min, max } = tierConfig(tier)
+  const nums = Array.from({ length: max - min + 1 }, (_, i) => i + min)
 
   return (
-    <div className="lf-mul-table-wrap">
+    <div className={`lf-mul-table-wrap${tier === 'teens' ? ' lf-mul-table-wrap--teens' : ''}`}>
       <table className="lf-mul-table" cellSpacing={0}>
         <thead>
           <tr>

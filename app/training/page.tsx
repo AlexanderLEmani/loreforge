@@ -442,7 +442,7 @@ export default function TrainingPage() {
               <div>
                 <div style={{ fontFamily: 'serif', fontSize: '17px', color: '#e0bc6a', marginBottom: '4px' }}>Таблица умножения</div>
                 <div style={{ fontSize: '12px', color: '#9590a8', lineHeight: 1.5 }}>
-                  Отдельный тренажёр · карта Пифагора · лайфхаки · спринт на ачивку
+                  Отдельный тренажёр · 1–10 и 11–20 · карта · лайфхаки · спринт
                 </div>
               </div>
               <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff', marginLeft: 'auto' }}>→</div>

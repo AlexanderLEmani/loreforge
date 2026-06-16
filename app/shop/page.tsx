@@ -13,11 +13,14 @@ import {
   parseConsumables,
   type ConsumableInventory,
 } from '@/lib/battle-consumables'
+import { loadDemoSkillState } from '@/lib/skill-tree'
 import {
-  EMPTY_SPELL_SCROLLS,
-  parseSpellScrolls,
+  isSpellLearned,
+  parseCompletedLectures,
+  parseLearnedSpells,
   SPELL_SCROLL_DEFS,
-  subtractSpellScroll,
+  spellPurchaseGate,
+  type LearnedSpells,
   type SpellScrollId,
 } from '@/lib/battle-spell-scrolls'
 import { layout } from '@/lib/layout-classes'
@@ -40,8 +43,10 @@ export default function ShopPage() {
   const [buying, setBuying] = useState<number | null>(null)
   const [buyingConsumable, setBuyingConsumable] = useState<string | null>(null)
   const [consumables, setConsumables] = useState<ConsumableInventory>(EMPTY_CONSUMABLES)
-  const [spellScrolls, setSpellScrolls] = useState(EMPTY_SPELL_SCROLLS)
-  const [buyingSpellScroll, setBuyingSpellScroll] = useState<string | null>(null)
+  const [learnedSpells, setLearnedSpells] = useState<LearnedSpells>([])
+  const [completedLectures, setCompletedLectures] = useState<number[]>([])
+  const [unlockedNodeIds, setUnlockedNodeIds] = useState<number[]>([])
+  const [buyingSpell, setBuyingSpell] = useState<SpellScrollId | null>(null)
   const [filterLevel, setFilterLevel] = useState(1)
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
@@ -53,10 +58,18 @@ export default function ShopPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
 
-      const { data } = await supabase.from('users').select(`${USER_NAV_SELECT}, consumables, spell_scrolls`).eq('id', user.id).single()
+      const { data } = await supabase.from('users').select(`${USER_NAV_SELECT}, consumables, learned_spells, spell_scrolls, completed_lectures`).eq('id', user.id).single()
       setUserData({ ...data, id: user.id })
       setConsumables(parseConsumables(data?.consumables))
-      setSpellScrolls(parseSpellScrolls(data?.spell_scrolls))
+      setLearnedSpells(parseLearnedSpells(data?.learned_spells, data?.spell_scrolls))
+      setCompletedLectures(parseCompletedLectures(data?.completed_lectures))
+
+      const { data: userSkills } = await supabase.from('user_skills').select('node_id').eq('user_id', user.id)
+      let unlockedIds = (userSkills || []).map(s => Number(s.node_id)).filter(n => !Number.isNaN(n))
+      if (unlockedIds.length === 0) {
+        unlockedIds = loadDemoSkillState().unlocked.map(id => Number(id)).filter(n => !Number.isNaN(n))
+      }
+      setUnlockedNodeIds(unlockedIds)
       if (data && !data.visited_shop) {
         setShowHelp(true)
         await supabase.from('users').update({ visited_shop: true }).eq('id', user.id)
@@ -111,22 +124,29 @@ export default function ShopPage() {
     setTimeout(() => setToast(null), 2500)
   }
 
-  async function buySpellScroll(scrollId: SpellScrollId, name: string, cost: number) {
-    if (!userData || buyingSpellScroll) return
-    if ((userData.gold || 0) < cost) {
-      setToast('Недостаточно золота')
-      setTimeout(() => setToast(null), 2000)
+  async function learnSpell(def: (typeof SPELL_SCROLL_DEFS)[number]) {
+    if (!userData || buyingSpell) return
+    const gate = spellPurchaseGate(def, {
+      learned: learnedSpells,
+      unlockedNodeIds,
+      completedLectures,
+      userLevel: userData.level || 1,
+      gold: userData.gold || 0,
+    })
+    if (!gate.ok) {
+      setToast(gate.message)
+      setTimeout(() => setToast(null), 2800)
       return
     }
-    setBuyingSpellScroll(scrollId)
-    const newGold = userData.gold - cost
-    const newInv = { ...spellScrolls, [scrollId]: spellScrolls[scrollId] + 1 }
-    await supabase.from('users').update({ gold: newGold, spell_scrolls: newInv }).eq('id', userData.id)
+    setBuyingSpell(def.id)
+    const newGold = (userData.gold || 0) - def.cost
+    const nextLearned = [...learnedSpells, def.id]
+    await supabase.from('users').update({ gold: newGold, learned_spells: nextLearned }).eq('id', userData.id)
     setUserData({ ...userData, gold: newGold })
-    setSpellScrolls(newInv)
-    setBuyingSpellScroll(null)
-    setToast(`${name} +1 (в запасе: ${newInv[scrollId]})`)
-    setTimeout(() => setToast(null), 2500)
+    setLearnedSpells(nextLearned)
+    setBuyingSpell(null)
+    setToast(`✦ «${def.name}» выучено — доступно в бою навсегда`)
+    setTimeout(() => setToast(null), 3200)
   }
 
   if (loading) return <LoadingScreen />
@@ -164,7 +184,81 @@ export default function ShopPage() {
             <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '4px' }}>Лавка магических знаний</div>
             <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '4px' }}>Свитки техник</div>
             <div style={{ fontSize: '13px', color: '#5a5670', fontStyle: 'italic' }}>
-              Свитки — в Гримуар. Расходники — в запас; перед данжом возьми до 3 в рюкзак.
+              Расходники — на один данж. Заклинания — навсегда после покупки. Свитки техник — в Гримуар.
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '2rem', padding: '1.25rem', borderRadius: '14px', background: 'linear-gradient(135deg, rgba(123,108,255,0.08), rgba(11,12,16,0.6))', border: '1px solid rgba(169,159,255,0.25)' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '1rem' }}>
+              <div>
+                <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#a99fff', textTransform: 'uppercase', marginBottom: '6px' }}>Боевые заклинания</div>
+                <div style={{ fontFamily: 'serif', fontSize: '20px', color: '#e6e2f0', marginBottom: '4px' }}>Выучи один раз — используй всегда</div>
+                <div style={{ fontSize: '12px', color: '#8a849c', lineHeight: 1.55, maxWidth: '520px' }}>
+                  1) Прочитай лекцию в Коллегии · 2) Открой «Мастер …» на древе · 3) Купи здесь · 4) Заклинание появится в бою
+                </div>
+              </div>
+              <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#3db87a', background: 'rgba(61,184,122,0.08)', border: '1px solid rgba(61,184,122,0.25)', borderRadius: '8px', padding: '8px 12px' }}>
+                Выучено: {learnedSpells.length}/{SPELL_SCROLL_DEFS.length}
+              </div>
+            </div>
+            <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
+              {SPELL_SCROLL_DEFS.map(def => {
+                const learned = isSpellLearned(learnedSpells, def.id)
+                const gate = spellPurchaseGate(def, {
+                  learned: learnedSpells,
+                  unlockedNodeIds,
+                  completedLectures,
+                  userLevel: level,
+                  gold: userData?.gold || 0,
+                })
+                const canBuy = gate.ok
+                const lockReason = !gate.ok && gate.reason !== 'learned' ? gate.message : null
+                return (
+                  <div
+                    key={def.id}
+                    style={{
+                      background: learned ? 'rgba(61,184,122,0.06)' : '#141820',
+                      border: `1px solid ${learned ? 'rgba(61,184,122,0.35)' : canBuy ? 'rgba(169,159,255,0.4)' : 'rgba(255,255,255,0.06)'}`,
+                      borderRadius: '12px',
+                      padding: '16px',
+                      opacity: !learned && !canBuy && lockReason ? 0.72 : 1,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '10px' }}>
+                      <div style={{ fontSize: '28px', lineHeight: 1 }}>{def.icon}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '15px', color: '#e6e2f0', fontWeight: 'bold', marginBottom: '2px' }}>{def.name}</div>
+                        <div style={{ fontSize: '11px', color: '#8a849c', lineHeight: 1.45 }}>{def.shortDesc}</div>
+                      </div>
+                    </div>
+                    {learned ? (
+                      <div style={{ padding: '10px', textAlign: 'center', borderRadius: '8px', background: 'rgba(61,184,122,0.1)', border: '1px solid rgba(61,184,122,0.35)', fontFamily: 'monospace', fontSize: '11px', color: '#3db87a' }}>
+                        ✦ Выучено · в бою навсегда
+                      </div>
+                    ) : lockReason ? (
+                      <div style={{ padding: '10px', borderRadius: '8px', background: 'rgba(224,85,85,0.06)', border: '1px solid rgba(224,85,85,0.2)', fontSize: '11px', color: '#c8a0a0', lineHeight: 1.45, marginBottom: canBuy ? 0 : '8px' }}>
+                        🔒 {lockReason}
+                      </div>
+                    ) : null}
+                    {!learned && (
+                      <div
+                        onClick={() => canBuy && learnSpell(def)}
+                        style={{
+                          marginTop: lockReason ? '8px' : 0,
+                          padding: '10px', textAlign: 'center', borderRadius: '8px', fontFamily: 'monospace', fontSize: '11px',
+                          background: canBuy ? 'rgba(169,159,255,0.14)' : 'rgba(255,255,255,0.03)',
+                          border: `1px solid ${canBuy ? 'rgba(169,159,255,0.45)' : 'rgba(255,255,255,0.06)'}`,
+                          color: canBuy ? '#a99fff' : '#3a3650',
+                          cursor: canBuy ? 'pointer' : 'default',
+                          opacity: buyingSpell === def.id ? 0.5 : 1,
+                        }}
+                      >
+                        {buyingSpell === def.id ? 'Изучаем…' : canBuy ? `Выучить · 💰 ${def.cost}` : `💰 ${def.cost}`}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
 
@@ -193,41 +287,6 @@ export default function ShopPage() {
                       }}
                     >
                       {buyingConsumable === c.effect ? '...' : `💰 ${c.cost}`}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          <div style={{ marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>Свитки заклинаний для боя</div>
-            <div style={{ fontSize: '12px', color: '#8a849c', marginBottom: '12px', lineHeight: 1.5 }}>
-              Одноразовые в бою · нужна ветка «Мастер …» на древе · возьми в рюкзак перед данжом
-            </div>
-            <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              {SPELL_SCROLL_DEFS.map(def => {
-                const canAfford = (userData?.gold || 0) >= def.cost
-                const qty = spellScrolls[def.id]
-                return (
-                  <div key={def.id} style={{ background: '#141820', border: '1px solid rgba(169,159,255,0.2)', borderRadius: '8px', padding: '14px' }}>
-                    <div style={{ fontSize: '20px', marginBottom: '6px' }}>{def.icon}</div>
-                    <div style={{ fontSize: '13px', color: '#c8c0d8', marginBottom: '2px' }}>{def.name}</div>
-                    <div style={{ fontSize: '10px', color: '#8a849c', marginBottom: '6px', lineHeight: 1.4 }}>{def.shortDesc}</div>
-                    <div style={{ fontSize: '10px', color: '#7b6cff', marginBottom: '8px' }}>🔒 {def.masteryLabel}</div>
-                    <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#a99fff', marginBottom: '8px' }}>В запасе: ×{qty}</div>
-                    <div
-                      onClick={() => buySpellScroll(def.id, def.name, def.cost)}
-                      style={{
-                        padding: '8px', textAlign: 'center', borderRadius: '6px', fontFamily: 'monospace', fontSize: '10px',
-                        background: canAfford ? 'rgba(169,159,255,0.12)' : 'rgba(255,255,255,0.03)',
-                        border: `1px solid ${canAfford ? 'rgba(169,159,255,0.35)' : 'rgba(255,255,255,0.06)'}`,
-                        color: canAfford ? '#a99fff' : '#3a3650',
-                        cursor: canAfford ? 'pointer' : 'default',
-                        opacity: buyingSpellScroll === def.id ? 0.5 : 1,
-                      }}
-                    >
-                      {buyingSpellScroll === def.id ? '...' : `💰 ${def.cost}`}
                     </div>
                   </div>
                 )
@@ -318,8 +377,11 @@ export default function ShopPage() {
           <div className="lf-modal-panel">
             <div style={{ fontFamily: 'serif', fontSize: '22px', color: '#e0bc6a', marginBottom: '12px' }}>Лавка свитков</div>
             <div style={{ fontSize: '14px', color: '#b8b0c8', lineHeight: 1.8, marginBottom: '1.5rem' }}>
-              Свитки — постоянные знания в Гримуаре: методы и примеры для учёбы.
-              Расходники — отдельные одноразовые бафы в данже (один за бой), купи их выше.
+              <strong style={{ color: '#a99fff' }}>Заклинания</strong> — выучи один раз, используй в бою с кулдауном.
+              <br />
+              <strong style={{ color: '#e0bc6a' }}>Свитки техник</strong> — в Гримуар для учёбы.
+              <br />
+              <strong style={{ color: '#9590a8' }}>Расходники</strong> — одноразовые бафы, возьми в рюкзак перед данжом.
             </div>
             <div onClick={() => setShowHelp(false)}
               style={{ width: '100%', padding: '14px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '16px', color: '#e0bc6a', cursor: 'pointer' }}>

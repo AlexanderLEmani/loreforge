@@ -60,7 +60,7 @@ function makeBranch(
     },
     {
       id: R + 6, branch: t, name: labels.passive, type: 'passive', icon: '✦',
-      description: `Мастерство темы «${labels.topicName}». Открывает следующую тему на древе.`,
+      description: `Мастерство темы «${labels.topicName}». Открывает следующую тему и покупку боевых заклинаний в лавке.`,
       effect: { kind: 'xp_bonus', value: 8, topic: t, detail: `+8% XP в теме «${labels.topicName}»` },
       cost: 2, requires: R, position_x: xBase, position_y: 180,
     },

@@ -21,6 +21,7 @@ import { xpProgress } from '@/lib/economy'
 import { pickLoadingMessage } from '@/lib/loading-flavor'
 import { LectureActions } from '@/components/LectureActions'
 import type { LectureActionContext } from '@/lib/lecture-actions'
+import { isLectureCompleteForSpells, parseCompletedLectures } from '@/lib/battle-spell-scrolls'
 import { LoadingScreen } from '@/components/LoadingScreen'
 
 const LEVEL_SPELLS: Record<number, [string, string, string][]> = {
@@ -49,6 +50,8 @@ export default function CollegePage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [lectureLoadingMsg, setLectureLoadingMsg] = useState('')
+  const [completedLectures, setCompletedLectures] = useState<number[]>([])
+  const [markingLecture, setMarkingLecture] = useState(false)
 
   useEffect(() => {
     if (lectureLoading) setLectureLoadingMsg(pickLoadingMessage('lecture'))
@@ -85,7 +88,7 @@ export default function CollegePage() {
 
         const { data, error: userError } = await supabase
           .from('users')
-          .select(USER_NAV_SELECT)
+          .select(`${USER_NAV_SELECT}, completed_lectures`)
           .eq('id', user.id)
           .single()
 
@@ -95,6 +98,7 @@ export default function CollegePage() {
         }
 
         setUserData({ ...data, id: user.id })
+        setCompletedLectures(parseCompletedLectures(data?.completed_lectures))
         const level = data?.level || 1
         const currentLecture = lectureLevelForUser(level)
 
@@ -132,8 +136,25 @@ export default function CollegePage() {
   const level = userData?.level || 1
   const currentLectureLevel = lectureLevelForUser(level)
   const lecture = lectureCache[selectedLectureLevel] || getLectureForLevel(selectedLectureLevel)
-  const lectureList = getLectureList(level, selectedLectureLevel)
+  const lectureList = getLectureList(level, selectedLectureLevel).map(l => ({
+    ...l,
+    done: l.done || isLectureCompleteForSpells(l.level, level, completedLectures),
+  }))
   const viewingArchive = selectedLectureLevel !== currentLectureLevel
+  const selectedLectureComplete = isLectureCompleteForSpells(selectedLectureLevel, level, completedLectures)
+
+  async function markLectureRead() {
+    if (markingLecture || selectedLectureComplete) return
+    if (!isLectureUnlocked(selectedLectureLevel, level)) return
+    setMarkingLecture(true)
+    const next = [...new Set([...completedLectures, selectedLectureLevel])].sort((a, b) => a - b)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      await supabase.from('users').update({ completed_lectures: next }).eq('id', user.id)
+    }
+    setCompletedLectures(next)
+    setMarkingLecture(false)
+  }
 
   const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)
   const examReady = xpCurrent >= xpNext
@@ -283,6 +304,25 @@ export default function CollegePage() {
                   style={{ width: '100%', padding: '16px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '18px', color: '#e0bc6a', cursor: 'pointer' }}>
                   Ознакомился →
                 </div>
+              </div>
+            )}
+
+            {isLectureUnlocked(selectedLectureLevel, level) && (
+              <div style={{ marginTop: '2rem' }}>
+                {selectedLectureComplete ? (
+                  <div style={{ padding: '14px 16px', borderRadius: '10px', background: 'rgba(61,184,122,0.08)', border: '1px solid rgba(61,184,122,0.35)', fontSize: '13px', color: '#3db87a', lineHeight: 1.55 }}>
+                    ✓ Лекция {LECTURE_NUMS[selectedLectureLevel - 1]} прочитана — заклинания этого уровня можно покупать в лавке
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={markingLecture}
+                    onClick={() => void markLectureRead()}
+                    style={{ width: '100%', padding: '16px', background: 'rgba(123,108,255,0.12)', border: '1px solid rgba(169,159,255,0.45)', borderRadius: '10px', textAlign: 'center', fontFamily: 'serif', fontSize: '17px', color: '#b8aeff', cursor: markingLecture ? 'default' : 'pointer' }}
+                  >
+                    {markingLecture ? 'Сохраняем…' : 'Лекцию прочитал → открыть заклинания в лавке'}
+                  </button>
+                )}
               </div>
             )}
 

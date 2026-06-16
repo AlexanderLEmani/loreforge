@@ -37,7 +37,6 @@ import {
   addInventory,
   clearBattleLoadout,
   readBattleLoadout,
-  readBattleSpellScroll,
   loadoutToInventory,
 } from '@/lib/battle-loadout'
 import {
@@ -109,13 +108,9 @@ import {
   topicDamageMultiplier,
 } from '@/lib/monster-mechanics'
 import {
-  addSpellScroll,
-  canUseSpellScroll,
-  parseSpellScrolls,
-  scrollAttackForBattle,
-  spellScrollDef,
-  subtractSpellScroll,
-  type SpellScrollId,
+  getLearnedSpellAttacks,
+  parseLearnedSpells,
+  type LearnedSpells,
 } from '@/lib/battle-spell-scrolls'
 
 type Phase = 'choose_attack' | 'player_attack' | 'monster_attack' | 'dodge_attempt' | 'swarm_attack' | 'result_flash'
@@ -181,7 +176,7 @@ function BattleContent() {
   const [rageChargeStacks, setRageChargeStacks] = useState(0)
   const [playerStanceStacks, setPlayerStanceStacks] = useState(0)
   const [unlockedSkillNodeIds, setUnlockedSkillNodeIds] = useState<number[]>([])
-  const [battleSpellScroll, setBattleSpellScroll] = useState<SpellScrollId | null>(null)
+  const [learnedSpells, setLearnedSpells] = useState<LearnedSpells>([])
   const [swarmRound, setSwarmRound] = useState<SwarmRoundData | null>(null)
   const [swarmAssignments, setSwarmAssignments] = useState<(number | null)[]>([])
   const [swarmSelectedPool, setSwarmSelectedPool] = useState<number | null>(null)
@@ -189,10 +184,6 @@ function BattleContent() {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const consumablesRef = useRef<ConsumableInventory>(EMPTY_CONSUMABLES)
   const consumablesRestoredRef = useRef(false)
-  const spellScrollUsedRef = useRef(false)
-  const [spellScrollUsed, setSpellScrollUsed] = useState(false)
-  const spellScrollRestoredRef = useRef(false)
-  const initialSpellScrollRef = useRef<SpellScrollId | null>(null)
   const battleTrackedRef = useRef(false)
 
   useStudyTimer(!loading && monster !== null)
@@ -216,17 +207,10 @@ function BattleContent() {
     () => getAttacksForBattle(userLevel, dungeonDbName, unlockedTopics),
     [userLevel, dungeonDbName, unlockedTopics],
   )
-  const scrollSpellAttack = useMemo(() => {
-    if (!battleSpellScroll || spellScrollUsed) return null
-    if (!canUseSpellScroll(battleSpellScroll, unlockedSkillNodeIds, {
-      scroll_twin_strike: 1,
-      scroll_fireball: 1,
-      scroll_storm_lance: 1,
-      scroll_arcane_burst: 1,
-      scroll_dark_sigil: 1,
-    })) return null
-    return scrollAttackForBattle(battleSpellScroll, BATTLE_ATTACKS)
-  }, [battleSpellScroll, unlockedSkillNodeIds, spellScrollUsed])
+  const learnedSpellAttacks = useMemo(
+    () => getLearnedSpellAttacks(userLevel, dungeonDbName, unlockedTopics, learnedSpells, unlockedSkillNodeIds),
+    [userLevel, dungeonDbName, unlockedTopics, learnedSpells, unlockedSkillNodeIds],
+  )
   const bossIntent = useMemo(() => {
     if (!monster || !currentProfile || !isBossMonster(monster)) return null
     return resolveBossIntent(
@@ -260,17 +244,16 @@ function BattleContent() {
         return
       }
       setConsumables(loadoutToInventory(loadout))
-      setBattleSpellScroll(readBattleSpellScroll(dungeonId))
-      initialSpellScrollRef.current = readBattleSpellScroll(dungeonId)
 
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUser(user)
       let dungeonWins = 0
 
       if (user) {
-        const { data: ud } = await supabase.from('users').select('level').eq('id', user.id).single()
+        const { data: ud } = await supabase.from('users').select('level, learned_spells, spell_scrolls').eq('id', user.id).single()
         const lvl = ud?.level || 1
         setUserLevel(lvl)
+        setLearnedSpells(parseLearnedSpells(ud?.learned_spells, ud?.spell_scrolls))
 
         const { data: ch } = await supabase.from('characters').select('race').eq('user_id', user.id).maybeSingle()
         if (ch?.race) setPlayerRace(ch.race)
@@ -495,14 +478,8 @@ function BattleContent() {
     return attack.kind === 'scroll_spell'
   }
 
-  function chooseAttack(atk: BattleAttack, fromScroll = false) {
+  function chooseAttack(atk: BattleAttack) {
     if ((cooldowns[atk.id] ?? 0) > 0) return
-    if (fromScroll) {
-      if (!battleSpellScroll || spellScrollUsed) return
-      spellScrollUsedRef.current = true
-      setSpellScrollUsed(true)
-      setBattleSpellScroll(null)
-    }
     if (atk.id === 'dark_sigil') playSound('dark')
     else playSound('tap')
     if (atk.cooldown) {
@@ -1097,25 +1074,6 @@ function BattleContent() {
     flash(msg, wrongCount === 0 ? '#3db87a' : '#e05555', () => finishAfterFlash(hp, newMistakes))
   }
 
-  async function restoreUnusedSpellScroll() {
-    if (spellScrollRestoredRef.current) return
-    spellScrollRestoredRef.current = true
-    const scrollId = initialSpellScrollRef.current
-    if (!scrollId || spellScrollUsedRef.current) return
-
-    let userId = currentUser?.id
-    if (!userId) {
-      const { data: { user } } = await supabase.auth.getUser()
-      userId = user?.id
-    }
-    if (!userId) return
-
-    const { data } = await supabase.from('users').select('spell_scrolls').eq('id', userId).single()
-    const dbInv = parseSpellScrolls(data?.spell_scrolls)
-    const newInv = addSpellScroll(dbInv, scrollId, 1)
-    await supabase.from('users').update({ spell_scrolls: newInv }).eq('id', userId)
-  }
-
   async function restoreUnusedConsumables() {
     if (consumablesRestoredRef.current) return
     consumablesRestoredRef.current = true
@@ -1146,7 +1104,6 @@ function BattleContent() {
       mistakes: finalMistakes.length,
     })
     await restoreUnusedConsumables()
-    await restoreUnusedSpellScroll()
     const score = roundCount + 1 - finalMistakes.length
     const payload = {
       result,
@@ -1170,7 +1127,6 @@ function BattleContent() {
       mistakes: mistakes.length,
     })
     await restoreUnusedConsumables()
-    await restoreUnusedSpellScroll()
     router.push('/guild')
   }
 
@@ -1195,7 +1151,6 @@ function BattleContent() {
   }
 
   const basicAttacks = availableAttacks.filter(a => a.kind === 'basic')
-  const scrollSpellDef = battleSpellScroll ? spellScrollDef(battleSpellScroll) : null
 
   return (
     <div className={layout.battleShell}>
@@ -1565,14 +1520,13 @@ function BattleContent() {
               })}
             </div>
 
-            {scrollSpellAttack && scrollSpellDef && (
+            {learnedSpellAttacks.length > 0 && (
               <>
                 <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.15em', color: '#a99fff', textTransform: 'uppercase', margin: '10px 0 6px' }}>
-                  ▸ Свиток в рюкзаке · {scrollSpellDef.masteryLabel}
+                  ▸ Выученные заклинания
                 </div>
                 <div className="lf-battle-spells-scroll" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px' }}>
-                  {(() => {
-                    const atk = scrollSpellAttack
+                  {learnedSpellAttacks.map(atk => {
                     const cd = cooldowns[atk.id] ?? 0
                     const locked = cd > 0
                     const topicHint = (() => {
@@ -1581,22 +1535,26 @@ function BattleContent() {
                       return topicDamageMultiplier(atk, dungeonDbName, monsterProfile(profileMonsterId(target, squad)))
                     })()
                     return (
-                      <div key={atk.id} onClick={() => !locked && chooseAttack(atk, true)}
+                      <div key={atk.id} onClick={() => !locked && chooseAttack(atk)}
                         className="lf-battle-spell-card"
                         style={{ background: locked ? '#161820' : 'rgba(123,108,255,0.08)', border: `1px solid ${locked ? 'rgba(255,255,255,0.04)' : 'rgba(169,159,255,0.35)'}`, borderRadius: '10px', padding: '0.65rem', textAlign: 'center', cursor: locked ? 'not-allowed' : 'pointer', opacity: locked ? 0.5 : 1 }}>
                         <div style={{ fontSize: '24px', marginBottom: '4px' }}>{atk.icon}</div>
                         <div style={{ fontSize: '12px', color: '#e6e2f0', marginBottom: '2px' }}>{atk.label}</div>
-                        <div style={{ fontSize: '10px', color: '#8a849c', marginBottom: '4px' }}>1× в бою</div>
+                        <div style={{ fontSize: '10px', color: '#8a849c', marginBottom: '4px' }}>{atk.desc}</div>
                         <div style={{ fontFamily: 'monospace', fontSize: '14px', color: atk.color }}>+{atk.dmg}</div>
                         {topicHint.label && (
                           <div style={{ fontSize: '9px', marginTop: '4px', color: topicHint.mult > 1 ? '#3db87a' : '#e05555', fontFamily: 'monospace' }}>
                             {topicHint.label}
                           </div>
                         )}
-                        {locked && <div style={{ fontSize: '10px', color: '#e05555' }}>⏳ {cd}</div>}
+                        {atk.cooldown ? (
+                          <div style={{ fontSize: '9px', marginTop: '4px', color: '#8a849c', fontFamily: 'monospace' }}>
+                            {locked ? `⏳ ${cd}` : `cd ${atk.cooldown}`}
+                          </div>
+                        ) : null}
                       </div>
                     )
-                  })()}
+                  })}
                 </div>
               </>
             )}

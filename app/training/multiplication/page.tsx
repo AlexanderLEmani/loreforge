@@ -17,25 +17,29 @@ import StudyProgressChip from '@/components/StudyProgressChip'
 import { checkTrainingMastery, type MasteryDef } from '@/lib/mastery-achievements'
 import { playSound, soundOnAnswerInput, soundOnEnterKey } from '@/lib/sounds'
 import SoundToggle from '@/components/SoundToggle'
+import MulTrainerHelpModal from '@/components/MulTrainerHelpModal'
 import {
   buildSession,
   loadMulStats,
   loadMulSprintRecord,
-  MUL_MAX,
-  MUL_MIN,
   MUL_SPRINT_ACHIEVEMENT_CORRECT,
   MUL_SPRINT_SECONDS,
   MUL_TABLE_MODES,
+  MUL_TIERS,
   makePair,
   recordMulStat,
   rowLifehack,
   rowProgress,
   saveMulSprintResult,
+  tierConfig,
+  tierProgress,
+  tierSpan,
   tipForPair,
   type CellStat,
   type MulPair,
   type MulSprintRecord,
   type MulTableModeId,
+  type MulTierId,
 } from '@/lib/mul-table'
 
 type Phase = 'setup' | 'drill' | 'done'
@@ -46,6 +50,7 @@ export default function MultiplicationTrainerPage() {
   const [loading, setLoading] = useState(true)
   const [userData, setUserData] = useState<any>(null)
   const [phase, setPhase] = useState<Phase>('setup')
+  const [tier, setTier] = useState<MulTierId>('basic')
   const [mode, setMode] = useState<MulTableModeId>('easy')
   const [selectedRow, setSelectedRow] = useState(7)
   const [stats, setStats] = useState<Record<string, CellStat>>({})
@@ -61,6 +66,7 @@ export default function MultiplicationTrainerPage() {
   const [newMastery, setNewMastery] = useState<MasteryDef[]>([])
   const [sprintRecord, setSprintRecord] = useState<MulSprintRecord | null>(null)
   const [sprintNewBest, setSprintNewBest] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const sessionIdRef = useRef<string | null>(null)
   const sessionStartRef = useRef(0)
   const correctRef = useRef(0)
@@ -80,12 +86,21 @@ export default function MultiplicationTrainerPage() {
         .eq('id', user.id)
         .single()
       setUserData({ ...data, id: user.id })
-      setStats(loadMulStats(user.id))
-      setSprintRecord(loadMulSprintRecord(user.id))
+      setStats(loadMulStats(user.id, tier))
+      setSprintRecord(loadMulSprintRecord(user.id, tier))
       setLoading(false)
     }
     load()
   }, [])
+
+  function switchTier(next: MulTierId) {
+    if (!userData?.id || next === tier) return
+    setTier(next)
+    setStats(loadMulStats(userData.id, next))
+    setSprintRecord(loadMulSprintRecord(userData.id, next))
+    setSelectedRow(next === 'teens' ? 12 : 7)
+    setPhase('setup')
+  }
 
   useEffect(() => {
     if (!timerActive) return
@@ -107,6 +122,7 @@ export default function MultiplicationTrainerPage() {
   function startDrill(cell?: MulPair) {
     if (!userData?.id) return
     const pairs = buildSession(mode, stats, {
+      tier,
       row: mode === 'row' ? selectedRow : undefined,
       cell: cell ?? (mode === 'cell' ? cell : undefined),
     })
@@ -140,6 +156,7 @@ export default function MultiplicationTrainerPage() {
         userData.id,
         correctRef.current,
         totalRef.current,
+        tier,
       )
       setSprintRecord(record)
       setSprintNewBest(isNewBest)
@@ -191,7 +208,7 @@ export default function MultiplicationTrainerPage() {
       setShowTip(true)
     }
 
-    setStats(recordMulStat(userData.id, pair.a, pair.b, isCorrect))
+    setStats(recordMulStat(userData.id, pair.a, pair.b, isCorrect, tier))
 
     if (sessionIdRef.current) {
       await recordTrainingAttempt(supabase, {
@@ -209,7 +226,7 @@ export default function MultiplicationTrainerPage() {
       setFeedback(null)
       if (mode === 'sprint') {
         if (index + 1 >= queue.length) {
-          setQueue(q => [...q, ...buildSession('full', stats).slice(0, 20)])
+          setQueue(q => [...q, ...buildSession('full', stats, { tier }).slice(0, 20)])
         }
         setIndex(i => i + 1)
       } else if (index + 1 >= queue.length) {
@@ -227,16 +244,50 @@ export default function MultiplicationTrainerPage() {
   const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)
   const pair = queue[index]
   const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0
-  const currentTip = pair ? tipForPair(pair.a, pair.b) : ''
-  const rowHack = rowLifehack(selectedRow)
+  const tierMeta = tierConfig(tier)
+  const currentTip = pair ? tipForPair(pair.a, pair.b, tier) : ''
+  const rowHack = rowLifehack(selectedRow, tier)
+  const gridProgress = tierProgress(stats, tier)
+  const tierLifehacks = tier === 'teens'
+    ? [
+        '×11 — 7×11 = 77 (цифра дважды)',
+        '×12 — ×10 + ×2',
+        '×15 — ×10 + ×5',
+        '×19 — ×20 − число',
+        '×20 — ×10 ×2',
+        'Разбей: 14×13 = 14×10 + 14×3',
+      ]
+    : [
+        '×2 — удвой число',
+        '×5 — половина от ×10',
+        '×9 — ×10 минус число',
+        '×4 — ×2 два раза',
+        'Диагональ — квадраты n²',
+        'Зеркало: 3×7 = 7×3',
+      ]
 
   return (
     <div style={{ background: '#0b0c10', minHeight: '100vh', fontFamily: 'serif' }}>
       <nav className={layout.navBar} style={{ height: '56px', background: 'rgba(11,12,16,0.95)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem' }}>
         <div style={{ fontFamily: 'monospace', fontSize: '16px', color: '#e0bc6a' }}>✕ Таблица умножения</div>
-        <button type="button" onClick={() => router.push('/training')} style={{ fontFamily: 'monospace', fontSize: '11px', color: '#9590a8', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer' }}>
-          ← Зал тренировок
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setShowHelp(true)}
+            title="Справка по тренажёру"
+            aria-label="Справка по тренажёру"
+            style={{
+              width: '32px', height: '32px', borderRadius: '50%',
+              border: '1px solid rgba(169,159,255,0.35)', background: 'rgba(123,108,255,0.08)',
+              color: '#a99fff', fontFamily: 'monospace', fontSize: '14px', cursor: 'pointer',
+            }}
+          >
+            ?
+          </button>
+          <button type="button" onClick={() => router.push('/training')} style={{ fontFamily: 'monospace', fontSize: '11px', color: '#9590a8', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer' }}>
+            ← Зал тренировок
+          </button>
+        </div>
       </nav>
 
       <div className={layout.threeCol}>
@@ -248,13 +299,59 @@ export default function MultiplicationTrainerPage() {
               <div style={{ marginBottom: '1.25rem' }}>
                 <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', marginBottom: '4px' }}>СПЕЦТРЕНАЖЁР</div>
                 <div style={{ fontFamily: 'serif', fontSize: '26px', color: '#e0bc6a', marginBottom: '6px' }}>Таблица Пифагора</div>
-                <div style={{ fontSize: '13px', color: '#9590a8', lineHeight: 1.6 }}>
-                  Кликни ячейку на карте — тренируй пару. Оранжевая диагональ — квадраты. Зелёные ячейки — уже в памяти.
+                <div style={{ fontSize: '13px', color: '#9590a8', lineHeight: 1.6, marginBottom: '8px' }}>
+                  Кликни ячейку — тренируй пару. Оранжевая диагональ — квадраты. Зелёные — уже в памяти.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowHelp(true)}
+                  style={{
+                    fontFamily: 'monospace', fontSize: '11px', color: '#a99fff',
+                    background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline',
+                    textUnderlineOffset: '3px', marginBottom: '14px',
+                  }}
+                >
+                  Как пользоваться и как быстрее выучить →
+                </button>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '1rem' }}>
+                  {(Object.keys(MUL_TIERS) as MulTierId[]).map(id => {
+                    const t = MUL_TIERS[id]
+                    const active = tier === id
+                    const prog = id === tier ? gridProgress : tierProgress(loadMulStats(userData?.id ?? '', id), id)
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => switchTier(id)}
+                        style={{
+                          textAlign: 'left',
+                          padding: '12px 14px',
+                          borderRadius: '12px',
+                          border: `1px solid ${active ? 'rgba(201,168,76,0.55)' : 'rgba(255,255,255,0.08)'}`,
+                          background: active ? 'rgba(201,168,76,0.1)' : '#141820',
+                          cursor: 'pointer',
+                          color: '#e6e2f0',
+                        }}
+                      >
+                        <div style={{ fontFamily: 'monospace', fontSize: '10px', color: active ? '#e0bc6a' : '#5a5670', letterSpacing: '0.12em', marginBottom: '4px' }}>
+                          УРОВЕНЬ {id === 'basic' ? 'I' : 'II'}
+                        </div>
+                        <div style={{ fontSize: '18px', color: active ? '#e0bc6a' : '#c8c0d8', marginBottom: '2px' }}>{t.label}</div>
+                        <div style={{ fontSize: '11px', color: '#5a5670', lineHeight: 1.4 }}>{t.subtitle}</div>
+                        <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#3db87a', marginTop: '6px' }}>{prog}% сетки в памяти</div>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
               <div style={{ background: '#141820', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', padding: '1.25rem 1rem', marginBottom: '1.25rem' }}>
+                <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', letterSpacing: '0.15em', marginBottom: '8px' }}>
+                  КАРТА · {tierSpan(tier)}
+                </div>
                 <MulTableGrid
+                  tier={tier}
                   stats={stats}
                   highlightRow={mode === 'row' ? selectedRow : null}
                   onCellClick={(a, b) => {
@@ -268,7 +365,7 @@ export default function MultiplicationTrainerPage() {
 
               {sprintRecord && (
                 <div style={{ background: 'rgba(224,188,106,0.08)', border: '1px solid rgba(224,188,106,0.25)', borderRadius: '10px', padding: '10px 14px', marginBottom: '12px', fontFamily: 'monospace', fontSize: '12px', color: '#c8c0d8' }}>
-                  🏆 Рекорд спидрана: <span style={{ color: '#e0bc6a' }}>{sprintRecord.bestCorrect}</span> верных
+                  🏆 Рекорд спидрана ({tierSpan(tier)}): <span style={{ color: '#e0bc6a' }}>{sprintRecord.bestCorrect}</span> верных
                   <span style={{ color: '#5a5670' }}> · {sprintRecord.accuracy}%</span>
                 </div>
               )}
@@ -300,7 +397,7 @@ export default function MultiplicationTrainerPage() {
                 <div style={{ marginBottom: '1rem' }}>
                   <div style={{ fontSize: '11px', color: '#5a5670', marginBottom: '8px' }}>Выбери ряд:</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {Array.from({ length: MUL_MAX }, (_, i) => i + MUL_MIN).map(n => (
+                    {Array.from({ length: tierMeta.max - tierMeta.min + 1 }, (_, i) => i + tierMeta.min).map(n => (
                       <button
                         key={n}
                         type="button"
@@ -315,7 +412,7 @@ export default function MultiplicationTrainerPage() {
                           cursor: 'pointer',
                         }}
                       >
-                        ×{n} · {rowProgress(stats, n)}%
+                        ×{n} · {rowProgress(stats, n, tier)}%
                       </button>
                     ))}
                   </div>
@@ -342,7 +439,7 @@ export default function MultiplicationTrainerPage() {
                   cursor: 'pointer',
                 }}
               >
-                Начать · {MUL_TABLE_MODES.find(m => m.id === mode)?.sessionLabel}
+                Начать · {tierSpan(tier)} · {MUL_TABLE_MODES.find(m => m.id === mode)?.sessionLabel}
               </button>
             </>
           )}
@@ -351,7 +448,7 @@ export default function MultiplicationTrainerPage() {
             <div style={{ maxWidth: '480px', margin: '0 auto' }}>
               <StudyProgressChip />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', fontFamily: 'monospace', fontSize: '11px' }}>
-                <span style={{ color: '#9590a8' }}>{MUL_TABLE_MODES.find(m => m.id === mode)?.name}</span>
+                <span style={{ color: '#9590a8' }}>{MUL_TABLE_MODES.find(m => m.id === mode)?.name} · {tierSpan(tier)}</span>
                 {mode === 'sprint' ? (
                   <span style={{ color: timer > 30 ? '#3db87a' : '#e05555', fontSize: '18px' }}>{Math.floor(timer / 60)}:{String(timer % 60).padStart(2, '0')}</span>
                 ) : (
@@ -429,7 +526,7 @@ export default function MultiplicationTrainerPage() {
           {phase === 'done' && (
             <div style={{ maxWidth: '480px', margin: '0 auto', textAlign: 'center' }}>
               <div style={{ fontSize: '48px', marginBottom: '8px' }}>🏁</div>
-              <div style={{ fontFamily: 'serif', fontSize: '24px', color: '#e0bc6a', marginBottom: '1rem' }}>Раунд таблицы</div>
+              <div style={{ fontFamily: 'serif', fontSize: '24px', color: '#e0bc6a', marginBottom: '1rem' }}>Раунд · {tierSpan(tier)}</div>
               <div style={{ background: '#1c1f2a', borderRadius: '12px', padding: '1.25rem', marginBottom: '1rem', fontFamily: 'monospace' }}>
                 <div style={{ color: '#3db87a', fontSize: '20px' }}>{correct} / {total} · {accuracy}%</div>
                 {mode === 'sprint' && sprintRecord && (
@@ -464,7 +561,7 @@ export default function MultiplicationTrainerPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
             <SoundToggle />
           </div>
-          <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', letterSpacing: '0.2em', marginBottom: '10px' }}>СПИДРАН</div>
+          <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', letterSpacing: '0.2em', marginBottom: '10px' }}>СПИДРАН · {tierSpan(tier)}</div>
           <div style={{ background: '#1c1f2a', border: '1px solid rgba(224,188,106,0.2)', borderRadius: '10px', padding: '12px', marginBottom: '1.25rem' }}>
             {sprintRecord ? (
               <>
@@ -479,19 +576,25 @@ export default function MultiplicationTrainerPage() {
             </div>
           </div>
 
-          <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', letterSpacing: '0.2em', marginBottom: '10px' }}>ЛАЙФХАКИ</div>
-          {[
-            '×2 — удвой число',
-            '×5 — половина от ×10',
-            '×9 — ×10 минус число',
-            '×4 — ×2 два раза',
-            'Диагональ — квадраты n²',
-            'Зеркало: 3×7 = 7×3',
-          ].map(t => (
+          <div style={{ fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', letterSpacing: '0.2em', marginBottom: '10px' }}>ЛАЙФХАКИ · {tierSpan(tier)}</div>
+          {tierLifehacks.map(t => (
             <div key={t} style={{ fontSize: '12px', color: '#9590a8', marginBottom: '8px', lineHeight: 1.45 }}>· {t}</div>
           ))}
+          <button
+            type="button"
+            onClick={() => setShowHelp(true)}
+            style={{
+              marginTop: '12px', width: '100%', padding: '10px', borderRadius: '8px',
+              border: '1px solid rgba(169,159,255,0.3)', background: 'rgba(123,108,255,0.06)',
+              fontFamily: 'monospace', fontSize: '11px', color: '#a99fff', cursor: 'pointer',
+            }}
+          >
+            📖 Справка
+          </button>
         </div>
       </div>
+
+      {showHelp && <MulTrainerHelpModal onClose={() => setShowHelp(false)} />}
     </div>
   )
 }

@@ -109,27 +109,27 @@ export const BATTLE_ATTACKS: BattleAttack[] = [
     dmg: 34, color: '#7b6cff', difficulty: 'medium', dungeons: [], minLevel: 1, cooldown: 2, kind: 'basic',
   },
   {
-    id: 'twin_strike', label: 'Двойной удар', icon: '➕➖', desc: 'Свиток · сложение + вычитание',
+    id: 'twin_strike', label: 'Двойной удар', icon: '➕➖', desc: 'Сложение + вычитание',
     dmg: 24, color: '#3db87a', difficulty: 'easy', dungeons: ['Пещера сложения', 'Пещера вычитания'],
     minLevel: 1, requiresTopics: ['add', 'sub'], kind: 'scroll_spell',
   },
   {
-    id: 'fireball', label: 'Огненный шар', icon: '🔥', desc: 'Свиток · умножение + деление',
+    id: 'fireball', label: 'Огненный шар', icon: '🔥', desc: 'Умножение + деление',
     dmg: 38, color: '#e0bc6a', difficulty: 'medium', dungeons: ['Башня умножения', 'Пещера деления'],
     minLevel: 2, requiresTopics: ['mul', 'div'], cooldown: 2, kind: 'scroll_spell',
   },
   {
-    id: 'arcane_burst', label: 'Арканический взрыв', icon: '🌀', desc: 'Свиток · сложение + вычитание + умножение',
+    id: 'arcane_burst', label: 'Арканический взрыв', icon: '🌀', desc: 'Сложение + вычитание + умножение',
     dmg: 52, color: '#b8aeff', difficulty: 'hard', dungeons: ['Пещера сложения', 'Пещера вычитания', 'Башня умножения'],
     minLevel: 3, requiresTopics: ['add', 'sub', 'mul'], cooldown: 3, kind: 'scroll_spell',
   },
   {
-    id: 'storm_lance', label: 'Штормовой ланс', icon: '⚔️', desc: 'Свиток · умножение + деление · мощный',
+    id: 'storm_lance', label: 'Штормовой ланс', icon: '⚔️', desc: 'Умножение + деление · мощный',
     dmg: 46, color: '#7b6cff', difficulty: 'hard', dungeons: ['Башня умножения', 'Пещера деления'],
     minLevel: 2, requiresTopics: ['mul', 'div'], cooldown: 2, kind: 'scroll_spell',
   },
   {
-    id: 'dark_sigil', label: 'Тёмный сигил', icon: '💀', desc: 'Запретный свиток · ввод · ошибка = −40 HP',
+    id: 'dark_sigil', label: 'Тёмный сигил', icon: '💀', desc: 'Запретная магия · ввод · ошибка = −40 HP',
     dmg: 50, color: '#e05555', difficulty: 'hard', dungeons: [], minLevel: 2, requiresTopics: ['mul', 'div'],
     cooldown: 3, kind: 'scroll_spell',
   },

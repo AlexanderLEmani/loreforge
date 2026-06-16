@@ -9,6 +9,7 @@ import {
   type SkillTreeNode,
 } from '@/lib/skill-tree'
 import { isBranchMasterNode, nextBranchAfterMaster } from '@/lib/skill-tree-layout'
+import { spellsForMasteryNode } from '@/lib/battle-spell-scrolls'
 
 type Props = {
   node: SkillTreeNode | null
@@ -50,6 +51,7 @@ export default function SkillNodeDetail({
   const typeColor = TYPE_COLORS[node.type]
   const nextBranch = isBranchMasterNode(node.id) ? nextBranchAfterMaster(node.id) : null
   const nextMeta = nextBranch ? branchMeta(nextBranch) : null
+  const shopSpells = spellsForMasteryNode(node.id)
 
   return (
     <div className={`lf-skill-detail${compact ? ' lf-skill-detail--compact' : ''}`}>
@@ -66,6 +68,15 @@ export default function SkillNodeDetail({
         <div className="lf-skill-detail-effect">
           <span className="lf-skill-detail-effect-label">Эффект в бою</span>
           {node.effect.detail}
+        </div>
+      )}
+
+      {shopSpells.length > 0 && (
+        <div className="lf-skill-detail-effect" style={{ borderColor: 'rgba(169,159,255,0.35)', background: 'rgba(123,108,255,0.06)' }}>
+          <span className="lf-skill-detail-effect-label">Откроет в лавке</span>
+          {state === 'unlocked'
+            ? shopSpells.map(s => `${s.icon} ${s.name}`).join(' · ')
+            : `После прокачки: ${shopSpells.map(s => s.name).join(', ')}`}
         </div>
       )}
 
