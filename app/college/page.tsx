@@ -282,7 +282,9 @@ export default function CollegePage() {
               </div>
               <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff' }}>
                 Профессор Горус · Архимаг Арифметики
-                <span style={{ color: '#5a5670', marginLeft: '8px' }}>· текст rev {LECTURE_CONTENT_REVISION}</span>
+                <span style={{ color: '#5a5670', marginLeft: '8px' }}>
+                  · {lecture?.sections?.length ?? 0} разделов · rev {LECTURE_CONTENT_REVISION}
+                </span>
               </div>
               {viewingArchive && (
                 <div
