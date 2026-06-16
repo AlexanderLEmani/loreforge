@@ -245,15 +245,18 @@ export default function CharacterPage() {
   const consumablesList = (
     <>
       <div className="lf-char-bag-section-label">Расходники</div>
-      {BATTLE_CONSUMABLES.map(c => (
-        <div key={c.effect} className="lf-char-consumable-row">
-          <span className="lf-char-consumable-name">
-            <PixelItem itemId={consumablePixelId(c.effect)} size={20} />
-            {c.name}
-          </span>
-          <span className="lf-char-consumable-qty">×{consumables[c.effect]}</span>
-        </div>
-      ))}
+      <div className="lf-char-consumables-grid">
+        {BATTLE_CONSUMABLES.map(c => (
+          <div key={c.effect} className="lf-char-consumable-card">
+            <div className="lf-char-consumable-card-icon">
+              <PixelItem itemId={consumablePixelId(c.effect)} size={24} />
+            </div>
+            <span className="lf-char-consumable-card-label">
+              {c.name} ({consumables[c.effect]})
+            </span>
+          </div>
+        ))}
+      </div>
     </>
   )
 
@@ -316,7 +319,7 @@ export default function CharacterPage() {
             </div>
           </div>
 
-          <div className="lf-char-mobile-hero-wrap flex-1 min-h-0 overflow-hidden">
+          <div className="lf-char-mobile-stage flex-1 min-h-0 flex flex-col overflow-hidden">
             <div className="lf-char-mobile-hero">
               <div className="lf-char-mobile-slots lf-char-mobile-slots--left">
                 {leftSlots.map(slot => (
@@ -339,13 +342,13 @@ export default function CharacterPage() {
                     hairColor={character?.hair_color || '#3d2b1f'}
                     cloakColor={character?.cloak_color || '#4a1f6e'}
                     equipment={visualEquip}
-                    size={112}
+                    size={90}
                     glowTier={maxGlowTier}
                   />
                 </div>
                 <div className="lf-char-pet-visual lf-char-pet-visual--mobile">
                   {petItem ? (
-                    <PixelPet visualId={petItem.visualId} size={48} />
+                    <PixelPet visualId={petItem.visualId} size={40} />
                   ) : (
                     <div className="lf-char-pet-placeholder lf-char-pet-placeholder--mobile" aria-hidden>
                       <span>🐾</span>
@@ -366,13 +369,13 @@ export default function CharacterPage() {
                 ))}
               </div>
             </div>
-          </div>
 
-          {bonusStrip && (
-            <div className="lf-char-bonus-strip--mobile shrink-0">
-              {bonusStrip}
-            </div>
-          )}
+            {bonusStrip && (
+              <div className="lf-char-bonus-wrap lf-char-bonus-wrap--mobile shrink-0">
+                {bonusStrip}
+              </div>
+            )}
+          </div>
         </section>
 
         <section className="lf-char-mobile-bag h-[60%] shrink-0 flex flex-col bg-[#0b0c10] border-t border-white/10">
@@ -389,7 +392,7 @@ export default function CharacterPage() {
 
       {/* ── Tablet / Desktop: 2-column RPG layout (≥ md) ── */}
       <div className="hidden md:flex h-[calc(100vh-64px)] overflow-hidden">
-        <aside className="lf-char-desk-left w-[45%] max-w-[520px] shrink-0 flex flex-col overflow-hidden bg-[#111318] border-r border-white/10">
+        <aside className="lf-char-desk-left w-[45%] shrink-0 flex flex-col overflow-hidden bg-[#111318] border-r border-white/10">
           <div className="lf-char-desk-head shrink-0 px-5 pt-4 pb-3">
             <div className="lf-char-hero-title">{character?.name}</div>
             <div className="lf-char-hero-sub">
@@ -458,7 +461,7 @@ export default function CharacterPage() {
             </div>
 
             {bonusStrip && (
-              <div className="lf-char-bonus-strip--desk mt-3 mx-1">
+              <div className="lf-char-bonus-wrap lf-char-bonus-wrap--desk shrink-0">
                 {bonusStrip}
               </div>
             )}
@@ -480,7 +483,7 @@ export default function CharacterPage() {
           </div>
         </aside>
 
-        <section className="lf-char-desk-right flex-1 flex flex-col h-full min-w-0 bg-[#0b0c10] overflow-hidden">
+        <section className="lf-char-desk-right w-[55%] shrink-0 flex flex-col h-full min-w-0 bg-[#0b0c10] overflow-hidden">
           <div className="lf-char-desk-bag-head shrink-0 px-5 pt-4 pb-2">
             <div className="lf-char-desk-bag-title">Сумка · {ownedItems.length} предм.</div>
             <div className="lf-char-desk-bag-hint">
