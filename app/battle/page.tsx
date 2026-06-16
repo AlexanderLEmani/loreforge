@@ -108,8 +108,11 @@ import {
   topicDamageMultiplier,
 } from '@/lib/monster-mechanics'
 import {
+  cacheLearnedSpells,
   getLearnedSpellAttacks,
+  mergeLearnedSpells,
   parseLearnedSpells,
+  readCachedLearnedSpells,
   type LearnedSpells,
 } from '@/lib/battle-spell-scrolls'
 
@@ -250,10 +253,29 @@ function BattleContent() {
       let dungeonWins = 0
 
       if (user) {
-        const { data: ud } = await supabase.from('users').select('level, learned_spells, spell_scrolls').eq('id', user.id).single()
+        let { data: ud, error: userError } = await supabase
+          .from('users')
+          .select('level, learned_spells, spell_scrolls')
+          .eq('id', user.id)
+          .single()
+
+        if (userError?.message?.match(/learned_spells/)) {
+          const fallback = await supabase
+            .from('users')
+            .select('level, spell_scrolls')
+            .eq('id', user.id)
+            .single()
+          ud = fallback.data ? { ...fallback.data, learned_spells: [] } : null
+        }
+
         const lvl = ud?.level || 1
         setUserLevel(lvl)
-        setLearnedSpells(parseLearnedSpells(ud?.learned_spells, ud?.spell_scrolls))
+        const mergedLearned = mergeLearnedSpells(
+          parseLearnedSpells(ud?.learned_spells, ud?.spell_scrolls),
+          readCachedLearnedSpells(),
+        )
+        cacheLearnedSpells(mergedLearned)
+        setLearnedSpells(mergedLearned)
 
         const { data: ch } = await supabase.from('characters').select('race').eq('user_id', user.id).maybeSingle()
         if (ch?.race) setPlayerRace(ch.race)
@@ -480,6 +502,16 @@ function BattleContent() {
 
   function chooseAttack(atk: BattleAttack) {
     if ((cooldowns[atk.id] ?? 0) > 0) return
+
+    const pool = poolForAttack(atk, questionBank)
+    const fallback = dungeonQuestions()
+    const source = pool.length > 0 ? pool : fallback
+    if (source.length === 0) {
+      showItemToast('Нет задач для этой атаки — попробуй другую')
+      setTimeout(() => setItemToast(null), 2200)
+      return
+    }
+
     if (atk.id === 'dark_sigil') playSound('dark')
     else playSound('tap')
     if (atk.cooldown) {
@@ -487,11 +519,6 @@ function BattleContent() {
       if (atk.kind === 'scroll_spell') cd = Math.max(0, cd - raceSpellCooldownReduction(playerRace))
       setCooldowns(prev => ({ ...prev, [atk.id]: cd }))
     }
-
-    const pool = poolForAttack(atk, questionBank)
-    const fallback = dungeonQuestions()
-    const source = pool.length > 0 ? pool : fallback
-    if (source.length === 0) return
 
     const q = pickUnused(
       getDifficultyPool(source, atk.difficulty),
@@ -1151,6 +1178,7 @@ function BattleContent() {
   }
 
   const basicAttacks = availableAttacks.filter(a => a.kind === 'basic')
+  const choosableAttacks = [...basicAttacks, ...learnedSpellAttacks]
 
   return (
     <div className={layout.battleShell}>
@@ -1491,9 +1519,12 @@ function BattleContent() {
                 })()}
               </div>
             )}
-            <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.15em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '6px' }}>▸ Атаки</div>
+            <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.15em', color: '#8a849c', textTransform: 'uppercase', marginBottom: '6px' }}>
+              ▸ Атаки{learnedSpellAttacks.length > 0 ? ` · заклинания ${learnedSpellAttacks.length}` : ''}
+            </div>
             <div className="lf-stack-attacks" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '8px' }}>
-              {basicAttacks.map(atk => {
+              {choosableAttacks.map(atk => {
+                const isSpell = atk.kind === 'scroll_spell'
                 const cd = cooldowns[atk.id] ?? 0
                 const locked = cd > 0
                 const topicHint = (() => {
@@ -1503,61 +1534,34 @@ function BattleContent() {
                 })()
                 return (
                   <div key={atk.id} onClick={() => !locked && chooseAttack(atk)}
-                    className="lf-battle-attack-card"
-                    style={{ background: locked ? '#161820' : '#1c1f2a', border: `1px solid ${locked ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '10px', padding: '0.75rem 0.5rem', textAlign: 'center', cursor: locked ? 'not-allowed' : 'pointer', opacity: locked ? 0.5 : 1 }}>
-                    <div className="lf-battle-attack-icon" style={{ fontSize: '32px', marginBottom: '8px' }}>{atk.icon}</div>
-                    <div style={{ fontSize: '13px', color: '#e6e2f0', marginBottom: '2px' }}>{atk.label}</div>
+                    className={isSpell ? 'lf-battle-spell-card' : 'lf-battle-attack-card'}
+                    style={{
+                      background: locked ? '#161820' : isSpell ? 'rgba(123,108,255,0.08)' : '#1c1f2a',
+                      border: `1px solid ${locked ? 'rgba(255,255,255,0.04)' : isSpell ? 'rgba(169,159,255,0.35)' : 'rgba(255,255,255,0.08)'}`,
+                      borderRadius: '10px',
+                      padding: isSpell ? '0.65rem' : '0.75rem 0.5rem',
+                      textAlign: 'center',
+                      cursor: locked ? 'not-allowed' : 'pointer',
+                      opacity: locked ? 0.5 : 1,
+                    }}>
+                    <div className="lf-battle-attack-icon" style={{ fontSize: isSpell ? '24px' : '32px', marginBottom: isSpell ? '4px' : '8px' }}>{atk.icon}</div>
+                    <div style={{ fontSize: isSpell ? '12px' : '13px', color: '#e6e2f0', marginBottom: '2px' }}>{atk.label}</div>
                     <div className="lf-battle-attack-desc" style={{ fontSize: '11px', color: '#8a849c', marginBottom: '8px' }}>{atk.desc}</div>
-                    <div style={{ fontFamily: 'monospace', fontSize: '16px', color: atk.color }}>+{atk.dmg}</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: isSpell ? '14px' : '16px', color: atk.color }}>+{atk.dmg}</div>
                     {topicHint.label && (
                       <div style={{ fontSize: '9px', marginTop: '4px', color: topicHint.mult > 1 ? '#3db87a' : '#e05555', fontFamily: 'monospace' }}>
                         {topicHint.label}
                       </div>
                     )}
-                    {locked && <div style={{ fontSize: '10px', color: '#e05555', marginTop: '4px' }}>⏳ {cd}</div>}
+                    {locked ? (
+                      <div style={{ fontSize: '10px', color: '#e05555', marginTop: '4px' }}>⏳ {cd} ход.</div>
+                    ) : atk.cooldown ? (
+                      <div style={{ fontSize: '9px', marginTop: '4px', color: '#8a849c', fontFamily: 'monospace' }}>⟳ {atk.cooldown} хода</div>
+                    ) : null}
                   </div>
                 )
               })}
             </div>
-
-            {learnedSpellAttacks.length > 0 && (
-              <>
-                <div style={{ fontFamily: 'monospace', fontSize: '9px', letterSpacing: '0.15em', color: '#a99fff', textTransform: 'uppercase', margin: '10px 0 6px' }}>
-                  ▸ Выученные заклинания
-                </div>
-                <div className="lf-battle-spells-scroll" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px' }}>
-                  {learnedSpellAttacks.map(atk => {
-                    const cd = cooldowns[atk.id] ?? 0
-                    const locked = cd > 0
-                    const topicHint = (() => {
-                      const target = getTargetEnemy()
-                      if (!target) return { mult: 1, label: null }
-                      return topicDamageMultiplier(atk, dungeonDbName, monsterProfile(profileMonsterId(target, squad)))
-                    })()
-                    return (
-                      <div key={atk.id} onClick={() => !locked && chooseAttack(atk)}
-                        className="lf-battle-spell-card"
-                        style={{ background: locked ? '#161820' : 'rgba(123,108,255,0.08)', border: `1px solid ${locked ? 'rgba(255,255,255,0.04)' : 'rgba(169,159,255,0.35)'}`, borderRadius: '10px', padding: '0.65rem', textAlign: 'center', cursor: locked ? 'not-allowed' : 'pointer', opacity: locked ? 0.5 : 1 }}>
-                        <div style={{ fontSize: '24px', marginBottom: '4px' }}>{atk.icon}</div>
-                        <div style={{ fontSize: '12px', color: '#e6e2f0', marginBottom: '2px' }}>{atk.label}</div>
-                        <div style={{ fontSize: '10px', color: '#8a849c', marginBottom: '4px' }}>{atk.desc}</div>
-                        <div style={{ fontFamily: 'monospace', fontSize: '14px', color: atk.color }}>+{atk.dmg}</div>
-                        {topicHint.label && (
-                          <div style={{ fontSize: '9px', marginTop: '4px', color: topicHint.mult > 1 ? '#3db87a' : '#e05555', fontFamily: 'monospace' }}>
-                            {topicHint.label}
-                          </div>
-                        )}
-                        {atk.cooldown ? (
-                          <div style={{ fontSize: '9px', marginTop: '4px', color: '#8a849c', fontFamily: 'monospace' }}>
-                            {locked ? `⏳ ${cd}` : `cd ${atk.cooldown}`}
-                          </div>
-                        ) : null}
-                      </div>
-                    )
-                  })}
-                </div>
-              </>
-            )}
           </div>
         )}
 

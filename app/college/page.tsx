@@ -181,10 +181,10 @@ export default function CollegePage() {
   const lecture = lectureCache[selectedLectureLevel] || getLectureForLevel(selectedLectureLevel)
   const lectureList = getLectureList(unlockCtx, selectedLectureLevel).map(l => ({
     ...l,
-    done: l.done || isLectureCompleteForSpells(l.level, level, completedLectures),
+    done: l.done || isLectureCompleteForSpells(l.level, unlockCtx),
   }))
   const viewingArchive = selectedLectureLevel !== currentLectureLevel
-  const selectedLectureComplete = isLectureCompleteForSpells(selectedLectureLevel, level, completedLectures)
+  const selectedLectureComplete = isLectureCompleteForSpells(selectedLectureLevel, unlockCtx)
 
   async function markLectureRead() {
     if (markingLecture || selectedLectureComplete) return

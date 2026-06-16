@@ -189,6 +189,18 @@ export function maxUnlockedLectureLevel(ctx: LectureUnlockContext | number): num
   return Math.min(4, Math.max(1, fromLevel, fromCompleted, fromSpells, fromSkills))
 }
 
+/** Уровень для UI лавки/сайдбара — учитывает старые сохранения без exam level */
+export function effectivePlayerLevel(ctx: LectureUnlockContext | number): number {
+  const c: LectureUnlockContext = typeof ctx === 'number' ? { userLevel: ctx } : ctx
+  const fromCompleted = c.completedLectures?.length ? Math.max(...c.completedLectures) : 0
+  return Math.max(
+    c.userLevel,
+    fromCompleted,
+    c.learnedSpellLectureMax ?? 0,
+    c.skillNodeLectureMax ?? 0,
+  )
+}
+
 export function isLectureUnlocked(lectureLevel: number, ctx: LectureUnlockContext | number): boolean {
   return lectureLevel >= 1 && lectureLevel <= maxUnlockedLectureLevel(ctx)
 }

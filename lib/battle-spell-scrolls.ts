@@ -1,7 +1,6 @@
 import type { BattleAttack } from '@/lib/battle-config'
 import { BATTLE_ATTACKS } from '@/lib/battle-config'
-import { LECTURE_NUMS } from '@/lib/college-lectures'
-import { lectureLevelForUser } from '@/lib/college-lectures'
+import { LECTURE_NUMS, lectureLevelForUser, type LectureUnlockContext } from '@/lib/college-lectures'
 
 /** Боевые заклинания — выучить в лавке один раз, использовать в бою с кулдауном */
 export type SpellScrollId =
@@ -108,23 +107,79 @@ export type SpellPurchaseGate =
   | { ok: true }
   | { ok: false; reason: 'learned' | 'lecture' | 'mastery' | 'gold'; message: string }
 
-/** Читает выученные заклинания: массив learned_spells или legacy-счётчики spell_scrolls */
+/** Читает выученные заклинания: learned_spells + legacy spell_scrolls (объединяет оба источника) */
 export function parseLearnedSpells(raw: unknown, legacyCounts?: unknown): LearnedSpells {
-  if (Array.isArray(raw) && raw.length > 0) {
-    return raw.filter((id): id is SpellScrollId =>
-      typeof id === 'string' && SPELL_SCROLL_IDS.includes(id as SpellScrollId),
-    )
+  const ids = new Set<SpellScrollId>()
+
+  for (const id of coerceSpellIdArray(raw)) {
+    ids.add(id)
   }
+
   const legacy = legacyCounts ?? (Array.isArray(raw) ? undefined : raw)
   if (legacy && typeof legacy === 'object' && !Array.isArray(legacy)) {
-    const learned: SpellScrollId[] = []
-    for (const id of SPELL_SCROLL_IDS) {
-      const n = (legacy as Record<string, unknown>)[id]
-      if (typeof n === 'number' && n > 0) learned.push(id)
+    for (const spellId of SPELL_SCROLL_IDS) {
+      const n = (legacy as Record<string, unknown>)[spellId]
+      if (typeof n === 'number' && n > 0) ids.add(spellId)
     }
-    return learned
   }
-  return []
+
+  return [...ids]
+}
+
+function coerceSpellIdArray(raw: unknown): SpellScrollId[] {
+  let arr: unknown[] = []
+  if (Array.isArray(raw)) {
+    arr = raw
+  } else if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) arr = parsed
+    } catch {
+      arr = []
+    }
+  }
+  return arr.filter((id): id is SpellScrollId =>
+    typeof id === 'string' && SPELL_SCROLL_IDS.includes(id as SpellScrollId),
+  )
+}
+
+/** Синхронизирует legacy spell_scrolls с массивом выученных (fallback если колонки learned_spells нет) */
+export function spellScrollsFromLearned(learned: LearnedSpells): SpellScrollInventory {
+  const inv = { ...EMPTY_SPELL_SCROLLS }
+  for (const id of SPELL_SCROLL_IDS) {
+    inv[id] = learned.includes(id) ? 1 : 0
+  }
+  return inv
+}
+
+const LEARNED_SPELLS_CACHE_KEY = 'lf_learned_spells_v1'
+
+export function cacheLearnedSpells(learned: LearnedSpells) {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.setItem(LEARNED_SPELLS_CACHE_KEY, JSON.stringify(learned))
+  } catch {
+    /* ignore quota */
+  }
+}
+
+export function readCachedLearnedSpells(): LearnedSpells {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = sessionStorage.getItem(LEARNED_SPELLS_CACHE_KEY)
+    if (!raw) return []
+    return parseLearnedSpells(JSON.parse(raw))
+  } catch {
+    return []
+  }
+}
+
+export function mergeLearnedSpells(...lists: LearnedSpells[]): LearnedSpells {
+  const ids = new Set<SpellScrollId>()
+  for (const list of lists) {
+    for (const id of list) ids.add(id)
+  }
+  return [...ids]
 }
 
 /** @deprecated используй parseLearnedSpells */
@@ -174,11 +229,17 @@ export function maxLectureLevelFromSkillNodes(nodeIds: number[]): number {
 
 export function isLectureCompleteForSpells(
   lectureLevel: number,
-  userLevel: number,
-  completed: number[],
+  ctx: LectureUnlockContext | number,
+  legacyCompleted?: number[],
 ): boolean {
-  if (lectureLevel < lectureLevelForUser(userLevel)) return true
-  return completed.includes(lectureLevel)
+  const c: LectureUnlockContext = typeof ctx === 'number'
+    ? { userLevel: ctx, completedLectures: legacyCompleted }
+    : ctx
+  if (c.completedLectures?.includes(lectureLevel)) return true
+  if (lectureLevel < lectureLevelForUser(c.userLevel)) return true
+  if ((c.skillNodeLectureMax ?? 0) >= lectureLevel) return true
+  if ((c.learnedSpellLectureMax ?? 0) >= lectureLevel) return true
+  return false
 }
 
 export function spellScrollDef(id: SpellScrollId): SpellScrollDef | undefined {
@@ -205,12 +266,20 @@ export function spellPurchaseGate(
     completedLectures: number[]
     userLevel: number
     gold: number
+    skillNodeLectureMax?: number
+    learnedSpellLectureMax?: number
   },
 ): SpellPurchaseGate {
   if (isSpellLearned(ctx.learned, def.id)) {
     return { ok: false, reason: 'learned', message: 'Заклинание уже выучено' }
   }
-  if (!isLectureCompleteForSpells(def.lectureLevel, ctx.userLevel, ctx.completedLectures)) {
+  const lectureCtx: LectureUnlockContext = {
+    userLevel: ctx.userLevel,
+    completedLectures: ctx.completedLectures,
+    skillNodeLectureMax: ctx.skillNodeLectureMax,
+    learnedSpellLectureMax: ctx.learnedSpellLectureMax,
+  }
+  if (!isLectureCompleteForSpells(def.lectureLevel, lectureCtx)) {
     const num = LECTURE_NUMS[def.lectureLevel - 1] ?? String(def.lectureLevel)
     return { ok: false, reason: 'lecture', message: `Прочитай лекцию ${num} в Коллегии` }
   }
@@ -233,23 +302,20 @@ export function scrollAttackForBattle(
 }
 
 export function getLearnedSpellAttacks(
-  userLevel: number,
+  _userLevel: number,
   currentDungeon: string,
-  unlockedTopics: string[],
+  _unlockedTopics: string[],
   learned: LearnedSpells,
-  unlockedNodeIds: number[],
+  _unlockedNodeIds: number[],
 ): BattleAttack[] {
   return BATTLE_ATTACKS.filter(a => {
     if (a.kind !== 'scroll_spell') return false
     const def = SPELL_SCROLL_DEFS.find(s => s.attackId === a.id)
     if (!def || !isSpellLearned(learned, def.id)) return false
-    if (!masteryUnlocked(unlockedNodeIds, def.requiresMasteryNode)) return false
-    if (userLevel < a.minLevel) return false
-    if (a.requiresTopics && !a.requiresTopics.every(t => unlockedTopics.includes(t))) return false
     return true
   }).map(a => ({
     ...a,
-    dungeons: [currentDungeon],
+    dungeons: a.dungeons.length > 0 ? a.dungeons : [currentDungeon],
     desc: a.desc.replace(/^Свиток · /, ''),
   }))
 }

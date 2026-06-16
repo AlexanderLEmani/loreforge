@@ -15,9 +15,19 @@ import {
 } from '@/lib/battle-consumables'
 import { loadDemoSkillState } from '@/lib/skill-tree'
 import {
+  effectivePlayerLevel,
+  type LectureUnlockContext,
+} from '@/lib/college-lectures'
+import {
+  cacheLearnedSpells,
   isSpellLearned,
+  maxLectureLevelFromLearnedSpells,
+  maxLectureLevelFromSkillNodes,
+  mergeLearnedSpells,
   parseCompletedLectures,
   parseLearnedSpells,
+  readCachedLearnedSpells,
+  spellScrollsFromLearned,
   SPELL_SCROLL_DEFS,
   spellPurchaseGate,
   type LearnedSpells,
@@ -45,6 +55,8 @@ export default function ShopPage() {
   const [consumables, setConsumables] = useState<ConsumableInventory>(EMPTY_CONSUMABLES)
   const [learnedSpells, setLearnedSpells] = useState<LearnedSpells>([])
   const [completedLectures, setCompletedLectures] = useState<number[]>([])
+  const [skillNodeLectureMax, setSkillNodeLectureMax] = useState(0)
+  const [learnedSpellLectureMax, setLearnedSpellLectureMax] = useState(0)
   const [unlockedNodeIds, setUnlockedNodeIds] = useState<number[]>([])
   const [buyingSpell, setBuyingSpell] = useState<SpellScrollId | null>(null)
   const [filterLevel, setFilterLevel] = useState(1)
@@ -58,11 +70,44 @@ export default function ShopPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
 
-      const { data } = await supabase.from('users').select(`${USER_NAV_SELECT}, consumables, learned_spells, spell_scrolls, completed_lectures`).eq('id', user.id).single()
+      let { data, error: userError } = await supabase
+        .from('users')
+        .select(`${USER_NAV_SELECT}, consumables, learned_spells, spell_scrolls, completed_lectures`)
+        .eq('id', user.id)
+        .single()
+
+      if (userError?.message?.match(/completed_lectures|learned_spells|spell_scrolls/)) {
+        const fallback = await supabase
+          .from('users')
+          .select(`${USER_NAV_SELECT}, consumables, spell_scrolls`)
+          .eq('id', user.id)
+          .single()
+        data = fallback.data
+          ? {
+              ...fallback.data,
+              completed_lectures: [],
+              learned_spells: [],
+            }
+          : null
+        userError = fallback.error
+      }
+
+      if (userError || !data) {
+        router.push('/')
+        return
+      }
+
       setUserData({ ...data, id: user.id })
-      setConsumables(parseConsumables(data?.consumables))
-      setLearnedSpells(parseLearnedSpells(data?.learned_spells, data?.spell_scrolls))
-      setCompletedLectures(parseCompletedLectures(data?.completed_lectures))
+      setConsumables(parseConsumables(data.consumables))
+      const learned = mergeLearnedSpells(
+        parseLearnedSpells(data.learned_spells, data.spell_scrolls),
+        readCachedLearnedSpells(),
+      )
+      cacheLearnedSpells(learned)
+      setLearnedSpells(learned)
+      setLearnedSpellLectureMax(maxLectureLevelFromLearnedSpells(learned))
+      const completed = parseCompletedLectures(data.completed_lectures)
+      setCompletedLectures(completed)
 
       const { data: userSkills } = await supabase.from('user_skills').select('node_id').eq('user_id', user.id)
       let unlockedIds = (userSkills || []).map(s => Number(s.node_id)).filter(n => !Number.isNaN(n))
@@ -70,11 +115,20 @@ export default function ShopPage() {
         unlockedIds = loadDemoSkillState().unlocked.map(id => Number(id)).filter(n => !Number.isNaN(n))
       }
       setUnlockedNodeIds(unlockedIds)
-      if (data && !data.visited_shop) {
+      setSkillNodeLectureMax(maxLectureLevelFromSkillNodes(unlockedIds))
+
+      const progressCtx: LectureUnlockContext = {
+        userLevel: data.level || 1,
+        completedLectures: completed,
+        learnedSpellLectureMax: maxLectureLevelFromLearnedSpells(learned),
+        skillNodeLectureMax: maxLectureLevelFromSkillNodes(unlockedIds),
+      }
+      setFilterLevel(effectivePlayerLevel(progressCtx))
+
+      if (!data.visited_shop) {
         setShowHelp(true)
         await supabase.from('users').update({ visited_shop: true }).eq('id', user.id)
       }
-      setFilterLevel(data?.level || 1)
 
       const { data: all } = await supabase.from('scrolls').select('*').order('level').order('cost')
       setScrolls(all || [])
@@ -126,13 +180,7 @@ export default function ShopPage() {
 
   async function learnSpell(def: (typeof SPELL_SCROLL_DEFS)[number]) {
     if (!userData || buyingSpell) return
-    const gate = spellPurchaseGate(def, {
-      learned: learnedSpells,
-      unlockedNodeIds,
-      completedLectures,
-      userLevel: userData.level || 1,
-      gold: userData.gold || 0,
-    })
+    const gate = spellPurchaseGate(def, spellGateCtx())
     if (!gate.ok) {
       setToast(gate.message)
       setTimeout(() => setToast(null), 2800)
@@ -141,8 +189,33 @@ export default function ShopPage() {
     setBuyingSpell(def.id)
     const newGold = (userData.gold || 0) - def.cost
     const nextLearned = [...learnedSpells, def.id]
-    await supabase.from('users').update({ gold: newGold, learned_spells: nextLearned }).eq('id', userData.id)
-    setUserData({ ...userData, gold: newGold })
+    const legacyScrolls = spellScrollsFromLearned(nextLearned)
+    const { error } = await supabase.from('users').update({
+      gold: newGold,
+      learned_spells: nextLearned,
+      spell_scrolls: legacyScrolls,
+    }).eq('id', userData.id)
+
+    if (error?.message?.match(/learned_spells/)) {
+      const { error: legacyErr } = await supabase.from('users').update({
+        gold: newGold,
+        spell_scrolls: legacyScrolls,
+      }).eq('id', userData.id)
+      if (legacyErr) {
+        setBuyingSpell(null)
+        setToast(`Не сохранилось: ${legacyErr.message}`)
+        setTimeout(() => setToast(null), 4000)
+        return
+      }
+    } else if (error) {
+      setBuyingSpell(null)
+      setToast(`Не сохранилось: ${error.message}`)
+      setTimeout(() => setToast(null), 4000)
+      return
+    }
+
+    cacheLearnedSpells(nextLearned)
+    setUserData({ ...userData, gold: newGold, spell_scrolls: legacyScrolls })
     setLearnedSpells(nextLearned)
     setBuyingSpell(null)
     setToast(`✦ «${def.name}» выучено — доступно в бою навсегда`)
@@ -151,8 +224,27 @@ export default function ShopPage() {
 
   if (loading) return <LoadingScreen />
 
-  const level = userData?.level || 1
-  const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, level)
+  const storedLevel = userData?.level || 1
+  const progressCtx: LectureUnlockContext = {
+    userLevel: storedLevel,
+    completedLectures,
+    learnedSpellLectureMax,
+    skillNodeLectureMax,
+  }
+  const level = effectivePlayerLevel(progressCtx)
+  const { current: xpCurrent, next: xpNext } = xpProgress(userData?.xp || 0, storedLevel)
+
+  function spellGateCtx() {
+    return {
+      learned: learnedSpells,
+      unlockedNodeIds,
+      completedLectures,
+      userLevel: storedLevel,
+      gold: userData?.gold || 0,
+      skillNodeLectureMax,
+      learnedSpellLectureMax,
+    }
+  }
 
   const filtered = scrolls.filter(s => s.level === filterLevel)
   const availableLevels = [...new Set(scrolls.map(s => s.level))].sort()
@@ -177,7 +269,7 @@ export default function ShopPage() {
       </nav>
 
       <div className={layout.twoCol}>
-        <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
+        <Sidebar level={level} xp={xpCurrent} xpNext={xpNext} gold={userData?.gold || 0} step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser({ ...userData, level: storedLevel })} />
 
         <div className={`${layout.main} lf-main`} style={{ maxWidth: '900px' }}>
           <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -204,13 +296,7 @@ export default function ShopPage() {
             <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
               {SPELL_SCROLL_DEFS.map(def => {
                 const learned = isSpellLearned(learnedSpells, def.id)
-                const gate = spellPurchaseGate(def, {
-                  learned: learnedSpells,
-                  unlockedNodeIds,
-                  completedLectures,
-                  userLevel: level,
-                  gold: userData?.gold || 0,
-                })
+                const gate = spellPurchaseGate(def, spellGateCtx())
                 const canBuy = gate.ok
                 const lockReason = !gate.ok && gate.reason !== 'learned' ? gate.message : null
                 return (
