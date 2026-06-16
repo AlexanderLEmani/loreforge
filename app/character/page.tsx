@@ -267,6 +267,117 @@ export default function CharacterPage() {
     ['🧠', 'ИНТ', stats.intel, '#2dd9b8'],
   ] as const
 
+  const deskHead = (
+    <div className="lf-char-desk-head shrink-0 px-5 pt-4 pb-3">
+      <div className="lf-char-hero-title">{character?.name}</div>
+      <div className="lf-char-hero-sub">
+        {RACE_LABELS[race]?.toUpperCase()} · УР. {level} · {equippedCount}/{slotTotal} слотов
+      </div>
+      <div className="lf-char-desk-xp">
+        <div className="lf-char-desk-xp-labels">
+          <span>УРОВЕНЬ {level}</span>
+          <span>{xpCurrent} / {xpNext}</span>
+        </div>
+        <div className="lf-char-desk-xp-track">
+          <div className="lf-char-desk-xp-fill" style={{ width: `${xpPct}%` }} />
+        </div>
+      </div>
+    </div>
+  )
+
+  const characterHeroDesk = (
+    <div className="lf-char-desk-hero shrink-0 px-4 py-2">
+      <div className="lf-char-desk-hero-grid">
+        <div className="lf-char-desk-slots lf-char-desk-slots--left">
+          {leftSlots.map(slot => (
+            <EquipSlotButton
+              key={slot.id}
+              slot={slot}
+              equipped={equipped}
+              onEquip={setBagFilter}
+              onUnequip={unequipSlot}
+            />
+          ))}
+        </div>
+
+        <div className="lf-char-desk-portrait">
+          <div className="lf-char-portrait-frame lf-char-portrait-frame--desk">
+            <PixelCharacter
+              race={race}
+              skinColor={character?.skin_color || '#c8a882'}
+              hairStyle={character?.hair_style || 'a1'}
+              hairColor={character?.hair_color || '#3d2b1f'}
+              cloakColor={character?.cloak_color || '#4a1f6e'}
+              equipment={visualEquip}
+              size={180}
+              glowTier={maxGlowTier}
+            />
+          </div>
+          <div className="lf-char-pet-visual lf-char-pet-visual--desk">
+            {petItem ? (
+              <PixelPet visualId={petItem.visualId} size={72} />
+            ) : (
+              <div className="lf-char-pet-placeholder lf-char-pet-placeholder--desk" aria-hidden>
+                <span>🐾</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="lf-char-desk-slots lf-char-desk-slots--right">
+          {rightSlots.map(slot => (
+            <EquipSlotButton
+              key={slot.id}
+              slot={slot}
+              equipped={equipped}
+              onEquip={setBagFilter}
+              onUnequip={unequipSlot}
+            />
+          ))}
+        </div>
+      </div>
+
+      {bonusStrip && (
+        <div className="lf-char-bonus-wrap lf-char-bonus-wrap--desk shrink-0">
+          {bonusStrip}
+        </div>
+      )}
+    </div>
+  )
+
+  const deskStatsPanel = (
+    <div className="lf-char-desk-stats flex-1 min-h-0 overflow-y-auto px-5 pb-4">
+      <div className="lf-char-desk-stats-label">Характеристики</div>
+      {statsRows.map(([icon, name, val, color]) => (
+        <div key={name} className="lf-char-desk-stat-row">
+          <div className="lf-char-desk-stat-name">
+            <span>{icon}</span>{name}
+          </div>
+          <div className="lf-char-desk-stat-val" style={{ color }}>{val}</div>
+        </div>
+      ))}
+      <div className="lf-char-desk-nav">
+        <AppNav step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
+      </div>
+    </div>
+  )
+
+  const deskBagPanel = (
+    <>
+      <div className="lf-char-desk-bag-head shrink-0 px-5 pt-4 pb-2">
+        <div className="lf-char-desk-bag-title">Сумка · {ownedItems.length} предм.</div>
+        <div className="lf-char-desk-bag-hint">
+          Снаряжение выпадает из данжей (~72% шанс дропа). Надеть — на персонаже.
+        </div>
+      </div>
+      <div className="shrink-0 px-5 lf-char-desk-bag-filters-wrap">{bagFiltersDesktop}</div>
+      <div className="lf-char-desk-bag-list flex-1 overflow-y-auto min-h-0 px-5 pb-5">
+        {bagItemsListDesktop}
+        {consumablesList}
+      </div>
+    </>
+  )
+
   return (
     <div className="lf-char-page">
       <nav className={layout.navBar} style={{ height: '56px', background: 'rgba(11,12,16,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.11)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
@@ -387,112 +498,36 @@ export default function CharacterPage() {
         </section>
       </div>
 
-      {/* ── Tablet / Desktop: 2-column RPG layout (≥ md) ── */}
-      <div className="hidden md:flex h-[calc(100vh-64px)] overflow-hidden">
+      {/* ── Tablet: 2-column fixed layout (md – lg) ── */}
+      <div className="hidden md:flex xl:hidden h-[calc(100vh-64px)] overflow-hidden lf-char-tablet-shell">
         <aside className="lf-char-desk-left w-[45%] shrink-0 min-w-0 flex flex-col overflow-hidden bg-[#111318] border-r border-white/10">
-          <div className="lf-char-desk-head shrink-0 px-5 pt-4 pb-3">
-            <div className="lf-char-hero-title">{character?.name}</div>
-            <div className="lf-char-hero-sub">
-              {RACE_LABELS[race]?.toUpperCase()} · УР. {level} · {equippedCount}/{slotTotal} слотов
-            </div>
-            <div className="lf-char-desk-xp">
-              <div className="lf-char-desk-xp-labels">
-                <span>УРОВЕНЬ {level}</span>
-                <span>{xpCurrent} / {xpNext}</span>
-              </div>
-              <div className="lf-char-desk-xp-track">
-                <div className="lf-char-desk-xp-fill" style={{ width: `${xpPct}%` }} />
-              </div>
-            </div>
-          </div>
-
-          <div className="lf-char-desk-hero shrink-0 px-4 py-2">
-            <div className="lf-char-desk-hero-grid">
-              <div className="lf-char-desk-slots lf-char-desk-slots--left">
-                {leftSlots.map(slot => (
-                  <EquipSlotButton
-                    key={slot.id}
-                    slot={slot}
-                    equipped={equipped}
-                    onEquip={setBagFilter}
-                    onUnequip={unequipSlot}
-                  />
-                ))}
-              </div>
-
-              <div className="lf-char-desk-portrait">
-                <div className="lf-char-portrait-frame lf-char-portrait-frame--desk">
-                  <PixelCharacter
-                    race={race}
-                    skinColor={character?.skin_color || '#c8a882'}
-                    hairStyle={character?.hair_style || 'a1'}
-                    hairColor={character?.hair_color || '#3d2b1f'}
-                    cloakColor={character?.cloak_color || '#4a1f6e'}
-                    equipment={visualEquip}
-                    size={180}
-                    glowTier={maxGlowTier}
-                  />
-                </div>
-                <div className="lf-char-pet-visual lf-char-pet-visual--desk">
-                  {petItem ? (
-                    <PixelPet visualId={petItem.visualId} size={72} />
-                  ) : (
-                    <div className="lf-char-pet-placeholder lf-char-pet-placeholder--desk" aria-hidden>
-                      <span>🐾</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="lf-char-desk-slots lf-char-desk-slots--right">
-                {rightSlots.map(slot => (
-                  <EquipSlotButton
-                    key={slot.id}
-                    slot={slot}
-                    equipped={equipped}
-                    onEquip={setBagFilter}
-                    onUnequip={unequipSlot}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {bonusStrip && (
-              <div className="lf-char-bonus-wrap lf-char-bonus-wrap--desk shrink-0">
-                {bonusStrip}
-              </div>
-            )}
-          </div>
-
-          <div className="lf-char-desk-stats flex-1 min-h-0 overflow-y-auto px-5 pb-4">
-            <div className="lf-char-desk-stats-label">Характеристики</div>
-            {statsRows.map(([icon, name, val, color]) => (
-              <div key={name} className="lf-char-desk-stat-row">
-                <div className="lf-char-desk-stat-name">
-                  <span>{icon}</span>{name}
-                </div>
-                <div className="lf-char-desk-stat-val" style={{ color }}>{val}</div>
-              </div>
-            ))}
-            <div className="lf-char-desk-nav">
-              <AppNav step={userData?.onboarding_step || 0} navUnlock={navUnlockFromUser(userData)} />
-            </div>
-          </div>
+          {deskHead}
+          {characterHeroDesk}
+          {deskStatsPanel}
         </aside>
-
         <section className="lf-char-desk-right w-[55%] shrink-0 flex flex-col h-full min-w-0 bg-[#0b0c10] overflow-hidden">
-          <div className="lf-char-desk-bag-head shrink-0 px-5 pt-4 pb-2">
-            <div className="lf-char-desk-bag-title">Сумка · {ownedItems.length} предм.</div>
-            <div className="lf-char-desk-bag-hint">
-              Снаряжение выпадает из данжей (~72% шанс дропа). Надеть — на персонаже.
-            </div>
-          </div>
-          <div className="shrink-0 px-5">{bagFiltersDesktop}</div>
-          <div className="lf-char-desk-bag-list flex-1 overflow-y-auto min-h-0 px-5 pb-5">
-            {bagItemsListDesktop}
-            {consumablesList}
-          </div>
+          {deskBagPanel}
         </section>
+      </div>
+
+      {/* ── Desktop: стандартная 3-col сетка как Hub (≥ xl) ── */}
+      <div className={`hidden xl:grid ${layout.hub} lf-char-hub-shell`} style={{ minHeight: 'calc(100vh - 56px)' }}>
+        <aside
+          className={layout.sidebarL}
+          style={{ background: '#111318', borderRight: '1px solid rgba(201,168,76,0.2)', padding: '1.5rem 1.25rem' }}
+        >
+          {deskHead}
+          {deskStatsPanel}
+        </aside>
+        <main className={`${layout.main} lf-main lf-pad-main`} style={{ background: '#0b0c10' }}>
+          {characterHeroDesk}
+        </main>
+        <aside
+          className={`${layout.sidebarR} lf-sidebar-panel`}
+          style={{ background: '#111318', borderLeft: '1px solid rgba(255,255,255,0.06)', padding: '1.5rem 1.25rem' }}
+        >
+          {deskBagPanel}
+        </aside>
       </div>
 
       {toast && (

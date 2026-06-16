@@ -3054,12 +3054,14 @@ body {
   font-size: 9px;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 768px) and (max-width: 1279px) {
   .lf-char-page {
     overflow: hidden;
     height: 100vh;
   }
+}
 
+@media (min-width: 768px) {
   .lf-char-desk-head {
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
@@ -3204,6 +3206,37 @@ body {
     color: #5a5670;
     font-style: italic;
     line-height: 1.5;
+  }
+}
+
+@media (min-width: 1280px) {
+  .lf-char-page {
+    overflow: visible;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .lf-char-hub-shell .lf-char-desk-head,
+  .lf-char-hub-shell .lf-char-desk-stats,
+  .lf-char-hub-shell .lf-char-desk-bag-head,
+  .lf-char-hub-shell .lf-char-desk-bag-list,
+  .lf-char-hub-shell .lf-char-desk-bag-filters-wrap,
+  .lf-char-hub-shell .lf-char-desk-hero {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .lf-char-hub-shell .lf-char-desk-stats {
+    overflow-y: visible;
+    flex: none;
+    padding-bottom: 0;
+  }
+
+  .lf-char-hub-shell .lf-char-desk-bag-list {
+    overflow-y: visible;
+    flex: none;
+    min-height: 0;
+    padding-bottom: 0;
   }
 }
 
