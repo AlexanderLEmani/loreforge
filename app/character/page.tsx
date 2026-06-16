@@ -297,15 +297,6 @@ export default function CharacterPage() {
               <div className="lf-char-mobile-hud-sub">
                 {RACE_LABELS[race]?.toUpperCase()} · УР. {level} · {equippedCount}/{slotTotal}
               </div>
-              <div className="lf-char-mobile-xp">
-                <div className="lf-char-mobile-xp-labels">
-                  <span>УР. {level}</span>
-                  <span>{xpCurrent}/{xpNext}</span>
-                </div>
-                <div className="lf-char-mobile-xp-track">
-                  <div className="lf-char-mobile-xp-fill" style={{ width: `${xpPct}%` }} />
-                </div>
-              </div>
             </div>
 
             <div className="lf-char-mobile-stats">
@@ -317,10 +308,20 @@ export default function CharacterPage() {
                 </div>
               ))}
             </div>
+
+            <div className="lf-char-mobile-xp mt-3">
+              <div className="lf-char-mobile-xp-labels">
+                <span>УР. {level}</span>
+                <span>{xpCurrent}/{xpNext}</span>
+              </div>
+              <div className="lf-char-mobile-xp-track">
+                <div className="lf-char-mobile-xp-fill" style={{ width: `${xpPct}%` }} />
+              </div>
+            </div>
           </div>
 
-          <div className="lf-char-mobile-stage flex-1 min-h-0 flex flex-col overflow-hidden">
-            <div className="lf-char-mobile-hero">
+          <div className="lf-char-mobile-stage flex-1 min-h-0 flex flex-col">
+            <div className="lf-char-mobile-hero flex-1 min-h-0">
               <div className="lf-char-mobile-slots lf-char-mobile-slots--left">
                 {leftSlots.map(slot => (
                   <EquipSlotButton
@@ -424,7 +425,7 @@ export default function CharacterPage() {
               </div>
 
               <div className="lf-char-desk-portrait">
-                <div className="lf-char-portrait-frame lf-char-portrait-frame--desk">
+                <div className="lf-char-portrait-frame lf-char-portrait-frame--desk w-72 max-w-none">
                   <PixelCharacter
                     race={race}
                     skinColor={character?.skin_color || '#c8a882'}

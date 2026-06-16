@@ -2706,7 +2706,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
 }
 
 .lf-char-portrait-frame .lf-pixel-char-wrap {
@@ -3080,8 +3079,8 @@ body {
 
   .lf-char-desk-hero-grid {
     display: grid;
-    grid-template-columns: minmax(72px, 96px) 1fr minmax(72px, 96px);
-    gap: 10px;
+    grid-template-columns: minmax(80px, 104px) minmax(18rem, 1fr) minmax(80px, 104px);
+    gap: 14px;
     align-items: start;
     justify-items: center;
   }
@@ -3112,9 +3111,10 @@ body {
 
   .lf-char-portrait-frame--desk {
     min-height: 0;
-    width: 100%;
-    max-width: 220px;
-    padding: 0.75rem 0.5rem;
+    width: 18rem;
+    max-width: none;
+    padding: 0.75rem 1rem;
+    overflow: visible;
   }
 
   .lf-char-pet-visual--desk {
@@ -3225,7 +3225,8 @@ body {
   }
 
   .lf-char-mobile-xp {
-    margin-top: 4px;
+    margin-top: 0;
+    margin-bottom: 4px;
   }
 
   .lf-char-mobile-xp-labels {
@@ -3255,7 +3256,7 @@ body {
     grid-template-columns: repeat(4, 1fr);
     gap: 4px;
     flex-shrink: 0;
-    padding: 2px 0;
+    padding: 2px 0 0;
   }
 
   .lf-char-mobile-stat {
@@ -3378,7 +3379,9 @@ body {
 
   .lf-char-bonus-wrap--mobile {
     flex-shrink: 0;
-    margin: 4px 6px 2px;
+    display: block;
+    visibility: visible;
+    margin: 6px 6px 4px;
     padding-top: 4px;
   }
 
