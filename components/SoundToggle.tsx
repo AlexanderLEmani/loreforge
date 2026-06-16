@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { isSoundEnabled, playSound, setSoundEnabled } from '@/lib/sounds'
+import { isSoundEnabled, playSound, playSoundAsync, setSoundEnabled } from '@/lib/sounds'
 
 type Props = {
   className?: string
@@ -26,7 +26,7 @@ export default function SoundToggle({ className, style }: Props) {
         const next = !on
         setOn(next)
         setSoundEnabled(next)
-        if (next) playSound('tap')
+        if (next) void playSoundAsync('tap')
       }}
     >
       {on ? '🔊' : '🔇'}

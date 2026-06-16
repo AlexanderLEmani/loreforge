@@ -21,6 +21,7 @@ export const DUNGEON_GOLD_MULT: Record<string, number> = {
   'Пещера деления': 1.3,
   'Храм дробей': 1.6,
   'Рынок процентов': 1.8,
+  'Арена отрядов': 1,
 }
 
 export function dungeonGoldMultiplier(dungeonName: string): number {

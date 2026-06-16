@@ -15,6 +15,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { dungeonDbNameFromRef, dungeonIdFromRef } from '@/lib/dungeons'
 import { dungeonById } from '@/lib/guild-dungeons'
 import { track } from '@/lib/analytics'
+import {
+  clearDebriefPayload,
+  readDebriefPayload,
+  type DebriefPayload,
+} from '@/lib/battle-debrief-transfer'
 
 function DebriefContent() {
   const router = useRouter()
@@ -24,18 +29,23 @@ function DebriefContent() {
   const [characterName, setCharacterName] = useState('Аркан')
   const [lootDrop, setLootDrop] = useState<LootDrop | null>(null)
   const [playerRace, setPlayerRace] = useState('human')
-  const result = params.get('result')
-  const score = params.get('score') || '0'
-  const total = params.get('total') || '5'
-  const mistakesRaw = params.get('mistakes') || ''
-  const dungeonRef = params.get('dungeon') || 'add'
+
+  const stashed = readDebriefPayload()
+  const result = (stashed?.result ?? params.get('result')) as DebriefPayload['result'] | null
+  const score = String(stashed?.score ?? params.get('score') ?? '0')
+  const total = String(stashed?.total ?? params.get('total') ?? '5')
+  const dungeonRef = stashed?.dungeonId ?? params.get('dungeon') ?? 'add'
+  const mistakesRaw = params.get('mistakes') ?? ''
+  const mistakesFromQuery = mistakesRaw
+    ? mistakesRaw.split('|').filter(Boolean)
+    : []
+  const mistakes = stashed?.mistakes ?? mistakesFromQuery
   const dungeonId = dungeonIdFromRef(dungeonRef)
   const dungeonDbName = dungeonDbNameFromRef(dungeonRef)
   const dungeonLabel = dungeonById(dungeonId)?.name ?? dungeonDbName
-  const isHard = params.get('hard') === 'true'
-  const isChampion = params.get('champion') === '1'
-  const spellKill = params.get('spell') === '1'
-  const mistakes = mistakesRaw ? decodeURIComponent(mistakesRaw).split('|').filter(Boolean) : []
+  const isHard = stashed?.hard ?? params.get('hard') === 'true'
+  const isChampion = stashed?.champion ?? params.get('champion') === '1'
+  const spellKill = stashed?.spell ?? params.get('spell') === '1'
   const pct = Math.round((parseInt(score) / parseInt(total)) * 100)
   const scoreNum = parseInt(score)
   const won = result === 'win'
@@ -137,6 +147,7 @@ function DebriefContent() {
 
       await syncQuestRewards(supabase, user.id)
       setSaved(true)
+      clearDebriefPayload()
     }
     saveRun()
   }, [])

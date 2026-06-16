@@ -37,6 +37,7 @@ const DUNGEON_SCROLL_LEVEL: Record<string, number> = {
   'Пещера деления': 2,
   'Храм дробей': 3,
   'Рынок процентов': 4,
+  'Арена отрядов': 1,
 }
 
 const DUNGEON_EQUIP_TIER: Record<string, 1 | 2 | 3> = {
@@ -46,6 +47,7 @@ const DUNGEON_EQUIP_TIER: Record<string, 1 | 2 | 3> = {
   'Пещера деления': 2,
   'Храм дробей': 3,
   'Рынок процентов': 3,
+  'Арена отрядов': 1,
 }
 
 const DEFAULT_POOL: PoolEntry[] = [
@@ -101,7 +103,7 @@ const PERCENT_POOL: PoolEntry[] = [
 ]
 
 function poolForDungeon(dungeonName: string): PoolEntry[] {
-  if (dungeonName === 'Пещера сложения' || dungeonName === 'Пещера вычитания') return TIER1_POOL
+  if (dungeonName === 'Пещера сложения' || dungeonName === 'Пещера вычитания' || dungeonName === 'Арена отрядов') return TIER1_POOL
   if (dungeonName === 'Башня умножения' || dungeonName === 'Пещера деления') return TIER2_POOL
   if (dungeonName === 'Храм дробей') return FRACTION_POOL
   if (dungeonName === 'Рынок процентов') return PERCENT_POOL

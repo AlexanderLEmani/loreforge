@@ -13,6 +13,13 @@ import {
   parseConsumables,
   type ConsumableInventory,
 } from '@/lib/battle-consumables'
+import {
+  EMPTY_SPELL_SCROLLS,
+  parseSpellScrolls,
+  SPELL_SCROLL_DEFS,
+  subtractSpellScroll,
+  type SpellScrollId,
+} from '@/lib/battle-spell-scrolls'
 import { layout } from '@/lib/layout-classes'
 import { xpProgress } from '@/lib/economy'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -33,6 +40,8 @@ export default function ShopPage() {
   const [buying, setBuying] = useState<number | null>(null)
   const [buyingConsumable, setBuyingConsumable] = useState<string | null>(null)
   const [consumables, setConsumables] = useState<ConsumableInventory>(EMPTY_CONSUMABLES)
+  const [spellScrolls, setSpellScrolls] = useState(EMPTY_SPELL_SCROLLS)
+  const [buyingSpellScroll, setBuyingSpellScroll] = useState<string | null>(null)
   const [filterLevel, setFilterLevel] = useState(1)
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
@@ -44,9 +53,10 @@ export default function ShopPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
 
-      const { data } = await supabase.from('users').select(`${USER_NAV_SELECT}, consumables`).eq('id', user.id).single()
+      const { data } = await supabase.from('users').select(`${USER_NAV_SELECT}, consumables, spell_scrolls`).eq('id', user.id).single()
       setUserData({ ...data, id: user.id })
       setConsumables(parseConsumables(data?.consumables))
+      setSpellScrolls(parseSpellScrolls(data?.spell_scrolls))
       if (data && !data.visited_shop) {
         setShowHelp(true)
         await supabase.from('users').update({ visited_shop: true }).eq('id', user.id)
@@ -98,6 +108,24 @@ export default function ShopPage() {
     setConsumables(newInv)
     setBuyingConsumable(null)
     setToast(`${name} +1 (в запасе: ${newInv[effect as keyof ConsumableInventory]})`)
+    setTimeout(() => setToast(null), 2500)
+  }
+
+  async function buySpellScroll(scrollId: SpellScrollId, name: string, cost: number) {
+    if (!userData || buyingSpellScroll) return
+    if ((userData.gold || 0) < cost) {
+      setToast('Недостаточно золота')
+      setTimeout(() => setToast(null), 2000)
+      return
+    }
+    setBuyingSpellScroll(scrollId)
+    const newGold = userData.gold - cost
+    const newInv = { ...spellScrolls, [scrollId]: spellScrolls[scrollId] + 1 }
+    await supabase.from('users').update({ gold: newGold, spell_scrolls: newInv }).eq('id', userData.id)
+    setUserData({ ...userData, gold: newGold })
+    setSpellScrolls(newInv)
+    setBuyingSpellScroll(null)
+    setToast(`${name} +1 (в запасе: ${newInv[scrollId]})`)
     setTimeout(() => setToast(null), 2500)
   }
 
@@ -165,6 +193,41 @@ export default function ShopPage() {
                       }}
                     >
                       {buyingConsumable === c.effect ? '...' : `💰 ${c.cost}`}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ fontFamily: 'monospace', fontSize: '10px', letterSpacing: '0.2em', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>Свитки заклинаний для боя</div>
+            <div style={{ fontSize: '12px', color: '#8a849c', marginBottom: '12px', lineHeight: 1.5 }}>
+              Одноразовые в бою · нужна ветка «Мастер …» на древе · возьми в рюкзак перед данжом
+            </div>
+            <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {SPELL_SCROLL_DEFS.map(def => {
+                const canAfford = (userData?.gold || 0) >= def.cost
+                const qty = spellScrolls[def.id]
+                return (
+                  <div key={def.id} style={{ background: '#141820', border: '1px solid rgba(169,159,255,0.2)', borderRadius: '8px', padding: '14px' }}>
+                    <div style={{ fontSize: '20px', marginBottom: '6px' }}>{def.icon}</div>
+                    <div style={{ fontSize: '13px', color: '#c8c0d8', marginBottom: '2px' }}>{def.name}</div>
+                    <div style={{ fontSize: '10px', color: '#8a849c', marginBottom: '6px', lineHeight: 1.4 }}>{def.shortDesc}</div>
+                    <div style={{ fontSize: '10px', color: '#7b6cff', marginBottom: '8px' }}>🔒 {def.masteryLabel}</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#a99fff', marginBottom: '8px' }}>В запасе: ×{qty}</div>
+                    <div
+                      onClick={() => buySpellScroll(def.id, def.name, def.cost)}
+                      style={{
+                        padding: '8px', textAlign: 'center', borderRadius: '6px', fontFamily: 'monospace', fontSize: '10px',
+                        background: canAfford ? 'rgba(169,159,255,0.12)' : 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${canAfford ? 'rgba(169,159,255,0.35)' : 'rgba(255,255,255,0.06)'}`,
+                        color: canAfford ? '#a99fff' : '#3a3650',
+                        cursor: canAfford ? 'pointer' : 'default',
+                        opacity: buyingSpellScroll === def.id ? 0.5 : 1,
+                      }}
+                    >
+                      {buyingSpellScroll === def.id ? '...' : `💰 ${def.cost}`}
                     </div>
                   </div>
                 )

@@ -4,6 +4,7 @@ import "./globals.css";
 import ScrollOnNavigate from "@/components/ScrollOnNavigate";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
+import AuthRecovery from "@/components/AuthRecovery";
 import { APP_NAME } from "@/lib/brand";
 
 const geistSans = Geist({
@@ -41,6 +42,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <AnalyticsProvider>
+          <AuthRecovery />
           <ScrollOnNavigate />
           <MobileBottomNav />
           {children}

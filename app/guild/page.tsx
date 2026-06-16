@@ -103,7 +103,7 @@ export default function GuildPage() {
       setQuests(withGuildClaimed(built, rewards.claims))
       const { data: winRows } = await supabase
         .from('dungeon_runs')
-        .select('dungeon_name')
+        .select('dungeon_name, result')
         .eq('user_id', user.id)
         .eq('result', 'win')
 
@@ -142,14 +142,32 @@ export default function GuildPage() {
 
   const { rank, next: nextRank, pct: rankPct, idx: rankIdx } = guildRankProgress(reputation)
 
-  const freeDungeons = GUILD_DUNGEONS.filter(d => effectiveDungeonCost(d.id, rankIdx) === 0)
+  const testDungeons = GUILD_DUNGEONS.filter(d => d.id === 'pack')
+  const freeDungeons = GUILD_DUNGEONS.filter(d => d.id !== 'pack' && effectiveDungeonCost(d.id, rankIdx) === 0)
   const paidDungeons = GUILD_DUNGEONS.filter(d => effectiveDungeonCost(d.id, rankIdx) > 0)
   const championWins = championWinsMap
 
   function championLabel(route: string) {
     const prog = championUnlockProgress(championWins[route] ?? 0)
-    if (prog.unlocked) return '⚔ чемпионы открыты'
+    if (prog.unlocked) return '⚔ чемпионы открыты · шанс ~28%'
     return `⚔ чемпион: ${prog.wins}/${prog.needed} побед`
+  }
+
+  function ChampionProgressBar({ dungeonId }: { dungeonId: string }) {
+    const prog = championUnlockProgress(championWins[dungeonId] ?? 0)
+    const pct = Math.round((prog.wins / prog.needed) * 100)
+    return (
+      <div style={{ marginTop: '4px' }}>
+        <div style={{ fontSize: '10px', color: prog.unlocked ? '#e05555' : '#5a5670', marginBottom: prog.unlocked ? 0 : '3px' }}>
+          {championLabel(dungeonId)}
+        </div>
+        {!prog.unlocked && (
+          <div style={{ height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: '#e05555', width: `${pct}%`, transition: 'width 0.4s' }} />
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -215,6 +233,32 @@ export default function GuildPage() {
             </div>
           </div>
 
+          {testDungeons.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace', fontSize: '9px', color: '#7b6cff', textTransform: 'uppercase', marginBottom: '10px' }}>
+            <span>Тест · отряды</span>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(123,108,255,0.2)' }}></div>
+          </div>
+          )}
+          {testDungeons.length > 0 && (
+          <div className={layout.stack2} style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginBottom: '1.5rem' }}>
+            {testDungeons.map(d => (
+              <div key={d.id} onClick={() => enterDungeon(d, 0)}
+                style={{ background: 'rgba(123,108,255,0.08)', border: '1px solid rgba(123,108,255,0.35)', borderRadius: '10px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', transition: 'all 0.15s' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(123,108,255,0.55)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = 'rgba(123,108,255,0.35)'}
+              >
+                <div style={{ fontSize: '28px', flexShrink: 0 }}>{d.icon}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0', marginBottom: '2px' }}>{d.name}</div>
+                  <div style={{ fontSize: '11px', color: '#8a849c', fontStyle: 'italic', lineHeight: 1.45 }}>{d.desc}</div>
+                  <div style={{ fontSize: '10px', color: '#7b6cff', marginTop: '4px' }}>👥 2–3 врага · выбор цели · примеры сложения</div>
+                </div>
+                <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff', padding: '5px 12px', border: '1px solid rgba(123,108,255,0.45)', borderRadius: '6px', background: 'rgba(123,108,255,0.1)', whiteSpace: 'nowrap' }}>▶ Тест</div>
+              </div>
+            ))}
+          </div>
+          )}
+
           {/* БЕСПЛАТНЫЕ ДАНЖИ */}
           {freeDungeons.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', textTransform: 'uppercase', marginBottom: '10px' }}>
@@ -236,9 +280,7 @@ export default function GuildPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: 'serif', fontSize: '14px', color: '#e6e2f0', marginBottom: '2px' }}>{d.name}</div>
                   <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic' }}>Математика · {d.tag} · Бесплатно</div>
-                  <div style={{ fontSize: '10px', color: championUnlockProgress(championWins[d.id] ?? 0).unlocked ? '#e05555' : '#5a5670', marginTop: '4px' }}>
-                    {championLabel(d.id)}
-                  </div>
+                  <ChampionProgressBar dungeonId={d.id} />
                 </div>
                 <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#3db87a', padding: '5px 12px', border: '1px solid rgba(61,184,122,0.4)', borderRadius: '6px', background: 'rgba(61,184,122,0.08)', whiteSpace: 'nowrap' }}>{locked ? '🔒' : '▶ Войти'}</div>
               </div>
@@ -301,9 +343,7 @@ export default function GuildPage() {
                     </div>
                     <div style={{ fontFamily: 'serif', fontSize: '14px', color: locked ? '#5a5670' : '#e6e2f0', marginBottom: '4px' }}>{d.name}</div>
                     <div style={{ fontSize: '11px', color: '#5a5670', fontStyle: 'italic', lineHeight: 1.4, marginBottom: '6px' }}>{d.desc}</div>
-                    <div style={{ fontSize: '10px', color: championUnlockProgress(championWins[d.id] ?? 0).unlocked ? '#e05555' : '#5a5670', marginBottom: '10px' }}>
-                      {championLabel(d.id)}
-                    </div>
+                    <ChampionProgressBar dungeonId={d.id} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontFamily: 'monospace', fontSize: '11px', color: locked ? '#3a3650' : canAfford ? '#a99fff' : '#e05555' }}>
                         ⭐ {cost} славы

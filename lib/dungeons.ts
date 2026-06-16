@@ -1,5 +1,5 @@
 /** Стабильные id данжей (URL, логика). dbName — ключ в questions / dungeon_runs. */
-export type DungeonId = 'add' | 'sub' | 'mul' | 'div' | 'frac' | 'market'
+export type DungeonId = 'add' | 'sub' | 'mul' | 'div' | 'frac' | 'market' | 'pack'
 
 export type DungeonRegistryEntry = {
   id: DungeonId
@@ -14,6 +14,7 @@ export const DUNGEON_REGISTRY: DungeonRegistryEntry[] = [
   { id: 'div', dbName: 'Пещера деления', topic: 'div' },
   { id: 'frac', dbName: 'Храм дробей', topic: 'frac' },
   { id: 'market', dbName: 'Рынок процентов', topic: 'pct' },
+  { id: 'pack', dbName: 'Арена отрядов', topic: 'add' },
 ]
 
 const DB_NAME_TO_ID = Object.fromEntries(DUNGEON_REGISTRY.map(d => [d.dbName, d.id])) as Record<string, DungeonId>
@@ -50,4 +51,9 @@ export function topicFromDbName(dbName: string | null | undefined): string | nul
   if (entry) return entry.topic
   const id = DB_NAME_TO_ID[dbName]
   return id ? dungeonRegistryById(id)!.topic : null
+}
+
+/** Тестовый данж: всегда 2–3 врага в бою */
+export function isPackDungeon(id: string): boolean {
+  return id === 'pack'
 }

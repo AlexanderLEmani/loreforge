@@ -75,6 +75,19 @@ export const STANCE_TIMEOUT_PER_STACK = 3
 export const RAGE_CHARGE_PER_BLOCK = 0.35
 export const RAGE_CHARGE_MAX = 2
 
+/** Уклонение: быстрый пример после кнопки 💨 */
+export const DODGE_TIMER_SEC = 8
+export const DODGE_DAMAGE_RATIO = 0.45
+export const DODGE_DAMAGE_MIN = 6
+
+/** Стойка героя: копится при успешной защите */
+export const PLAYER_STANCE_MAX = 3
+export const PLAYER_STANCE_DMG_PER_STACK = 0.12
+
+export function dodgeChipDamage(rawHit: number): number {
+  return Math.max(DODGE_DAMAGE_MIN, Math.round(rawHit * DODGE_DAMAGE_RATIO))
+}
+
 const DEFAULT_PROFILE: MonsterProfile = {
   weakTopics: [],
   resistTopics: [],
@@ -111,7 +124,7 @@ export const MONSTER_PROFILES: Record<string, MonsterProfile> = {
     weakTopics: ['sub'],
     resistTopics: ['add'],
     defendBehavior: 'rage_on_block',
-    tip: 'Уклоняйся (неверный ответ) — блок заряжает его удар!',
+    tip: 'Быстрый · блок заряжает удар · уклонение = лёгкий пример и часть урона',
   },
   debt: {
     weakTopics: ['sub'],
@@ -160,7 +173,7 @@ export const MONSTER_PROFILES: Record<string, MonsterProfile> = {
     weakTopics: ['div'],
     resistTopics: ['mul'],
     defendBehavior: 'rage_on_block',
-    tip: 'Нервный · не блокируй — уклоняйся!',
+    tip: 'Нервный · уклонение: лёгкий пример, не ноль урона',
   },
   frac_demon: {
     weakTopics: ['div'],
@@ -182,7 +195,7 @@ export const MONSTER_PROFILES: Record<string, MonsterProfile> = {
     weakTopics: ['frac'],
     resistTopics: ['mul'],
     defendBehavior: 'rage_on_block',
-    tip: 'Хитрый · уклонение лучше блока.',
+    tip: 'Хитрый · блок заряжает · уклонение не спасает от урона',
   },
   frac_boss: {
     weakTopics: ['frac'],
@@ -212,6 +225,43 @@ export const MONSTER_PROFILES: Record<string, MonsterProfile> = {
     defendBehavior: 'normal',
     enrage: true,
     tip: 'Жадный босс · % атаки + ярость.',
+  },
+
+  pack_rat: {
+    weakTopics: ['add'],
+    resistTopics: [],
+    defendBehavior: 'normal',
+    tip: 'Шустрый · слаб к сложению.',
+  },
+  pack_gob: {
+    weakTopics: ['add'],
+    resistTopics: ['sub'],
+    defendBehavior: 'rage_on_block',
+    tip: 'Блок заряжает · уклонение = быстрый пример + ~45% урона',
+  },
+  pack_ogre: {
+    weakTopics: ['add'],
+    resistTopics: ['mul'],
+    defendBehavior: 'normal',
+    tip: 'Толстый · слаб к сложению.',
+  },
+  pack_leech: {
+    weakTopics: ['add'],
+    resistTopics: [],
+    defendBehavior: 'normal',
+    tip: 'Лайфстил — лечится от твоего урона.',
+  },
+  pack_bee: {
+    weakTopics: ['add'],
+    resistTopics: [],
+    defendBehavior: 'normal',
+    tip: 'Рой — 3 быстрых примера, малый урон каждый.',
+  },
+  pack_cult: {
+    weakTopics: ['add'],
+    resistTopics: ['mul'],
+    defendBehavior: 'normal',
+    tip: 'Заряжает удар 2 твои хода · потом сильный сложный пример.',
   },
 
   // Fallback

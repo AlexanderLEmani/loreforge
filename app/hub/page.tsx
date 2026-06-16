@@ -31,6 +31,7 @@ import MasteryPanel from '@/components/MasteryPanel'
 import { formatStudyMinutes, normalizeStudySeconds, syncStreakOnVisit, DAILY_STUDY_TARGET_SECONDS } from '@/lib/daily-study'
 import { loadMasteryUnlocks, parseMasteryUnlocks, type MasteryUnlocks } from '@/lib/mastery-achievements'
 import { flushAuthCompleted, identifyUser } from '@/lib/analytics'
+import { clearStaleAuth, isStaleAuthError } from '@/lib/auth-recovery'
 
 export default function Hub() {
   const supabase = createClient()
@@ -50,7 +51,11 @@ export default function Hub() {
 
   useEffect(() => {
     async function getUser() {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError && isStaleAuthError(authError)) {
+        await clearStaleAuth(supabase)
+        return
+      }
       if (!user) { router.push('/'); return }
       await supabase.from('users').upsert({
         id: user.id,

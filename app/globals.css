@@ -1363,6 +1363,146 @@ body {
   }
 }
 
+.lf-battle-swarm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lf-battle-swarm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lf-battle-swarm-title {
+  font-family: monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: #e0bc6a;
+  text-transform: uppercase;
+}
+
+.lf-battle-swarm-timer {
+  font-family: monospace;
+  font-size: 22px;
+  font-weight: bold;
+  color: #3db87a;
+}
+
+.lf-battle-swarm-timer--urgent {
+  color: #e05555;
+}
+
+.lf-battle-swarm-hint {
+  font-size: 12px;
+  color: #8a849c;
+  line-height: 1.45;
+}
+
+.lf-battle-swarm-questions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lf-battle-swarm-q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(224, 188, 106, 0.06);
+  border: 1px solid rgba(224, 188, 106, 0.28);
+  border-radius: 10px;
+  cursor: default;
+  text-align: left;
+}
+
+.lf-battle-swarm-q--pickable {
+  cursor: pointer;
+  border-color: rgba(224, 188, 106, 0.55);
+}
+
+.lf-battle-swarm-q--filled {
+  border-color: rgba(61, 184, 122, 0.45);
+  background: rgba(61, 184, 122, 0.06);
+}
+
+.lf-battle-swarm-q-text {
+  font-family: serif;
+  font-size: clamp(22px, 4vw, 32px);
+  color: #e6e2f0;
+  line-height: 1.1;
+}
+
+.lf-battle-swarm-q-slot {
+  flex-shrink: 0;
+  min-width: 64px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #1c1f2a;
+  border: 1px dashed rgba(224, 188, 106, 0.4);
+  font-family: monospace;
+  font-size: 14px;
+  color: #e0bc6a;
+  text-align: center;
+}
+
+.lf-battle-swarm-pool-label {
+  font-family: monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: #8a849c;
+  text-transform: uppercase;
+}
+
+.lf-battle-swarm-pool {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.lf-battle-swarm-chip {
+  padding: 12px;
+  background: #1c1f2a;
+  border: 1px solid rgba(224, 188, 106, 0.35);
+  border-radius: 9px;
+  font-family: serif;
+  font-size: 20px;
+  color: #e6e2f0;
+  cursor: pointer;
+}
+
+.lf-battle-swarm-chip--on {
+  border-color: rgba(224, 188, 106, 0.7);
+  background: rgba(224, 188, 106, 0.12);
+  color: #e0bc6a;
+}
+
+.lf-battle-swarm-chip--used {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.lf-battle-swarm-submit {
+  margin-top: 4px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(61, 184, 122, 0.45);
+  background: rgba(61, 184, 122, 0.1);
+  color: #3db87a;
+  font-family: serif;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.lf-battle-swarm-submit:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 @media (min-width: 601px) and (max-width: 1024px) {
   .lf-battle-scratch-panel {
     max-width: min(92vw, 640px);
@@ -1400,6 +1540,182 @@ body {
   font-size: 11px;
   color: #8a849c;
   margin-bottom: 8px;
+}
+
+.lf-battle-minion-tag {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 5px;
+  font-family: monospace;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  color: #8a849c;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+.lf-battle-squad-vs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.lf-battle-squad-card {
+  position: relative;
+  background: rgba(224, 85, 85, 0.04);
+  border: 1px solid rgba(224, 85, 85, 0.2);
+  border-radius: 10px;
+  padding: 0.5rem 0.65rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.lf-battle-squad-card--pickable {
+  cursor: pointer;
+}
+
+.lf-battle-squad-card--pickable:hover {
+  border-color: rgba(224, 85, 85, 0.45);
+}
+
+.lf-battle-squad-card--target {
+  border-color: rgba(224, 188, 106, 0.55);
+  background: rgba(224, 188, 106, 0.08);
+  box-shadow: 0 0 0 1px rgba(224, 188, 106, 0.2);
+}
+
+.lf-battle-squad-card-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-direction: row-reverse;
+}
+
+.lf-battle-squad-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.lf-battle-squad-meta {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+}
+
+.lf-battle-squad-name {
+  font-family: serif;
+  font-size: 12px;
+  color: #e05555;
+  margin-bottom: 4px;
+}
+
+.lf-battle-squad-hpbar {
+  height: 5px;
+  background: #171920;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 3px;
+}
+
+.lf-battle-squad-hpbar > div {
+  height: 100%;
+  background: #e05555;
+  transition: width 0.35s ease;
+}
+
+.lf-battle-squad-hpnum {
+  font-family: monospace;
+  font-size: 10px;
+  color: #8a849c;
+}
+
+.lf-battle-squad-dmg {
+  position: absolute;
+  top: -8px;
+  right: 12px;
+  font-family: monospace;
+  font-size: 26px;
+  color: #e05555;
+  font-weight: bold;
+  animation: fadeUp 1.2s ease-out forwards;
+  z-index: 10;
+}
+
+.lf-battle-squad-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lf-battle-squad-sidebar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.lf-battle-squad-sidebar-row--target {
+  border-color: rgba(224, 188, 106, 0.35);
+  background: rgba(224, 188, 106, 0.06);
+}
+
+.lf-battle-target-panel {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: rgba(224, 85, 85, 0.05);
+  border: 1px solid rgba(224, 85, 85, 0.2);
+  border-radius: 10px;
+}
+
+.lf-battle-target-label {
+  font-family: monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: #e05555;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.lf-battle-target-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lf-battle-target-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #1c1f2a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font-family: serif;
+  font-size: 13px;
+  color: #c8c0d8;
+  cursor: pointer;
+}
+
+.lf-battle-target-chip--on {
+  border-color: rgba(224, 188, 106, 0.5);
+  background: rgba(224, 188, 106, 0.1);
+  color: #e0bc6a;
+}
+
+.lf-battle-target-chip-hp {
+  font-family: monospace;
+  font-size: 10px;
+  color: #5a5670;
+}
+
+.lf-battle-next-attack {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #8a849c;
+  font-style: italic;
 }
 
 .lf-debrief-shell {

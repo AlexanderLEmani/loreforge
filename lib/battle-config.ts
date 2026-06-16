@@ -4,6 +4,8 @@ import { DUNGEON_TO_TOPIC } from '@/lib/dungeon-topics'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
+export type MonsterSpecial = 'lifesteal' | 'swarm' | 'windup'
+
 export type Monster = {
   id: string
   name: string
@@ -15,6 +17,11 @@ export type Monster = {
   trait: string
   /** Чемпион данжа — реже, сильнее, намерения в UI */
   isBoss?: boolean
+  special?: MonsterSpecial
+  /** Доля урона → лечение врага (0.35 = 35%) */
+  lifestealPct?: number
+  /** Число быстрых «укусов» в фазе роя */
+  swarmStings?: number
 }
 
 export type BattleAttack = {
@@ -30,7 +37,7 @@ export type BattleAttack = {
   minLevel: number
   requiresTopics?: string[]
   cooldown?: number
-  kind: 'basic' | 'spell'
+  kind: 'basic' | 'spell' | 'scroll_spell'
 }
 
 export { DUNGEON_TO_TOPIC } from '@/lib/dungeon-topics'
@@ -41,7 +48,7 @@ const BOSS_ENCOUNTER_CHANCE = 0.28
 export const STREAK_CRIT_THRESHOLD = 3
 export const STREAK_CRIT_MULT = 1.5
 
-const DEFAULT_MONSTERS: Monster[] = [
+export const DEFAULT_MONSTERS: Monster[] = [
   { id: 'imp', name: 'Бес цифр', icon: '👹', hp: 90, defendTimer: 12, attackDmg: 18, timeoutDmg: 28, trait: 'Быстрый' },
   { id: 'shade', name: 'Тень счёта', icon: '🌑', hp: 110, defendTimer: 15, attackDmg: 22, timeoutDmg: 30, trait: 'Стандарт' },
   { id: 'brute', name: 'Голем ошибок', icon: '🗿', hp: 130, defendTimer: 18, attackDmg: 25, timeoutDmg: 35, trait: 'Медленный, сильный' },
@@ -78,6 +85,14 @@ export const MONSTERS_BY_DUNGEON: Record<string, Monster[]> = {
     { id: 'tax', name: 'Сборщик процентов', icon: '💰', hp: 115, defendTimer: 14, attackDmg: 23, timeoutDmg: 32, trait: 'Точный' },
     { id: 'pct_boss', name: 'Лорд наценки', icon: '%', hp: 135, defendTimer: 15, attackDmg: 25, timeoutDmg: 34, trait: 'Жадный', isBoss: true },
   ],
+  'Арена отрядов': [
+    { id: 'pack_rat', name: 'Рынь цифр', icon: '🐀', hp: 55, defendTimer: 10, attackDmg: 14, timeoutDmg: 22, trait: 'Шустрый' },
+    { id: 'pack_gob', name: 'Гоблин счёта', icon: '👺', hp: 72, defendTimer: 12, attackDmg: 16, timeoutDmg: 24, trait: 'Парирование · блок заряжает' },
+    { id: 'pack_ogre', name: 'Огр суммы', icon: '🦴', hp: 95, defendTimer: 14, attackDmg: 19, timeoutDmg: 28, trait: 'Толстый' },
+    { id: 'pack_leech', name: 'Кровопийца', icon: '🧛', hp: 78, defendTimer: 13, attackDmg: 15, timeoutDmg: 22, trait: 'Лайфстил 35%', special: 'lifesteal', lifestealPct: 0.35 },
+    { id: 'pack_bee', name: 'Рой пчёл', icon: '🐝', hp: 50, defendTimer: 7, attackDmg: 7, timeoutDmg: 12, trait: 'Рой · 3 примера · один таймер', special: 'swarm', swarmStings: 3 },
+    { id: 'pack_cult', name: 'Культист заряда', icon: '🔮', hp: 68, defendTimer: 13, attackDmg: 14, timeoutDmg: 20, trait: 'Заряжает удар · 2 хода', special: 'windup' },
+  ],
 }
 
 export const BATTLE_ATTACKS: BattleAttack[] = [
@@ -90,28 +105,33 @@ export const BATTLE_ATTACKS: BattleAttack[] = [
     dmg: 28, color: '#a99fff', difficulty: 'medium', dungeons: [], minLevel: 1, kind: 'basic',
   },
   {
-    id: 'heavy', label: 'Тёмная магия', icon: '💀', desc: 'Сложный пример · ввод ответа · ошибка = -40 HP',
-    dmg: 50, color: '#e05555', difficulty: 'hard', dungeons: [], minLevel: 1, cooldown: 3, kind: 'basic',
+    id: 'charged_strike', label: 'Удар напором', icon: '⚡', desc: 'Средний пример · базовая техника академии',
+    dmg: 34, color: '#7b6cff', difficulty: 'medium', dungeons: [], minLevel: 1, cooldown: 2, kind: 'basic',
   },
   {
-    id: 'twin_strike', label: 'Двойной удар', icon: '➕➖', desc: 'Сложение + вычитание',
+    id: 'twin_strike', label: 'Двойной удар', icon: '➕➖', desc: 'Свиток · сложение + вычитание',
     dmg: 24, color: '#3db87a', difficulty: 'easy', dungeons: ['Пещера сложения', 'Пещера вычитания'],
-    minLevel: 1, requiresTopics: ['add', 'sub'], kind: 'spell',
+    minLevel: 1, requiresTopics: ['add', 'sub'], kind: 'scroll_spell',
   },
   {
-    id: 'fireball', label: 'Огненный шар', icon: '🔥', desc: 'Умножение + деление',
+    id: 'fireball', label: 'Огненный шар', icon: '🔥', desc: 'Свиток · умножение + деление',
     dmg: 38, color: '#e0bc6a', difficulty: 'medium', dungeons: ['Башня умножения', 'Пещера деления'],
-    minLevel: 2, requiresTopics: ['mul', 'div'], cooldown: 2, kind: 'spell',
+    minLevel: 2, requiresTopics: ['mul', 'div'], cooldown: 2, kind: 'scroll_spell',
   },
   {
-    id: 'arcane_burst', label: 'Арканический взрыв', icon: '🌀', desc: 'Сложение + вычитание + умножение',
+    id: 'arcane_burst', label: 'Арканический взрыв', icon: '🌀', desc: 'Свиток · сложение + вычитание + умножение',
     dmg: 52, color: '#b8aeff', difficulty: 'hard', dungeons: ['Пещера сложения', 'Пещера вычитания', 'Башня умножения'],
-    minLevel: 3, requiresTopics: ['add', 'sub', 'mul'], cooldown: 3, kind: 'spell',
+    minLevel: 3, requiresTopics: ['add', 'sub', 'mul'], cooldown: 3, kind: 'scroll_spell',
   },
   {
-    id: 'storm_lance', label: 'Штормовой ланс', icon: '⚔️', desc: 'Умножение + деление · мощный',
+    id: 'storm_lance', label: 'Штормовой ланс', icon: '⚔️', desc: 'Свиток · умножение + деление · мощный',
     dmg: 46, color: '#7b6cff', difficulty: 'hard', dungeons: ['Башня умножения', 'Пещера деления'],
-    minLevel: 2, requiresTopics: ['mul', 'div'], cooldown: 2, kind: 'spell',
+    minLevel: 2, requiresTopics: ['mul', 'div'], cooldown: 2, kind: 'scroll_spell',
+  },
+  {
+    id: 'dark_sigil', label: 'Тёмный сигил', icon: '💀', desc: 'Запретный свиток · ввод · ошибка = −40 HP',
+    dmg: 50, color: '#e05555', difficulty: 'hard', dungeons: [], minLevel: 2, requiresTopics: ['mul', 'div'],
+    cooldown: 3, kind: 'scroll_spell',
   },
 ]
 
@@ -148,13 +168,18 @@ export function getAttacksForBattle(
   unlockedTopics: string[],
 ): BattleAttack[] {
   return BATTLE_ATTACKS.filter(a => {
+    if (a.kind !== 'basic') return false
     if (userLevel < a.minLevel) return false
     if (a.requiresTopics && !a.requiresTopics.every(t => unlockedTopics.includes(t))) return false
     return true
   }).map(a => ({
     ...a,
-    dungeons: a.kind === 'basic' ? [currentDungeon] : a.dungeons,
+    dungeons: [currentDungeon],
   }))
+}
+
+export function isTypedScrollAttack(attackId: string): boolean {
+  return attackId === 'dark_sigil'
 }
 
 export const SCROLL_EFFECT_LABELS: Record<ScrollBattleEffect, { label: string; icon: string; desc: string }> = {

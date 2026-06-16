@@ -23,6 +23,7 @@ export const GUILD_DUNGEONS: GuildDungeon[] = [
   { id: 'div', icon: '÷', name: 'Пещера деления', tag: 'Ур.2', desc: 'Деление до 100. Остатки и комбинированные действия.', baseCost: 40, color: '#3db87a', rarity: null, level: 2 },
   { id: 'frac', icon: '½', name: 'Храм дробей', tag: 'Ур.3', desc: 'Дроби: ½ ⅓ ¼, общий знаменатель, × и ÷.', baseCost: 100, color: '#e05555', rarity: 'epic', level: 3 },
   { id: 'market', icon: '💰', name: 'Рынок процентов', tag: 'Ур.4', desc: '10%, 25%, скидки и наценки. Нужен игровой ур.4.', baseCost: 150, color: '#3db87a', rarity: null, level: 4 },
+  { id: 'pack', icon: '👥', name: 'Арена отрядов', tag: 'ТЕСТ', desc: '2–3 врага в каждом бою. Проверка отрядов и выбора цели.', baseCost: 0, color: '#7b6cff', rarity: null, level: 1 },
 ]
 
 export function dungeonById(id: string): GuildDungeon | undefined {

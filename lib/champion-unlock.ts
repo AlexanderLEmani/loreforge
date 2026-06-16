@@ -29,7 +29,8 @@ export function championWinsByDungeon(
 ): Record<string, number> {
   const map: Record<string, number> = {}
   for (const r of runs) {
-    if (r.result !== 'win' || !r.dungeon_name) continue
+    if (r.result != null && r.result !== 'win') continue
+    if (!r.dungeon_name) continue
     const id = dungeonIdFromRef(r.dungeon_name)
     map[id] = (map[id] ?? 0) + 1
   }

@@ -6,6 +6,7 @@ import bashnyaUmnozheniya from '@/data/question-banks/bashnya-umnozheniya.json'
 import pecheraDeleniya from '@/data/question-banks/pechera-deleniya.json'
 import hramDrobei from '@/data/question-banks/hram-drobei.json'
 import rynokProcentov from '@/data/question-banks/rynok-procentov.json'
+import { filterValidQuestions } from '@/lib/question-validate'
 
 export type FallbackQuestion = {
   id: number
@@ -23,11 +24,15 @@ export const FALLBACK_BY_DUNGEON: Record<string, FallbackQuestion[]> = {
   'Пещера деления': pecheraDeleniya as FallbackQuestion[],
   'Храм дробей': hramDrobei as FallbackQuestion[],
   'Рынок процентов': rynokProcentov as FallbackQuestion[],
+  'Арена отрядов': pecheraSlozheniya as FallbackQuestion[],
 }
 
 export function mergeWithFallback(dungeon: string, fromDb: any[]): any[] {
   const fb = FALLBACK_BY_DUNGEON[dungeon] || []
-  const merged = [...fromDb]
+  const validDb = filterValidQuestions(
+    fromDb.map(q => ({ ...q, dungeon_name: q.dungeon_name ?? dungeon })),
+  )
+  const merged = [...validDb]
   for (const q of fb) {
     if (!merged.some(m => m.question === q.question)) merged.push(q)
   }

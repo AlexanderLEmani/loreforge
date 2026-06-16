@@ -31,6 +31,13 @@ export async function resetUserProgress(supabase: SupabaseClient, userId: string
     skill_points: 0,
     quest_claims: {},
     consumables: { hint: 0, power: 0, shield: 0, heal: 0 },
+    spell_scrolls: {
+      scroll_twin_strike: 0,
+      scroll_fireball: 0,
+      scroll_storm_lance: 0,
+      scroll_arcane_burst: 0,
+      scroll_dark_sigil: 0,
+    },
     guild_rank_rewards: 0,
     daily_study_seconds: 0,
     daily_study_date: null,
