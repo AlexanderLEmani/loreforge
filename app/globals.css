@@ -2919,6 +2919,341 @@ body {
   background: rgba(201, 168, 76, 0.08);
 }
 
+.lf-char-portrait-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.lf-char-pet-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.lf-char-pet-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 84px;
+}
+
+.lf-char-pet-placeholder {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(12, 14, 20, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  opacity: 0.45;
+}
+
+.lf-equip-card--mobile-row {
+  padding: 5px 8px;
+  margin-bottom: 4px;
+  gap: 8px;
+  min-height: 44px;
+  align-items: center;
+}
+
+.lf-equip-card--mobile-row .lf-equip-card-icon {
+  width: 32px;
+  height: 32px;
+  font-size: 18px;
+  border-radius: 5px;
+}
+
+.lf-equip-card--mobile-row .lf-equip-card-name {
+  font-size: 12px;
+  margin-bottom: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lf-equip-card--mobile-row .lf-equip-card-tier {
+  font-size: 9px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lf-equip-card--mobile-row .lf-equip-card-btn {
+  padding: 5px 8px;
+  font-size: 9px;
+}
+
+@media (min-width: 768px) {
+  .lf-layout-character--desktop {
+    display: grid !important;
+    flex-direction: unset !important;
+    grid-template-columns: 260px 1fr 300px;
+    min-height: calc(100vh - 56px);
+  }
+}
+
+@media (max-width: 767px) {
+  .lf-char-page {
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .lf-char-mobile-hud {
+    background: #111318;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 8px 10px 6px;
+    gap: 4px;
+  }
+
+  .lf-char-mobile-hud-head {
+    flex-shrink: 0;
+    text-align: center;
+  }
+
+  .lf-char-mobile-hud-name {
+    font-family: serif;
+    font-size: 15px;
+    color: #e0bc6a;
+    line-height: 1.2;
+  }
+
+  .lf-char-mobile-hud-sub {
+    font-family: monospace;
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    color: #a99fff;
+    margin-top: 1px;
+  }
+
+  .lf-char-mobile-xp {
+    margin-top: 4px;
+  }
+
+  .lf-char-mobile-xp-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: monospace;
+    font-size: 7px;
+    color: #5a5670;
+    margin-bottom: 2px;
+  }
+
+  .lf-char-mobile-xp-track {
+    height: 2px;
+    background: #171920;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .lf-char-mobile-xp-fill {
+    height: 100%;
+    background: #7b6cff;
+    border-radius: 2px;
+  }
+
+  .lf-char-mobile-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    flex-shrink: 0;
+    padding: 2px 0;
+  }
+
+  .lf-char-mobile-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 3px 2px;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .lf-char-mobile-stat-icon {
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .lf-char-mobile-stat-label {
+    font-family: monospace;
+    font-size: 6px;
+    letter-spacing: 0.06em;
+    color: #6a7080;
+  }
+
+  .lf-char-mobile-stat-val {
+    font-family: monospace;
+    font-size: 11px;
+    line-height: 1.1;
+  }
+
+  .lf-char-mobile-hero {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(52px, 64px) 1fr minmax(52px, 64px);
+    gap: 4px;
+    align-items: center;
+  }
+
+  .lf-char-mobile-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .lf-char-mobile-slots .lf-equip-slot {
+    max-width: none;
+    min-height: 48px;
+    padding: 4px 3px;
+  }
+
+  .lf-char-mobile-slots .lf-equip-slot-icon {
+    font-size: 16px;
+  }
+
+  .lf-char-mobile-slots .lf-equip-slot-label {
+    font-size: 6px;
+  }
+
+  .lf-char-mobile-slots .lf-equip-slot-tier,
+  .lf-char-mobile-slots .lf-equip-slot-hint {
+    font-size: 6px;
+  }
+
+  .lf-char-mobile-portrait {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  .lf-char-portrait-frame--mobile {
+    min-height: 0;
+    padding: 6px 8px 2px;
+    width: 100%;
+    max-width: 130px;
+  }
+
+  .lf-char-mobile-pet {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .lf-char-mobile-pet .lf-equip-slot {
+    max-width: 52px;
+    min-height: 40px;
+    flex: 1;
+  }
+
+  .lf-char-pet-visual--mobile {
+    min-height: 0;
+  }
+
+  .lf-char-pet-placeholder--mobile {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+
+  .lf-char-bonus-strip--mobile {
+    flex-shrink: 0;
+    font-size: 9px;
+    padding: 4px 8px;
+    margin-top: 2px;
+  }
+
+  .lf-char-mobile-bag-head {
+    flex-shrink: 0;
+    padding: 8px 12px 0;
+  }
+
+  .lf-char-mobile-bag-title {
+    font-family: monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: #5a5670;
+    text-transform: uppercase;
+  }
+
+  .lf-char-bag-filters--mobile {
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-bottom: 6px;
+    padding: 0 12px 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .lf-char-bag-filters--mobile::-webkit-scrollbar {
+    display: none;
+  }
+
+  .lf-char-bag-filters--mobile .lf-char-bag-filter {
+    flex-shrink: 0;
+    padding: 4px 8px;
+    font-size: 9px;
+  }
+
+  .lf-char-bag-empty {
+    font-size: 11px;
+    color: #5a5670;
+    font-style: italic;
+    margin-bottom: 8px;
+  }
+
+  .lf-char-bag-section-label {
+    font-family: monospace;
+    font-size: 8px;
+    letter-spacing: 0.2em;
+    color: #5a5670;
+    text-transform: uppercase;
+    padding: 10px 0 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: 6px;
+  }
+
+  .lf-char-consumable-row {
+    background: #1c1f2a;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .lf-char-consumable-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #9590a8;
+  }
+
+  .lf-char-consumable-qty {
+    font-family: monospace;
+    font-size: 11px;
+    color: #a99fff;
+  }
+}
+
 @media (max-width: 900px) {
   .lf-char-hero {
     grid-template-columns: 1fr 1fr;

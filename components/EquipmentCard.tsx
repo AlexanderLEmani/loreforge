@@ -11,6 +11,7 @@ type Props = {
   equipped?: boolean
   onAction?: () => void
   compact?: boolean
+  mobileRow?: boolean
 }
 
 export default function EquipmentCard({
@@ -19,12 +20,13 @@ export default function EquipmentCard({
   equipped = false,
   onAction,
   compact = false,
+  mobileRow = false,
 }: Props) {
   const tier = tierMeta(item.tier)
 
   return (
     <div
-      className={`lf-equip-card lf-equip-card--tier-${item.tier}${equipped ? ' lf-equip-card--equipped' : ''}${compact ? ' lf-equip-card--compact' : ''}`}
+      className={`lf-equip-card lf-equip-card--tier-${item.tier}${equipped ? ' lf-equip-card--equipped' : ''}${compact ? ' lf-equip-card--compact' : ''}${mobileRow ? ' lf-equip-card--mobile-row' : ''}`}
       style={{
         borderColor: tier.border,
         background: `linear-gradient(145deg, ${tier.bg}, rgba(20, 24, 32, 0.95))`,
@@ -37,7 +39,7 @@ export default function EquipmentCard({
       <div className="lf-equip-card-body">
         <div className="lf-equip-card-name">{item.name}</div>
         <div className="lf-equip-card-tier" style={{ color: tier.color }}>
-          {tier.label} · {item.desc}
+          {mobileRow ? item.desc : `${tier.label} · ${item.desc}`}
         </div>
       </div>
       {action !== 'none' && onAction && (
