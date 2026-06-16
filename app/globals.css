@@ -1038,6 +1038,13 @@ body {
   max-height: none;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
   border-radius: 12px;
+  /* iOS Safari: не выделять панель/канвас как «картинку» при перетаскивании */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
 }
 
 .lf-battle-scratch-overlay {
@@ -1066,6 +1073,9 @@ body {
   cursor: grab;
   touch-action: none;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
 }
 
 .lf-battle-scratch-drag:active {
@@ -1118,6 +1128,9 @@ body {
   height: 22px;
   cursor: nwse-resize;
   touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   background: linear-gradient(135deg, transparent 50%, rgba(201, 168, 76, 0.35) 50%);
   border-radius: 0 0 10px 0;
 }
@@ -1182,6 +1195,11 @@ body {
   height: 100%;
   touch-action: none;
   cursor: crosshair;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .lf-battle-sidebar-scratch {

@@ -43,6 +43,7 @@ function drawPaperGrid(ctx: CanvasRenderingContext2D, w: number, h: number) {
 export default function BattleScratchPad({ open, onOpenChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const drawing = useRef(false)
   const lastPoint = useRef<{ x: number; y: number } | null>(null)
   const hasInk = useRef(false)
@@ -81,6 +82,41 @@ export default function BattleScratchPad({ open, onOpenChange }: Props) {
       img.src = snapshot
     }
   }, [])
+
+  useEffect(() => {
+    if (!open) return
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const blockTouch = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault()
+    }
+    const blockCtx = (e: Event) => e.preventDefault()
+    canvas.addEventListener('touchstart', blockTouch, { passive: false })
+    canvas.addEventListener('touchmove', blockTouch, { passive: false })
+    canvas.addEventListener('contextmenu', blockCtx)
+    return () => {
+      canvas.removeEventListener('touchstart', blockTouch)
+      canvas.removeEventListener('touchmove', blockTouch)
+      canvas.removeEventListener('contextmenu', blockCtx)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const panel = panelRef.current
+    if (!panel) return
+    const blockPanelTouch = (e: TouchEvent) => {
+      const target = e.target as HTMLElement
+      if (target.closest('button')) return
+      if (e.cancelable) e.preventDefault()
+    }
+    panel.addEventListener('touchstart', blockPanelTouch, { passive: false })
+    panel.addEventListener('touchmove', blockPanelTouch, { passive: false })
+    return () => {
+      panel.removeEventListener('touchstart', blockPanelTouch)
+      panel.removeEventListener('touchmove', blockPanelTouch)
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -163,6 +199,7 @@ export default function BattleScratchPad({ open, onOpenChange }: Props) {
     dragRef.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y }
     e.currentTarget.setPointerCapture(e.pointerId)
     e.preventDefault()
+    e.stopPropagation()
   }
 
   function onDragPointerMove(e: React.PointerEvent<HTMLDivElement>) {
@@ -226,8 +263,11 @@ export default function BattleScratchPad({ open, onOpenChange }: Props) {
   return (
     <div className="lf-battle-scratch-layer" role="dialog" aria-modal="false" aria-label="Черновик для счёта">
       <div
+        ref={panelRef}
         className="lf-battle-scratch-panel lf-battle-scratch-panel--floating"
         style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}
+        draggable={false}
+        onContextMenu={e => e.preventDefault()}
       >
         <div
           className="lf-battle-scratch-head lf-battle-scratch-drag"
@@ -272,6 +312,8 @@ export default function BattleScratchPad({ open, onOpenChange }: Props) {
           <canvas
             ref={canvasRef}
             className="lf-battle-scratch-canvas"
+            draggable={false}
+            onContextMenu={e => e.preventDefault()}
             onPointerDown={onCanvasPointerDown}
             onPointerMove={onCanvasPointerMove}
             onPointerUp={onCanvasPointerUp}
