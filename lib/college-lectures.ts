@@ -1,4 +1,6 @@
 import type { LectureActionDef } from '@/lib/lecture-actions'
+import lecture3 from '@/lib/lectures/3.json'
+import lecture4 from '@/lib/lectures/4.json'
 
 export type LectureSection = {
   type: string
@@ -145,128 +147,10 @@ export const FALLBACK_LECTURES: Record<number, Lecture> = {
       },
     ],
   },
-  3: {
-    title: 'Дроби',
-    sections: [
-      {
-        type: 'professor',
-        text: 'Дроби. Здесь в детстве ломается половина людей. Остальные просто молчат. Если ты здесь — мозг уже проснулся. Не пугайся.',
-      },
-      {
-        type: 'heading',
-        text: 'Целое не всегда целое',
-      },
-      {
-        type: 'text',
-        text: 'Половина яблока, треть хлеба, четверть дня. Дробь говорит правду: мир не из кирпичей. 3/4 — три куски из четырёх. Не символ. Куски.',
-      },
-      {
-        type: 'formula',
-        text: 'a/b — a числитель, b знаменатель',
-        hint: 'Знаменатель внизу держит дробь. Числитель сверху считает.',
-      },
-      {
-        type: 'heading',
-        text: 'Сложить и умножить',
-      },
-      {
-        type: 'text',
-        text: 'Сложить 1/2 и 1/3 напрямую — как яблоки плюс километры. Нужен общий знаменатель. Умножение честнее: числитель на числитель, знаменатель на знаменатель. Деление — умножить на перевёрнутую дробь.',
-      },
-      {
-        type: 'formula',
-        text: '1/2 + 1/3 = 5/6   ·   (a/b) × (c/d) = (a×c)/(b×d)',
-        hint: 'Сокращение — костюм на дробь, не новое число.',
-      },
-      {
-        type: 'quote',
-        text: '«Бог создал целые числа. Всё остальное — рук человеческих.» Кронекер не доверял дробям. Пирамиды строили без его разрешения.',
-      },
-      {
-        type: 'heading',
-        text: 'Храм дробей',
-      },
-      {
-        type: 'text',
-        text: 'Таймер длиннее, ошибка дороже. Записать шаг в Гримуаре — не слабость. Чемпионы проверяют дроби под давлением.',
-      },
-      {
-        type: 'actions',
-        text: 'Куда дальше',
-        actions: [
-          { kind: 'training', topics: ['frac'], variant: 'primary' },
-          { kind: 'grimoire' },
-          { kind: 'dungeon', dungeonId: 'frac' },
-          { kind: 'exam' },
-        ],
-      },
-      {
-        type: 'outro',
-        text: 'Один пример в зале. Потом Храм. Кронекер был неправ. Яблоко — ещё нет.',
-      },
-    ],
-  },
-  4: {
-    title: 'Проценты и пропорции',
-    sections: [
-      {
-        type: 'professor',
-        text: 'Четвёртая лекция. Впервые без угроз в начале. Ты дошёл сюда. Большинство сдаётся на дробях или на таблице умножения, думая, что это вершина мироздания.',
-      },
-      {
-        type: 'heading',
-        text: 'Процент в костюме',
-      },
-      {
-        type: 'text',
-        text: '25% — не новая магия. Это 25/100, то есть 1/4 в парадном костюме. Проценты в новостях, банках и скидках — та же дробь, другой галстук.',
-      },
-      {
-        type: 'formula',
-        text: 'n% = n/100',
-        hint: 'часть = (процент / 100) × целое',
-      },
-      {
-        type: 'heading',
-        text: '10% — ключ',
-      },
-      {
-        type: 'text',
-        text: '10% от числа — сдвиг запятой на разряд. 20% — удвоенные 10%. 5% — половина от 10%. Скидка 20% и наценка 20% не возвращают цену. Это не теория. На этом обманывают каждый день.',
-      },
-      {
-        type: 'formula',
-        text: '10% от X = X ÷ 10',
-        hint: 'Пропорция: a/b = c/d → a × d = b × c',
-      },
-      {
-        type: 'quote',
-        text: '«Кто понимает проценты — понимает банки и скидки. Кто не понимает — платит за них.» Стена Академии. Автор неизвестен. Счёт верный.',
-      },
-      {
-        type: 'heading',
-        text: 'Рынок и бой',
-      },
-      {
-        type: 'text',
-        text: 'В бою модификаторы — урон +25%, защита −10% — это твоя тема. Экзамен IV закрывает курс арифметики v1.',
-      },
-      {
-        type: 'actions',
-        text: 'Куда дальше',
-        actions: [
-          { kind: 'training', topics: ['pct'], variant: 'primary' },
-          { kind: 'dungeon', dungeonId: 'market' },
-          { kind: 'exam' },
-        ],
-      },
-      {
-        type: 'outro',
-        text: 'Последняя лекция курса. Зал, Рынок, экзамен. Гримуар не выбрасывай.',
-      },
-    ],
-  },
+  3: lecture3 as Lecture,
+  4: lecture4 as Lecture,
 }
+
 
 export function lectureLevelForUser(level: number): number {
   if (level <= 1) return 1
@@ -288,18 +172,31 @@ export const LECTURE_META = [
   { level: 4, num: 'IV', title: 'Проценты' },
 ] as const
 
-/** Максимальный номер лекции, доступный для чтения */
-export function maxUnlockedLectureLevel(userLevel: number): number {
-  return lectureLevelForUser(userLevel)
+/** Сигналы прогресса для архива лекций (игровой level + старые сохранения) */
+export type LectureUnlockContext = {
+  userLevel: number
+  completedLectures?: number[]
+  learnedSpellLectureMax?: number
+  skillNodeLectureMax?: number
 }
 
-export function isLectureUnlocked(lectureLevel: number, userLevel: number): boolean {
-  return lectureLevel >= 1 && lectureLevel <= maxUnlockedLectureLevel(userLevel)
+export function maxUnlockedLectureLevel(ctx: LectureUnlockContext | number): number {
+  const c: LectureUnlockContext = typeof ctx === 'number' ? { userLevel: ctx } : ctx
+  const fromLevel = lectureLevelForUser(c.userLevel)
+  const fromCompleted = c.completedLectures?.length ? Math.max(...c.completedLectures) : 0
+  const fromSpells = c.learnedSpellLectureMax ?? 0
+  const fromSkills = c.skillNodeLectureMax ?? 0
+  return Math.min(4, Math.max(1, fromLevel, fromCompleted, fromSpells, fromSkills))
 }
 
-export function getLectureList(userLevel: number, viewingLevel: number) {
-  const maxUnlocked = maxUnlockedLectureLevel(userLevel)
-  const current = lectureLevelForUser(userLevel)
+export function isLectureUnlocked(lectureLevel: number, ctx: LectureUnlockContext | number): boolean {
+  return lectureLevel >= 1 && lectureLevel <= maxUnlockedLectureLevel(ctx)
+}
+
+export function getLectureList(ctx: LectureUnlockContext | number, viewingLevel: number) {
+  const c: LectureUnlockContext = typeof ctx === 'number' ? { userLevel: ctx } : ctx
+  const maxUnlocked = maxUnlockedLectureLevel(c)
+  const current = lectureLevelForUser(c.userLevel)
   return LECTURE_META.map(meta => ({
     ...meta,
     unlocked: meta.level <= maxUnlocked,
@@ -309,50 +206,10 @@ export function getLectureList(userLevel: number, viewingLevel: number) {
   }))
 }
 
-/** Ревизия контента в FALLBACK; явный маркер в БД */
+/** Ревизия контента в FALLBACK; явный маркер в БД (CMS) */
 export const LECTURE_CONTENT_REVISION = 2
 
-function contentSections(sections: LectureSection[]): LectureSection[] {
-  return sections.filter(s => s.type !== 'meta')
-}
-
-/** Кнопки «Куда дальше» из кода, если в БД их нет (длинные лекции без actions). */
-function mergeActionButtons(lecture: Lecture, fallback: Lecture): Lecture {
-  if (lecture.sections.some(s => s.type === 'actions')) return lecture
-  const fallbackActions = fallback.sections.find(s => s.type === 'actions')
-  if (!fallbackActions) return lecture
-
-  const outroIdx = lecture.sections.findIndex(s => s.type === 'outro')
-  const sections = [...lecture.sections]
-  if (outroIdx >= 0) {
-    sections.splice(outroIdx, 0, fallbackActions)
-  } else {
-    sections.push(fallbackActions)
-  }
-  return { ...lecture, sections }
-}
-
-/**
- * Лекции в UI:
- * - из Supabase, если там больше блоков чем в FALLBACK (длинные лекции) или meta.revision = 2
- * - иначе FALLBACK из кода (короткий тон + actions)
- * Кнопки действий из FALLBACK подмешиваются, если в БД их нет.
- */
-export function resolveLecture(levelNum: number, fromDb: Lecture | null | undefined): Lecture {
-  const fallback = FALLBACK_LECTURES[levelNum] || FALLBACK_LECTURES[1]
-  if (!fromDb?.sections?.length) return fallback
-
-  const dbSections = contentSections(fromDb.sections)
-  const meta = fromDb.sections.find(s => s.type === 'meta') as { revision?: number } | undefined
-
-  const useDb =
-    meta?.revision === LECTURE_CONTENT_REVISION
-    || dbSections.length > fallback.sections.length
-
-  if (!useDb) return fallback
-
-  return mergeActionButtons(
-    { title: fromDb.title || fallback.title, sections: dbSections },
-    fallback,
-  )
+/** @deprecated Коллегия читает только FALLBACK */
+export function resolveLecture(levelNum: number, _fromDb?: Lecture | null): Lecture {
+  return FALLBACK_LECTURES[levelNum] || FALLBACK_LECTURES[1]
 }

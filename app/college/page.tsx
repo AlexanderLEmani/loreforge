@@ -12,8 +12,9 @@ import {
   isLectureUnlocked,
   lectureLevelForUser,
   LECTURE_NUMS,
-  resolveLecture,
+  maxUnlockedLectureLevel,
   type Lecture,
+  type LectureUnlockContext,
 } from '@/lib/college-lectures'
 import { canTakeExam, isV1Graduate, V1_COMPLETE_DESC, V1_COMPLETE_TITLE } from '@/lib/v1-cap'
 import { layout } from '@/lib/layout-classes'
@@ -21,7 +22,13 @@ import { xpProgress } from '@/lib/economy'
 import { pickLoadingMessage } from '@/lib/loading-flavor'
 import { LectureActions } from '@/components/LectureActions'
 import type { LectureActionContext } from '@/lib/lecture-actions'
-import { isLectureCompleteForSpells, parseCompletedLectures } from '@/lib/battle-spell-scrolls'
+import {
+  isLectureCompleteForSpells,
+  maxLectureLevelFromLearnedSpells,
+  maxLectureLevelFromSkillNodes,
+  parseCompletedLectures,
+  parseLearnedSpells,
+} from '@/lib/battle-spell-scrolls'
 import { LoadingScreen } from '@/components/LoadingScreen'
 
 const LEVEL_SPELLS: Record<number, [string, string, string][]> = {
@@ -51,6 +58,8 @@ export default function CollegePage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [lectureLoadingMsg, setLectureLoadingMsg] = useState('')
   const [completedLectures, setCompletedLectures] = useState<number[]>([])
+  const [learnedSpellLectureMax, setLearnedSpellLectureMax] = useState(0)
+  const [skillNodeLectureMax, setSkillNodeLectureMax] = useState(0)
   const [markingLecture, setMarkingLecture] = useState(false)
 
   useEffect(() => {
@@ -58,19 +67,15 @@ export default function CollegePage() {
   }, [lectureLoading])
 
   async function ensureLectureInCache(levelNum: number): Promise<Lecture> {
-    if (lectureCache[levelNum]) return lectureCache[levelNum]
-    const { data } = await supabase
-      .from('lectures')
-      .select('title, sections')
-      .eq('level', levelNum)
-      .maybeSingle()
-    const resolved = resolveLecture(levelNum, data)
-    setLectureCache(prev => ({ ...prev, [levelNum]: resolved }))
+    const resolved = lectureCache[levelNum] || FALLBACK_LECTURES[levelNum] || FALLBACK_LECTURES[1]
+    if (!lectureCache[levelNum]) {
+      setLectureCache(prev => ({ ...prev, [levelNum]: resolved }))
+    }
     return resolved
   }
 
-  async function openLecture(levelNum: number, userLevel: number) {
-    if (!isLectureUnlocked(levelNum, userLevel)) return
+  async function openLecture(levelNum: number, unlockCtx: LectureUnlockContext) {
+    if (!isLectureUnlocked(levelNum, unlockCtx)) return
     setLectureLoading(true)
     setSelectedLectureLevel(levelNum)
     await ensureLectureInCache(levelNum)
@@ -86,34 +91,66 @@ export default function CollegePage() {
           return
         }
 
-        const { data, error: userError } = await supabase
+        let { data, error: userError } = await supabase
           .from('users')
-          .select(`${USER_NAV_SELECT}, completed_lectures`)
+          .select(`${USER_NAV_SELECT}, completed_lectures, learned_spells, spell_scrolls`)
           .eq('id', user.id)
           .single()
 
-        if (userError) {
+        if (userError?.message?.match(/completed_lectures|learned_spells|spell_scrolls/)) {
+          const fallback = await supabase
+            .from('users')
+            .select(USER_NAV_SELECT)
+            .eq('id', user.id)
+            .single()
+          data = fallback.data
+            ? {
+                ...fallback.data,
+                completed_lectures: [],
+                learned_spells: [],
+                spell_scrolls: null,
+              }
+            : null
+          userError = fallback.error
+        }
+
+        if (userError || !data) {
           setLoadError('Не удалось загрузить профиль')
           return
         }
 
         setUserData({ ...data, id: user.id })
-        setCompletedLectures(parseCompletedLectures(data?.completed_lectures))
-        const level = data?.level || 1
-        const currentLecture = lectureLevelForUser(level)
+        const completed = parseCompletedLectures(data?.completed_lectures)
+        setCompletedLectures(completed)
+        const learned = parseLearnedSpells(data?.learned_spells, data?.spell_scrolls)
+        const spellLectureMax = maxLectureLevelFromLearnedSpells(learned)
+        setLearnedSpellLectureMax(spellLectureMax)
 
-        const { data: allLectures } = await supabase
-          .from('lectures')
-          .select('level, title, sections')
-          .order('level')
+        const { data: skillRows } = await supabase
+          .from('user_skills')
+          .select('node_id')
+          .eq('user_id', user.id)
+        const skillLectureMax = maxLectureLevelFromSkillNodes(
+          (skillRows ?? []).map(r => r.node_id as number),
+        )
+        setSkillNodeLectureMax(skillLectureMax)
+
+        const level = data?.level || 1
+        const unlockCtx: LectureUnlockContext = {
+          userLevel: level,
+          completedLectures: completed,
+          learnedSpellLectureMax: spellLectureMax,
+          skillNodeLectureMax: skillLectureMax,
+        }
+        const currentLecture = lectureLevelForUser(level)
+        const maxUnlocked = maxUnlockedLectureLevel(unlockCtx)
 
         const cache: Record<number, Lecture> = {}
         for (let i = 1; i <= 4; i++) {
-          const row = allLectures?.find(l => l.level === i)
-          cache[i] = resolveLecture(i, row ? { title: row.title, sections: row.sections } : null)
+          cache[i] = FALLBACK_LECTURES[i]
         }
         setLectureCache(cache)
-        setSelectedLectureLevel(currentLecture)
+        setSelectedLectureLevel(Math.min(maxUnlocked, Math.max(currentLecture, 1)))
 
         if (!data.visited_college) setShowWelcome(true)
 
@@ -134,9 +171,15 @@ export default function CollegePage() {
   }, [])
 
   const level = userData?.level || 1
+  const unlockCtx: LectureUnlockContext = {
+    userLevel: level,
+    completedLectures,
+    learnedSpellLectureMax,
+    skillNodeLectureMax,
+  }
   const currentLectureLevel = lectureLevelForUser(level)
   const lecture = lectureCache[selectedLectureLevel] || getLectureForLevel(selectedLectureLevel)
-  const lectureList = getLectureList(level, selectedLectureLevel).map(l => ({
+  const lectureList = getLectureList(unlockCtx, selectedLectureLevel).map(l => ({
     ...l,
     done: l.done || isLectureCompleteForSpells(l.level, level, completedLectures),
   }))
@@ -145,7 +188,7 @@ export default function CollegePage() {
 
   async function markLectureRead() {
     if (markingLecture || selectedLectureComplete) return
-    if (!isLectureUnlocked(selectedLectureLevel, level)) return
+    if (!isLectureUnlocked(selectedLectureLevel, unlockCtx)) return
     setMarkingLecture(true)
     const next = [...new Set([...completedLectures, selectedLectureLevel])].sort((a, b) => a - b)
     const { data: { user } } = await supabase.auth.getUser()
@@ -161,8 +204,8 @@ export default function CollegePage() {
   const v1Done = isV1Graduate(level)
   const showExamCta = canTakeExam(level, examReady)
 
-  const canGoPrev = selectedLectureLevel > 1 && isLectureUnlocked(selectedLectureLevel - 1, level)
-  const canGoNext = selectedLectureLevel < 4 && isLectureUnlocked(selectedLectureLevel + 1, level)
+  const canGoPrev = selectedLectureLevel > 1 && isLectureUnlocked(selectedLectureLevel - 1, unlockCtx)
+  const canGoNext = selectedLectureLevel < 4 && isLectureUnlocked(selectedLectureLevel + 1, unlockCtx)
 
   const actionCtx: LectureActionContext = {
     userLevel: level,
@@ -212,7 +255,7 @@ export default function CollegePage() {
                 </div>
                 <div className="lf-lecture-nav">
                   <div
-                    onClick={() => canGoPrev && openLecture(selectedLectureLevel - 1, level)}
+                    onClick={() => canGoPrev && openLecture(selectedLectureLevel - 1, unlockCtx)}
                     style={{
                       padding: '6px 12px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '11px',
                       border: '1px solid rgba(255,255,255,0.1)', color: canGoPrev ? '#9590a8' : '#3a3d4a',
@@ -222,7 +265,7 @@ export default function CollegePage() {
                     ← Пред.
                   </div>
                   <div
-                    onClick={() => canGoNext && openLecture(selectedLectureLevel + 1, level)}
+                    onClick={() => canGoNext && openLecture(selectedLectureLevel + 1, unlockCtx)}
                     style={{
                       padding: '6px 12px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '11px',
                       border: '1px solid rgba(255,255,255,0.1)', color: canGoNext ? '#9590a8' : '#3a3d4a',
@@ -239,7 +282,7 @@ export default function CollegePage() {
               <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a99fff' }}>Профессор Горус · Архимаг Арифметики</div>
               {viewingArchive && (
                 <div
-                  onClick={() => openLecture(currentLectureLevel, level)}
+                  onClick={() => openLecture(currentLectureLevel, unlockCtx)}
                   style={{ marginTop: '10px', fontFamily: 'monospace', fontSize: '11px', color: '#b8aeff', cursor: 'pointer' }}
                 >
                   ↑ Вернуться к текущей лекции ({LECTURE_NUMS[currentLectureLevel - 1]})
@@ -307,7 +350,7 @@ export default function CollegePage() {
               </div>
             )}
 
-            {isLectureUnlocked(selectedLectureLevel, level) && (
+            {isLectureUnlocked(selectedLectureLevel, unlockCtx) && (
               <div style={{ marginTop: '2rem' }}>
                 {selectedLectureComplete ? (
                   <div style={{ padding: '14px 16px', borderRadius: '10px', background: 'rgba(61,184,122,0.08)', border: '1px solid rgba(61,184,122,0.35)', fontSize: '13px', color: '#3db87a', lineHeight: 1.55 }}>
@@ -334,7 +377,7 @@ export default function CollegePage() {
             {lectureList.map(l => (
               <div
                 key={l.num}
-                onClick={() => l.unlocked && openLecture(l.level, level)}
+                onClick={() => l.unlocked && openLecture(l.level, unlockCtx)}
                 style={{
                   background: l.isViewing ? 'rgba(123,108,255,0.15)' : l.isCurrent ? 'rgba(123,108,255,0.08)' : '#1c1f2a',
                   border: `1px solid ${l.isViewing ? 'rgba(169,159,255,0.55)' : l.isCurrent ? 'rgba(123,108,255,0.35)' : 'rgba(255,255,255,0.08)'}`,

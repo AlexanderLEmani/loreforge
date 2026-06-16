@@ -143,6 +143,35 @@ export function parseCompletedLectures(raw: unknown): number[] {
   return raw.filter((n): n is number => typeof n === 'number' && n >= 1 && n <= 4)
 }
 
+/** Макс. лекция, к которой привязаны уже выученные заклинания (legacy spell_scrolls тоже) */
+export function maxLectureLevelFromLearnedSpells(learned: LearnedSpells): number {
+  let max = 0
+  for (const id of learned) {
+    const def = spellScrollDef(id)
+    if (def) max = Math.max(max, def.lectureLevel)
+  }
+  return max
+}
+
+/** Пассивки «Мастер …» → номер лекции (старые сохранения без completed_lectures) */
+const MASTERY_PASSIVE_LECTURE: Record<number, number> = {
+  7: 1,
+  14: 1,
+  21: 2,
+  28: 2,
+  35: 3,
+  42: 4,
+}
+
+export function maxLectureLevelFromSkillNodes(nodeIds: number[]): number {
+  let max = 0
+  for (const id of nodeIds) {
+    const lecture = MASTERY_PASSIVE_LECTURE[id]
+    if (lecture) max = Math.max(max, lecture)
+  }
+  return max
+}
+
 export function isLectureCompleteForSpells(
   lectureLevel: number,
   userLevel: number,

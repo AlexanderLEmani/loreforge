@@ -13,14 +13,16 @@ type Props = {
 }
 
 export default function Sidebar({ level = 1, xp = 0, xpNext = 100, gold = 0, step = 0, navUnlock }: Props) {
+  const examReady = xp >= xpNext
   const xpPct = Math.min((xp / xpNext) * 100, 100)
+  const xpLabel = examReady ? `${xpNext} / ${xpNext} ✓` : `${xp} / ${xpNext}`
 
   return (
     <div className="lf-sidebar-l lf-sidebar-panel" style={{ background: '#111318', borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
 
       <div style={{ marginBottom: '6px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: '9px', color: '#5a5670', marginBottom: '4px' }}>
-          <span>УРОВЕНЬ {level}</span><span>{xp} / {xpNext}</span>
+          <span>УРОВЕНЬ {level}</span><span>{xpLabel}</span>
         </div>
         <div style={{ height: '3px', background: '#171920', borderRadius: '2px', overflow: 'hidden' }}>
           <div style={{ height: '100%', background: '#7b6cff', width: `${xpPct}%`, transition: 'width 0.4s' }}></div>
