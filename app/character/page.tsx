@@ -402,7 +402,7 @@ export default function CharacterPage() {
       </nav>
 
       {/* ── Mobile: fixed HUD + scrollable inventory (< md) ── */}
-      <div className="md:hidden flex flex-col h-[calc(100vh-64px)] overflow-hidden">
+      <div className="md:hidden flex flex-col lf-char-mobile-shell overflow-hidden">
         <section className="lf-char-mobile-hud shrink-0 flex flex-col">
           <div className="lf-char-mobile-hud-top shrink-0">
             <div className="lf-char-mobile-hud-head">
@@ -505,7 +505,7 @@ export default function CharacterPage() {
       </div>
 
       {/* ── Tablet: 2-column fixed layout (md – lg) ── */}
-      <div className="hidden md:flex xl:hidden h-[calc(100vh-64px)] overflow-hidden lf-char-tablet-shell">
+      <div className="hidden md:flex xl:hidden lf-char-tablet-shell overflow-hidden">
         <aside className="lf-char-desk-left w-[45%] shrink-0 min-w-0 flex flex-col overflow-hidden bg-[#111318] border-r border-white/10">
           {deskHead}
           {characterHeroDesk}
